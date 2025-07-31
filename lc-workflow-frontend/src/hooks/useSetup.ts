@@ -8,7 +8,7 @@ export const useSetupRequired = () => {
   return useQuery({
     queryKey: ['setup', 'required'],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/auth/setup-required');
+      const response = await apiClient.get('/auth/setup-required');
       return (response as { data: { setup_required: boolean } }).data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -19,7 +19,7 @@ export const useSetupRequired = () => {
 export const useSetupFirstAdmin = () => {
   return useMutation({
     mutationFn: async (data: UserCreate) => {
-      const response = await apiClient.post('/api/v1/auth/setup-first-admin', data);
+      const response = await apiClient.post('/auth/setup-first-admin', data);
       return (response as { data: User }).data;
     },
     onSuccess: () => {

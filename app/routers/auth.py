@@ -175,7 +175,7 @@ async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)
     
     # Create the first admin user
     db_user = User(
-        **user.dict(exclude={"password"}),
+        **user.dict(exclude={"password", "role", "status"}),
         password_hash=get_password_hash(user.password),
         role="admin",  # Force admin role for first user
         status="active"

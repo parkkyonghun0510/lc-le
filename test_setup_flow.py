@@ -17,8 +17,8 @@ def test_setup_flow():
     
     try:
         # Test 1: Check if setup is required
-        print("1. Testing /auth/setup-required endpoint...")
-        response = requests.get(f"{base_url}/auth/setup-required")
+        print("1. Testing /api/v1/auth/setup-required endpoint...")
+        response = requests.get(f"{base_url}/api/v1/auth/setup-required")
         if response.status_code == 200:
             data = response.json()
             print(f"   ✓ Status: {response.status_code}")
@@ -39,7 +39,7 @@ def test_setup_flow():
             }
             
             response = requests.post(
-                f"{base_url}/auth/setup-first-admin",
+                f"{base_url}/api/v1/auth/setup-first-admin",
                 json=admin_data,
                 headers={"Content-Type": "application/json"}
             )
@@ -56,7 +56,7 @@ def test_setup_flow():
                 
             # Test 3: Verify setup is no longer required
             print("\n3. Verifying setup is now complete...")
-            response = requests.get(f"{base_url}/auth/setup-required")
+            response = requests.get(f"{base_url}/api/v1/auth/setup-required")
             if response.status_code == 200:
                 data = response.json()
                 if not data.get('setup_required'):

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tansta
 import { apiClient } from '@/lib/api';
 import { User, UserCreate, UserUpdate, PaginatedResponse } from '@/types/models';
 import toast from 'react-hot-toast';
+import { isValidUUID, validateUUID } from '@/lib/utils';
 
 // User query keys
 export const userKeys = {
@@ -61,7 +62,7 @@ export const useUser = (id: string) => {
     queryKey: userKeys.detail(id),
     queryFn: () => apiClient.get<User>(`/users/${id}`),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!id,
+    enabled: !!id && isValidUUID(id),
   });
 };
 
@@ -85,7 +86,10 @@ export const useUpdateUser = (id: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: UserUpdate) => apiClient.patch<User>(`/users/${id}`, data),
+    mutationFn: (data: UserUpdate) => {
+      validateUUID(id, 'User');
+      return apiClient.patch<User>(`/users/${id}`, data);
+    },
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(userKeys.detail(id), updatedUser);
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
@@ -102,7 +106,10 @@ export const useDeleteUser = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/users/${id}`),
+    mutationFn: (id: string) => {
+      validateUUID(id, 'User');
+      return apiClient.delete(`/users/${id}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
       toast.success('User deleted successfully!');

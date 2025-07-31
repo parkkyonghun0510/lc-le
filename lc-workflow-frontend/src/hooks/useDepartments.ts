@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { Department, PaginatedResponse } from '@/types/models';
 import toast from 'react-hot-toast';
+import { isValidUUID, validateUUID } from '@/lib/utils';
 
 // Department query keys
 export const departmentKeys = {
@@ -41,7 +42,7 @@ export const useDepartment = (id: string) => {
     queryKey: departmentKeys.detail(id),
     queryFn: () => apiClient.get<Department>(`/departments/${id}`),
     staleTime: 5 * 60 * 1000,
-    enabled: !!id,
+    enabled: !!id && isValidUUID(id),
   });
 };
 
@@ -66,8 +67,10 @@ export const useUpdateDepartment = (id: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { name?: string; code?: string; description?: string; manager_id?: string; is_active?: boolean }) =>
-      apiClient.patch<Department>(`/departments/${id}`, data),
+    mutationFn: (data: { name?: string; code?: string; description?: string; manager_id?: string; is_active?: boolean }) => {
+      validateUUID(id, 'Department');
+      return apiClient.patch<Department>(`/departments/${id}`, data);
+    },
     onSuccess: (updatedDepartment) => {
       queryClient.setQueryData(departmentKeys.detail(id), updatedDepartment);
       queryClient.invalidateQueries({ queryKey: departmentKeys.lists() });
@@ -84,7 +87,10 @@ export const useDeleteDepartment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/departments/${id}`),
+    mutationFn: (id: string) => {
+      validateUUID(id, 'Department');
+      return apiClient.delete(`/departments/${id}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: departmentKeys.lists() });
       toast.success('Department deleted successfully!');

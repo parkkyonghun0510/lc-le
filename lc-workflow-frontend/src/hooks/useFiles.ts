@@ -35,7 +35,7 @@ export const useFile = (id: string) => {
     queryKey: fileKeys.detail(id),
     queryFn: () => apiClient.get<CustomFile>(`/files/${id}`),
     staleTime: 5 * 60 * 1000,
-    enabled: !!id,
+    enabled: !!id && id !== 'undefined' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id),
   });
 };
 
@@ -71,7 +71,12 @@ export const useDeleteFile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/files/${id}`),
+    mutationFn: (id: string) => {
+      if (!id || id === 'undefined' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+        throw new Error('Invalid file ID format');
+      }
+      return apiClient.delete(`/files/${id}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
       toast.success('File deleted successfully!');
@@ -86,6 +91,9 @@ export const useDeleteFile = () => {
 export const useDownloadFile = () => {
   return useMutation({
     mutationFn: async (id: string) => {
+      if (!id || id === 'undefined' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+        throw new Error('Invalid file ID format');
+      }
       const response = await apiClient.get<Blob>(`/files/${id}/download`, {
         responseType: 'blob',
       });

@@ -14,27 +14,25 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   const { isAuthenticated, isLoading, user, role } = useAuthContext();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
-    }
-
-    if (!isLoading && isAuthenticated && requiredRoles && requiredRoles.length > 0) {
-      if (!requiredRoles.includes(role || '')) {
-        router.push('/unauthorized');
+    const timer = setTimeout(() => {
+      if (!isLoading) {
+        if (!isAuthenticated) {
+          router.push('/login');
+        } else if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(role || '')) {
+          router.push('/unauthorized');
+        }
       }
-    }
+    }, 1000); // Wait 1 second for auth state to stabilize
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated, isLoading, requiredRoles, role, router]);
 
-  if (isLoading) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(role || '')) {

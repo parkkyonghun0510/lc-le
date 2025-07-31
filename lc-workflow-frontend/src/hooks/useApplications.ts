@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tansta
 import { apiClient } from '@/lib/api';
 import { CustomerApplication, CustomerApplicationCreate, CustomerApplicationUpdate, PaginatedResponse } from '@/types/models';
 import toast from 'react-hot-toast';
+import { handleApiError } from '@/lib/handleApiError';
+import { isValidUUID, validateUUID } from '@/lib/utils';
 
 // Application query keys
 export const applicationKeys = {
@@ -57,7 +59,7 @@ export const useApplication = (id: string) => {
     queryKey: applicationKeys.detail(id),
     queryFn: () => apiClient.get<CustomerApplication>(`/applications/${id}`),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!id,
+    enabled: !!id && isValidUUID(id),
   });
 };
 
@@ -72,42 +74,44 @@ export const useCreateApplication = () => {
       toast.success('Application created successfully!');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to create application';
-      toast.error(message);
+      handleApiError(error, 'Failed to create application');
     },
   });
 };
 
 export const useUpdateApplication = (id: string) => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: (data: CustomerApplicationUpdate) => 
-      apiClient.patch<CustomerApplication>(`/applications/${id}`, data),
+    mutationFn: (data: CustomerApplicationUpdate) => {
+      validateUUID(id, 'Application');
+      return apiClient.patch<CustomerApplication>(`/applications/${id}`, data);
+    },
     onSuccess: (updatedApplication) => {
       queryClient.setQueryData(applicationKeys.detail(id), updatedApplication);
       queryClient.invalidateQueries({ queryKey: applicationKeys.lists() });
       toast.success('Application updated successfully!');
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to update application';
-      toast.error(message);
+    onError: (error) => {
+      handleApiError(error, 'Failed to update application');
     },
   });
 };
 
 export const useDeleteApplication = () => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/applications/${id}`),
+    mutationFn: (id: string) => {
+      validateUUID(id, 'Application');
+      return apiClient.delete(`/applications/${id}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: applicationKeys.lists() });
       toast.success('Application deleted successfully!');
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to delete application';
-      toast.error(message);
+    onError: (error) => {
+      handleApiError(error, 'Failed to delete application');
     },
   });
 };
@@ -117,19 +121,20 @@ export const useUpdateApplicationStatus = (id: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ status, rejection_reason }: { status: string; rejection_reason?: string }) => 
-      apiClient.patch<CustomerApplication>(`/applications/${id}`, { 
+    mutationFn: ({ status, rejection_reason }: { status: string; rejection_reason?: string }) => {
+      validateUUID(id, 'Application');
+      return apiClient.patch<CustomerApplication>(`/applications/${id}`, { 
         status, 
         rejection_reason 
-      }),
+      });
+    },
     onSuccess: (updatedApplication) => {
       queryClient.setQueryData(applicationKeys.detail(id), updatedApplication);
       queryClient.invalidateQueries({ queryKey: applicationKeys.lists() });
       toast.success('Application status updated successfully!');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to update status';
-      toast.error(message);
+      handleApiError(error, 'Failed to update status');
     },
   });
 };

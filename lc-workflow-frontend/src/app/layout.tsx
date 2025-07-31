@@ -3,7 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
-import { Toaster } from "react-hot-toast";
+import { ToasterClient } from "@/components/ToasterClient";
+
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,16 +23,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <QueryProvider>
           <AuthProvider>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-              }}
-            />
+            <ToasterClient />
             {children}
           </AuthProvider>
         </QueryProvider>

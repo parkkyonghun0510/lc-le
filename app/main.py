@@ -54,6 +54,26 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/api/v1/health")
+async def api_health_check():
+    try:
+        # Test database connectivity
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {
+            "status": "healthy", 
+            "service": "lc-workflow-api",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "lc-workflow-api", 
+            "database": "disconnected",
+            "error": str(e)
+        }
+
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",

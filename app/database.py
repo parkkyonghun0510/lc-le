@@ -9,8 +9,15 @@ def get_async_database_url(url: str) -> str:
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
 
+# Configure SSL for Railway PostgreSQL
 async_database_url = get_async_database_url(settings.DATABASE_URL)
-engine = create_async_engine(async_database_url, echo=settings.DEBUG)
+engine = create_async_engine(
+    async_database_url, 
+    echo=settings.DEBUG,
+    connect_args={
+        "ssl": "require" if "railway" in async_database_url else False
+    }
+)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 class Base(DeclarativeBase):

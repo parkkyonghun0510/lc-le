@@ -140,3 +140,47 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
+
+@router.get("/setup-required")
+async def check_setup_required(db: AsyncSession = Depends(get_db)):
+    """Check if initial setup is required (no users in database)"""
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return {"setup_required": len(users) == 0}
+
+@router.post("/setup-first-admin", response_model=UserResponse)
+async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    """Create the first admin user when no users exist"""
+    # Check if setup is actually required
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    if len(users) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Setup has already been completed"
+        )
+    
+    # Check if username or email already exists (double-check)
+    result = await db.execute(
+        select(User).where(
+            (User.username == user.username) | (User.email == user.email)
+        )
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username or email already exists"
+        )
+    
+    # Create the first admin user
+    db_user = User(
+        **user.dict(exclude={"password"}),
+        password_hash=get_password_hash(user.password),
+        role="admin",  # Force admin role for first user
+        status="active"
+    )
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return UserResponse.from_orm(db_user)

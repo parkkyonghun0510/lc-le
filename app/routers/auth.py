@@ -10,7 +10,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models import User
-from app.schemas import TokenResponse, UserResponse, UserLogin
+from app.schemas import TokenResponse, UserResponse, UserLogin, UserCreate
 from app.core.config import settings
 
 router = APIRouter()
@@ -183,4 +183,4 @@ async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
-    return UserResponse.from_orm(db_user)
+    return UserResponse.model_validate(db_user)

@@ -58,12 +58,39 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Map MinIO to S3 variables for compatibility
-        self.S3_ENDPOINT = self.MINIO_ENDPOINT
-        self.S3_ACCESS_KEY = self.MINIO_ACCESS_KEY
-        self.S3_SECRET_KEY = self.MINIO_SECRET_KEY
-        self.S3_BUCKET_NAME = self.MINIO_BUCKET_NAME
-        self.S3_USE_SSL = self.MINIO_SECURE
+        # Map Railway environment variables
+        if hasattr(self, 'DRAGONFLY_URL') and self.DRAGONFLY_URL:
+            self.REDIS_URL = self.DRAGONFLY_URL
+            
+        # Map MinIO variables from Railway
+        if hasattr(self, 'MINIO_PRIVATE_ENDPOINT') and self.MINIO_PRIVATE_ENDPOINT:
+            self.MINIO_ENDPOINT = self.MINIO_PRIVATE_ENDPOINT
+            self.S3_ENDPOINT = self.MINIO_PRIVATE_ENDPOINT
+            
+        if hasattr(self, 'MINIO_ROOT_USER') and self.MINIO_ROOT_USER:
+            self.MINIO_ACCESS_KEY = self.MINIO_ROOT_USER
+            self.S3_ACCESS_KEY = self.MINIO_ROOT_USER
+            
+        if hasattr(self, 'MINIO_ROOT_PASSWORD') and self.MINIO_ROOT_PASSWORD:
+            self.MINIO_SECRET_KEY = self.MINIO_ROOT_PASSWORD
+            self.S3_SECRET_KEY = self.MINIO_ROOT_PASSWORD
+            
+        if hasattr(self, 'MINIO_BUCKET_NAME') and self.MINIO_BUCKET_NAME:
+            self.S3_BUCKET_NAME = self.MINIO_BUCKET_NAME
+            
+        if hasattr(self, 'MINIO_SECURE'):
+            self.S3_USE_SSL = self.MINIO_SECURE
+            self.MINIO_SECURE = self.MINIO_SECURE
+            
+        # Map MinIO to S3 variables for compatibility (fallback)
+        if not self.S3_ENDPOINT and self.MINIO_ENDPOINT:
+            self.S3_ENDPOINT = self.MINIO_ENDPOINT
+        if not self.S3_ACCESS_KEY and self.MINIO_ACCESS_KEY:
+            self.S3_ACCESS_KEY = self.MINIO_ACCESS_KEY
+        if not self.S3_SECRET_KEY and self.MINIO_SECRET_KEY:
+            self.S3_SECRET_KEY = self.MINIO_SECRET_KEY
+        if not self.S3_BUCKET_NAME and self.MINIO_BUCKET_NAME:
+            self.S3_BUCKET_NAME = self.MINIO_BUCKET_NAME
         
         # Handle CORS origins from environment
         if self.CORS_ORIGINS:

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useDepartments, useDeleteDepartment } from '@/hooks/useDepartments';
+import { useDepartmentsWithCounts, useDeleteDepartment } from '@/hooks/useDepartments';
 import { Department } from '@/types/models';
 import { 
   Search, 
@@ -29,7 +29,7 @@ export default function DepartmentsPage() {
     data: departmentsData, 
     isLoading, 
     error 
-  } = useDepartments({
+  } = useDepartmentsWithCounts({
     page: currentPage,
     size: pageSize,
     search: searchTerm || undefined,

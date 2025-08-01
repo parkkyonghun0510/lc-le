@@ -9,8 +9,8 @@ export const useSetupRequired = () => {
     queryKey: ['setup', 'required'],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/auth/setup-required');
-        return (response as { data: { setup_required: boolean } }).data;
+        const response = await apiClient.get<{ setup_required: boolean }>('/auth/setup-required');
+        return response;
       } catch (error) {
         // Return a default value if the API call fails
         console.error('Failed to check setup status:', error);
@@ -25,8 +25,8 @@ export const useSetupRequired = () => {
 export const useSetupFirstAdmin = () => {
   return useMutation({
     mutationFn: async (data: UserCreate) => {
-      const response = await apiClient.post('/auth/setup-first-admin', data);
-      return (response as { data: User }).data;
+      const response = await apiClient.post<User>('/auth/setup-first-admin', data);
+      return response;
     },
     onSuccess: () => {
       toast.success('Initial setup completed successfully!');

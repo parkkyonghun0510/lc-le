@@ -1,9 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDepartment } from '@/hooks/useDepartments';
-import { useBranches } from '@/hooks/useBranches';
-import { useUsers } from '@/hooks/useUsers';
+import { useDepartmentWithRelations } from '@/hooks/useDepartments';
 import { ArrowLeft, Building, Calendar, Users, MapPin, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
@@ -13,9 +11,7 @@ export default function DepartmentDetailPage() {
   const params = useParams();
   const departmentId = params.id as string;
   
-  const { data: department, isLoading, error } = useDepartment(departmentId);
-  const { data: branchesData } = useBranches({ department_id: departmentId, size: 100 });
-  const { data: usersData } = useUsers({ department_id: departmentId, size: 100 });
+  const { data: department, isLoading, error } = useDepartmentWithRelations(departmentId);
 
   if (isLoading) {
     return (
@@ -109,16 +105,16 @@ export default function DepartmentDetailPage() {
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">{usersData?.total || 0}</div>
+                <div className="text-3xl font-bold text-blue-600">{department.user_count || 0}</div>
                 <div className="text-sm text-gray-600">Total Users</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{branchesData?.total || 0}</div>
+                <div className="text-3xl font-bold text-green-600">{department.branch_count || 0}</div>
                 <div className="text-sm text-gray-600">Branches</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-600">
-                  {usersData?.items?.filter(user => user.is_active).length || 0}
+                  {department.active_user_count || 0}
                 </div>
                 <div className="text-sm text-gray-600">Active Users</div>
               </div>
@@ -163,14 +159,14 @@ export default function DepartmentDetailPage() {
               </div>
             </div>
             <div className="p-6">
-              {branchesData?.items?.length === 0 ? (
+              {(!department.branches || department.branches.length === 0) ? (
                 <div className="text-center py-8">
                   <MapPin className="mx-auto h-8 w-8 text-gray-400" />
                   <p className="mt-2 text-sm text-gray-600">No branches found</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {branchesData?.items?.slice(0, 5).map((branch) => (
+                  {department.branches.slice(0, 5).map((branch) => (
                     <div key={branch.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <MapPin className="h-4 w-4 text-gray-400" />
@@ -187,13 +183,13 @@ export default function DepartmentDetailPage() {
                       </Link>
                     </div>
                   ))}
-                  {(branchesData?.total || 0) > 5 && (
+                  {department.branches.length > 5 && (
                     <div className="text-center pt-4">
                       <Link
                         href={`/branches?department_id=${departmentId}`}
                         className="text-sm text-blue-600 hover:text-blue-700"
                       >
-                        View all {branchesData?.total} branches
+                        View all {department.branches.length} branches
                       </Link>
                     </div>
                   )}
@@ -216,14 +212,14 @@ export default function DepartmentDetailPage() {
               </div>
             </div>
             <div className="p-6">
-              {usersData?.items?.length === 0 ? (
+              {(!department.users || department.users.length === 0) ? (
                 <div className="text-center py-8">
                   <Users className="mx-auto h-8 w-8 text-gray-400" />
                   <p className="mt-2 text-sm text-gray-600">No users found</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {usersData?.items?.slice(0, 5).map((user) => (
+                  {department.users.slice(0, 5).map((user: any) => (
                     <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -240,9 +236,9 @@ export default function DepartmentDetailPage() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
-                          {user.is_active ? 'Active' : 'Inactive'}
+                          {user.status === 'active' ? 'Active' : 'Inactive'}
                         </span>
                         <Link
                           href={`/users/${user.id}`}
@@ -253,13 +249,13 @@ export default function DepartmentDetailPage() {
                       </div>
                     </div>
                   ))}
-                  {(usersData?.total || 0) > 5 && (
+                  {department.users.length > 5 && (
                     <div className="text-center pt-4">
                       <Link
                         href={`/users?department_id=${departmentId}`}
                         className="text-sm text-blue-600 hover:text-blue-700"
                       >
-                        View all {usersData?.total} users
+                        View all {department.users.length} users
                       </Link>
                     </div>
                   )}

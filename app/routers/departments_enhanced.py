@@ -68,20 +68,37 @@ async def list_departments(
     if include_counts:
         # Include user count subquery
         user_count_subquery = select(func.count(User.id)).where(User.department_id == Department.id).scalar_subquery()
-        query = select(Department, user_count_subquery.label('user_count')).options(selectinload(Department.manager))
+        active_user_count_subquery = select(func.count(User.id)).where(
+            and_(User.department_id == Department.id, User.status == 'active')
+        ).scalar_subquery()
+        
+        query = select(
+            Department, 
+            user_count_subquery.label('user_count'),
+            active_user_count_subquery.label('active_user_count')
+        ).options(selectinload(Department.manager))
     else:
         query = select(Department).options(selectinload(Department.manager))
     
     # Apply search filter
     if search:
         search_term = f"%{search}%"
-        query = query.where(
-            or_(
-                Department.name.ilike(search_term),
-                Department.code.ilike(search_term),
-                Department.description.ilike(search_term)
+        if include_counts:
+            query = query.where(
+                or_(
+                    Department.name.ilike(search_term),
+                    Department.code.ilike(search_term),
+                    Department.description.ilike(search_term)
+                )
             )
-        )
+        else:
+            query = query.where(
+                or_(
+                    Department.name.ilike(search_term),
+                    Department.code.ilike(search_term),
+                    Department.description.ilike(search_term)
+                )
+            )
     
     # Apply status filter
     if status:
@@ -134,15 +151,21 @@ async def list_departments(
     offset = (page - 1) * size
     query = query.offset(offset).limit(size)
     
-    # Execute query and format results
     result = await db.execute(query)
     
     if include_counts:
         departments_with_counts = result.all()
-        items = [{
-            **DepartmentResponse.from_orm(dept).dict(),
-            "user_count": user_count
-        } for dept, user_count in departments_with_counts]
+        items = []
+        for row in departments_with_counts:
+            dept = row[0]  # Department object
+            user_count = row[1] if len(row) > 1 else 0
+            active_user_count = row[2] if len(row) > 2 else 0
+            
+            dept_dict = DepartmentResponse.from_orm(dept).dict()
+            dept_dict["user_count"] = user_count
+            dept_dict["active_user_count"] = active_user_count
+            dept_dict["branch_count"] = 0  # TODO: Add branch count when branches are linked to departments
+            items.append(dept_dict)
     else:
         departments = result.scalars().all()
         items = [DepartmentResponse.from_orm(dept) for dept in departments]
@@ -340,6 +363,14 @@ async def get_department_stats(
     )
     user_count = user_count_result.scalar() or 0
     
+    # Get active user count in this department
+    active_user_count_result = await db.execute(
+        select(func.count(User.id)).where(
+            and_(User.department_id == department_id, User.status == 'active')
+        )
+    )
+    active_user_count = active_user_count_result.scalar() or 0
+    
     # Get application count from users in this department
     from app.models import CustomerApplication
     app_count_result = await db.execute(
@@ -353,6 +384,7 @@ async def get_department_stats(
         "department_id": str(department_id),
         "department_name": department.name,
         "user_count": user_count,
+        "active_user_count": active_user_count,
         "application_count": app_count,
         "is_active": department.is_active
     }
@@ -360,6 +392,7 @@ async def get_department_stats(
 @router.get("/{department_id}/users", response_model=List[Dict[str, Any]])
 async def get_department_users(
     department_id: UUID,
+    limit: Optional[int] = Query(None, description="Limit number of users returned"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -377,11 +410,12 @@ async def get_department_users(
         )
     
     # Get users in this department
-    users_result = await db.execute(
-        select(User)
-        .where(User.department_id == department_id)
-        .order_by(User.first_name, User.last_name)
-    )
+    query = select(User).where(User.department_id == department_id).order_by(User.first_name, User.last_name)
+    
+    if limit:
+        query = query.limit(limit)
+    
+    users_result = await db.execute(query)
     users = users_result.scalars().all()
     
     return [
@@ -400,13 +434,16 @@ async def get_department_users(
 @router.get("/{department_id}/with-relations")
 async def get_department_with_relations(
     department_id: UUID,
+    include_users: Optional[bool] = Query(True, description="Include department users"),
+    include_manager: Optional[bool] = Query(True, description="Include department manager"),
+    users_limit: Optional[int] = Query(10, description="Limit number of users returned"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get department with all its relationships in a single call"""
     # Check if department exists
     result = await db.execute(
-        select(Department).options(selectinload(Department.manager)).where(Department.id == department_id)
+        select(Department).where(Department.id == department_id)
     )
     department = result.scalar_one_or_none()
     
@@ -416,13 +453,15 @@ async def get_department_with_relations(
             detail="Department not found"
         )
     
-    # Get user count in this department
+    # Build response
+    response = DepartmentResponse.from_orm(department).dict()
+    
+    # Get user count and active user count
     user_count_result = await db.execute(
         select(func.count(User.id)).where(User.department_id == department_id)
     )
     user_count = user_count_result.scalar() or 0
     
-    # Get active user count
     active_user_count_result = await db.execute(
         select(func.count(User.id)).where(
             and_(User.department_id == department_id, User.status == 'active')
@@ -430,51 +469,20 @@ async def get_department_with_relations(
     )
     active_user_count = active_user_count_result.scalar() or 0
     
-    # Get users in this department
-    users_result = await db.execute(
-        select(User)
-        .where(User.department_id == department_id)
-        .order_by(User.first_name, User.last_name)
-    )
-    users = users_result.scalars().all()
+    response["user_count"] = user_count
+    response["active_user_count"] = active_user_count
+    response["branch_count"] = 0  # TODO: Add when branches are linked to departments
     
-    # Get branches count (we'll implement branches later if needed)
-    branch_count = 0
-    branches = []
-    
-    # Get application count from users in this department
-    from app.models import CustomerApplication
-    app_count_result = await db.execute(
-        select(func.count(CustomerApplication.id))
-        .join(User, CustomerApplication.user_id == User.id)
-        .where(User.department_id == department_id)
-    )
-    app_count = app_count_result.scalar() or 0
-    
-    # Build response
-    department_data = {
-        "id": str(department.id),
-        "name": department.name,
-        "code": department.code,
-        "description": department.description,
-        "manager_id": str(department.manager_id) if department.manager_id else None,
-        "is_active": department.is_active,
-        "created_at": department.created_at.isoformat(),
-        "updated_at": department.updated_at.isoformat(),
-        "user_count": user_count,
-        "branch_count": branch_count,
-        "active_user_count": active_user_count,
-        "application_count": app_count,
-        "manager": {
-            "id": str(department.manager.id),
-            "username": department.manager.username,
-            "first_name": department.manager.first_name,
-            "last_name": department.manager.last_name,
-            "email": department.manager.email,
-            "role": department.manager.role,
-            "status": department.manager.status
-        } if department.manager else None,
-        "users": [
+    # Include users if requested
+    if include_users:
+        query = select(User).where(User.department_id == department_id).order_by(User.first_name, User.last_name)
+        if users_limit:
+            query = query.limit(users_limit)
+        
+        users_result = await db.execute(query)
+        users = users_result.scalars().all()
+        
+        response["users"] = [
             {
                 "id": str(user.id),
                 "username": user.username,
@@ -485,8 +493,26 @@ async def get_department_with_relations(
                 "status": user.status
             }
             for user in users
-        ],
-        "branches": branches
-    }
+        ]
     
-    return department_data
+    # Include manager if requested
+    if include_manager and department.manager_id:
+        manager_result = await db.execute(
+            select(User).where(User.id == department.manager_id)
+        )
+        manager = manager_result.scalar_one_or_none()
+        if manager:
+            response["manager"] = {
+                "id": str(manager.id),
+                "username": manager.username,
+                "first_name": manager.first_name,
+                "last_name": manager.last_name,
+                "email": manager.email,
+                "role": manager.role,
+                "status": manager.status
+            }
+    
+    # Add empty branches array for consistency
+    response["branches"] = []
+    
+    return response

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useDepartment, useUpdateDepartment } from '@/hooks/useDepartments';
+import { useDepartment, useUpdateDepartmentWithRelations } from '@/hooks/useDepartments';
 import { DepartmentCreate } from '@/types/models';
 import { ArrowLeft, Save, Building } from 'lucide-react';
 import Link from 'next/link';
-import Layout from '@/components/layout/Layout';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { Layout } from '@/components/layout/Layout';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function EditDepartmentPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function EditDepartmentPage() {
   const departmentId = params.id as string;
   
   const { data: department, isLoading } = useDepartment(departmentId);
-  const updateDepartment = useUpdateDepartment();
+  const updateDepartment = useUpdateDepartmentWithRelations();
 
   const [formData, setFormData] = useState<DepartmentCreate>({
     name: '',

@@ -62,8 +62,8 @@ async def upload_file(
 
 @router.get("/", response_model=PaginatedResponse)
 async def get_files(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     application_id: Optional[UUID] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -89,16 +89,18 @@ async def get_files(
     total_result = await db.execute(count_query)
     total = len(total_result.scalars().all())
     
-    # Get paginated results
-    query = query.offset(skip).limit(limit)
+    # Apply pagination
+    offset = (page - 1) * size
+    query = query.offset(offset).limit(size)
     result = await db.execute(query)
     files = result.scalars().all()
     
     return PaginatedResponse(
         items=[FileResponse.from_orm(file) for file in files],
         total=total,
-        skip=skip,
-        limit=limit
+        page=page,
+        size=size,
+        pages=(total + size - 1) // size
     )
 
 @router.get("/{file_id}", response_model=FileResponse)

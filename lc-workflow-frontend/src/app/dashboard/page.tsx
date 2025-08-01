@@ -21,7 +21,11 @@ import {
   ArrowTrendingUpIcon,
   CalendarIcon,
   ChartBarIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  CurrencyDollarIcon,
+  PhoneIcon,
+  UserIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatBytes, formatDate } from '@/lib/utils';
 import Link from 'next/link';
@@ -298,9 +302,9 @@ export default function DashboardPage() {
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">Recent Applications</h3>
+                    <h3 className="text-lg font-medium text-gray-900">ពាក្យសុំកម្ចីថ្មីៗ</h3>
                     <Link href="/applications" className="text-sm text-blue-600 hover:text-blue-800">
-                      View all
+                      មើលទាំងអស់
                     </Link>
                   </div>
                   
@@ -319,38 +323,78 @@ export default function DashboardPage() {
                   ) : recentApplications && recentApplications.length > 0 ? (
                     <div className="space-y-4">
                       {recentApplications.map((app) => (
-                        <div key={app.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className="flex-shrink-0">
-                              <DocumentTextIcon className="h-8 w-8 text-gray-400" />
+                        <Link key={app.id} href={`/applications/${app.id}`}>
+                          <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg border border-gray-100 hover:border-blue-200 transition-all cursor-pointer">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {app.full_name_khmer || app.full_name_latin || 'មិនបានបញ្ជាក់ឈ្មោះ'}
+                                  </p>
+                                  {app.full_name_khmer && app.full_name_latin && (
+                                    <span className="text-xs text-gray-500">({app.full_name_latin})</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                  <span className="flex items-center">
+                                    <CurrencyDollarIcon className="w-4 h-4 mr-1" />
+                                    {app.requested_amount ? formatCurrency(app.requested_amount) : 'មិនបានបញ្ជាក់'}
+                                  </span>
+                                  {app.phone && (
+                                    <span className="flex items-center">
+                                      <PhoneIcon className="w-4 h-4 mr-1" />
+                                      {app.phone}
+                                    </span>
+                                  )}
+                                  {app.portfolio_officer_name && (
+                                    <span className="flex items-center">
+                                      <UserIcon className="w-4 h-4 mr-1" />
+                                      {app.portfolio_officer_name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {app.full_name_latin || app.full_name_khmer || 'Unknown Applicant'}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {app.requested_amount ? formatCurrency(app.requested_amount) : 'Amount not specified'}
-                              </p>
+                            <div className="flex items-center space-x-3">
+                              <div className="text-right">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
+                                  {app.status === 'draft' && 'ព្រាង'}
+                                  {app.status === 'submitted' && 'បានដាក់ស្នើ'}
+                                  {app.status === 'under_review' && 'កំពុងពិនិត្យ'}
+                                  {app.status === 'approved' && 'អនុម័ត'}
+                                  {app.status === 'rejected' && 'បដិសេធ'}
+                                </span>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatDate(app.created_at)}
+                                </p>
+                              </div>
+                              <ArrowTrendingUpIcon className="w-4 h-4 text-gray-400" />
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
-                              {app.status.replace('_', ' ').toUpperCase()}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {formatDate(app.created_at)}
-                            </span>
-                          </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   ) : (
                     <div className="text-center py-8">
                       <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">No recent applications</h3>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">មិនមានពាក្យសុំថ្មី</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        Applications will appear here as they are submitted.
+                        ពាក្យសុំនឹងបង្ហាញនៅទីនេះនៅពេលដែលត្រូវបានដាក់ស្នើ
                       </p>
+                      <div className="mt-4">
+                        <Link
+                          href="/applications/new"
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                        >
+                          <PlusIcon className="w-4 h-4 mr-2" />
+                          បង្កើតពាក្យសុំថ្មី
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>

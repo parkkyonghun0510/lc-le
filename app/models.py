@@ -74,7 +74,7 @@ class CustomerApplication(Base):
     status = Column(String(20), nullable=False, default='draft')
     
     # Borrower Information
-    id_card_type = Column(String(50))
+    id_card_type = Column(String(50))  # national_id, passport, family_book
     id_number = Column(String(50))
     full_name_khmer = Column(String(255))
     full_name_latin = Column(String(255))
@@ -82,21 +82,53 @@ class CustomerApplication(Base):
     date_of_birth = Column(Date)
     portfolio_officer_name = Column(String(255))
     
+    # Address Information
+    current_address = Column(Text)
+    province = Column(String(100))
+    district = Column(String(100))
+    commune = Column(String(100))
+    village = Column(String(100))
+    
+    # Employment Information
+    occupation = Column(String(100))
+    employer_name = Column(String(255))
+    monthly_income = Column(Numeric(15, 2))
+    income_source = Column(String(100))  # salary, business, agriculture, etc.
+    
     # Loan Details
     requested_amount = Column(Numeric(15, 2))
-    loan_purposes = Column(JSON)
+    loan_purposes = Column(JSON)  # business, agriculture, education, housing, vehicle, medical, other
     purpose_details = Column(Text)
-    product_type = Column(String(50))
-    desired_loan_term = Column(String(50))
+    product_type = Column(String(50))  # micro_loan, sme_loan, agriculture_loan, housing_loan, education_loan
+    desired_loan_term = Column(String(50))  # 6_months, 12_months, etc.
     requested_disbursement_date = Column(Date)
+    interest_rate = Column(Numeric(5, 2))  # Annual percentage rate
     
     # Guarantor Information
     guarantor_name = Column(String(255))
     guarantor_phone = Column(String(20))
+    guarantor_id_number = Column(String(50))
+    guarantor_address = Column(Text)
+    guarantor_relationship = Column(String(100))  # family, friend, colleague, etc.
+    
+    # Financial Information
+    existing_loans = Column(JSON)  # Array of existing loan details
+    monthly_expenses = Column(Numeric(15, 2))
+    assets_value = Column(Numeric(15, 2))
+    
+    # Risk Assessment
+    credit_score = Column(Integer)
+    risk_category = Column(String(20))  # low, medium, high
+    assessment_notes = Column(Text)
     
     # Additional data
-    collaterals = Column(JSON)
-    documents = Column(JSON)
+    collaterals = Column(JSON)  # Array of collateral details
+    documents = Column(JSON)  # Array of document references
+    
+    # Workflow tracking
+    workflow_stage = Column(String(50))  # initial_review, credit_check, approval_pending, etc.
+    assigned_reviewer = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    priority_level = Column(String(20), default='normal')  # low, normal, high, urgent
     
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -110,6 +142,9 @@ class CustomerApplication(Base):
     
     # Relationships
     user = relationship("User", back_populates="applications", foreign_keys=[user_id])
+    approver = relationship("User", foreign_keys=[approved_by])
+    rejector = relationship("User", foreign_keys=[rejected_by])
+    reviewer = relationship("User", foreign_keys=[assigned_reviewer])
 
 class File(Base):
     __tablename__ = "files"

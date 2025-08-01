@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ToasterClient } from "@/components/ToasterClient";
 
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter"
+});
 
-const inter = Inter({ subsets: ["latin"] });
+const notoSansKhmer = Noto_Sans_Khmer({ 
+  subsets: ["khmer"],
+  variable: "--font-khmer",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+});
 
 export const metadata: Metadata = {
   title: "LC Workflow System",
@@ -19,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased`}>
+    <html lang="km">
+      <body className={`${inter.variable} ${notoSansKhmer.variable} font-sans antialiased`}>
         <QueryProvider>
           <AuthProvider>
             <ToasterClient />

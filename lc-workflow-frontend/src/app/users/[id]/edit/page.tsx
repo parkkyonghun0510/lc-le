@@ -8,8 +8,8 @@ import { useBranches } from '@/hooks/useBranches';
 import { UserUpdate } from '@/types/models';
 import { ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import Layout from '@/components/layout/Layout';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { Layout } from '@/components/layout/Layout';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -17,7 +17,7 @@ export default function EditUserPage() {
   const userId = params.id as string;
   
   const { data: user, isLoading } = useUser(userId);
-  const updateUser = useUpdateUser();
+  const updateUser = useUpdateUser(userId);
   const { data: departmentsData } = useDepartments({ size: 100 });
   const { data: branchesData } = useBranches({ size: 100 });
 
@@ -106,7 +106,7 @@ export default function EditUserPage() {
       delete submitData.password;
     }
 
-    updateUser.mutate({ userId, userData: submitData }, {
+    updateUser.mutate(submitData, {
       onSuccess: () => {
         router.push('/users');
       },

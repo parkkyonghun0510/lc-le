@@ -23,8 +23,8 @@ export default function FilePreview({ file, isOpen, onClose }: FilePreviewProps)
 
   const getPreviewUrl = () => {
     const token = localStorage.getItem('access_token');
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-    return `${baseUrl}/files/${file.id}/download`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    return `${baseUrl}/api/v1/files/${file.id}/download`;
   };
 
   const renderPreview = () => {

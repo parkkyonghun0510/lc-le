@@ -116,11 +116,14 @@ export interface UserCreate {
 }
 
 export interface UserUpdate {
+  username?: string;
+  email?: string;
   first_name?: string;
   last_name?: string;
   phone_number?: string;
+  password?: string;
   role?: string;
-  status?: string;
+  is_active?: boolean;
   department_id?: string;
   branch_id?: string;
   profile_image_url?: string;

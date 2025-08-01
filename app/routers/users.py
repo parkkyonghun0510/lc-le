@@ -139,6 +139,78 @@ async def update_user(
         )
     
     update_data = user_update.dict(exclude_unset=True)
+    
+    # Check for username/email conflicts if they're being updated
+    if 'username' in update_data or 'email' in update_data:
+        conflict_query = select(User).where(User.id != user_id)
+        if 'username' in update_data:
+            conflict_query = conflict_query.where(User.username == update_data['username'])
+        if 'email' in update_data:
+            conflict_query = conflict_query.where(User.email == update_data['email'])
+        
+        conflict_result = await db.execute(conflict_query)
+        if conflict_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username or email already exists"
+            )
+    
+    # Handle password update
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data['password'])
+        del update_data['password']
+    
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    
+    await db.commit()
+    await db.refresh(user)
+    return UserResponse.from_orm(user)
+
+@router.patch("/{user_id}", response_model=UserResponse)
+async def patch_user(
+    user_id: UUID,
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role not in ["admin", "manager"] and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user"
+        )
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    update_data = user_update.dict(exclude_unset=True)
+    
+    # Check for username/email conflicts if they're being updated
+    if 'username' in update_data or 'email' in update_data:
+        conflict_query = select(User).where(User.id != user_id)
+        if 'username' in update_data:
+            conflict_query = conflict_query.where(User.username == update_data['username'])
+        if 'email' in update_data:
+            conflict_query = conflict_query.where(User.email == update_data['email'])
+        
+        conflict_result = await db.execute(conflict_query)
+        if conflict_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username or email already exists"
+            )
+    
+    # Handle password update
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data['password'])
+        del update_data['password']
+    
     for field, value in update_data.items():
         setattr(user, field, value)
     

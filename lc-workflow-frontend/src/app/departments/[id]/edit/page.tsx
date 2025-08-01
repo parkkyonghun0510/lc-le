@@ -19,6 +19,7 @@ export default function EditDepartmentPage() {
 
   const [formData, setFormData] = useState<DepartmentCreate>({
     name: '',
+    code: '',
     description: '',
   });
 
@@ -28,6 +29,7 @@ export default function EditDepartmentPage() {
     if (department) {
       setFormData({
         name: department.name,
+        code: department.code,
         description: department.description || '',
       });
     }
@@ -40,6 +42,14 @@ export default function EditDepartmentPage() {
       newErrors.name = 'Department name is required';
     } else if (formData.name.length < 2) {
       newErrors.name = 'Department name must be at least 2 characters';
+    }
+
+    if (!formData.code.trim()) {
+      newErrors.code = 'Department code is required';
+    } else if (formData.code.length < 2) {
+      newErrors.code = 'Department code must be at least 2 characters';
+    } else if (!/^[A-Z0-9_-]+$/i.test(formData.code)) {
+      newErrors.code = 'Department code can only contain letters, numbers, hyphens, and underscores';
     }
 
     setErrors(newErrors);
@@ -139,22 +149,46 @@ export default function EditDepartmentPage() {
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Department Information</h3>
               <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.name ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter department name"
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        errors.name ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter department name"
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => handleInputChange('code', e.target.value.toUpperCase())}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        errors.code ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter department code (e.g., IT, HR, FIN)"
+                      maxLength={20}
+                    />
+                    {errors.code && (
+                      <p className="mt-1 text-sm text-red-600">{errors.code}</p>
+                    )}
+                    <p className="mt-1 text-sm text-gray-500">
+                      Short code for the department (letters, numbers, hyphens, underscores only)
+                    </p>
+                  </div>
                 </div>
 
                 <div>

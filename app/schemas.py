@@ -186,6 +186,5 @@ class PaginationParams(BaseSchema):
 class PaginatedResponse(BaseSchema):
     items: List[Any]
     total: int
-    page: int
-    size: int
-    pages: int
+    skip: int
+    limit: int

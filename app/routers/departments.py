@@ -34,6 +34,16 @@ async def create_department(
             detail="Department name already exists"
         )
     
+    # Check if department code already exists
+    result = await db.execute(
+        select(Department).where(Department.code == department.code)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Department code already exists"
+        )
+    
     db_department = Department(**department.dict())
     db.add(db_department)
     await db.commit()
@@ -117,6 +127,29 @@ async def update_department(
         )
     
     update_data = department_update.dict(exclude_unset=True)
+    
+    # Check if name is being updated and already exists
+    if 'name' in update_data and update_data['name'] != department.name:
+        result = await db.execute(
+            select(Department).where(Department.name == update_data['name'])
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Department name already exists"
+            )
+    
+    # Check if code is being updated and already exists
+    if 'code' in update_data and update_data['code'] != department.code:
+        result = await db.execute(
+            select(Department).where(Department.code == update_data['code'])
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Department code already exists"
+            )
+    
     for field, value in update_data.items():
         setattr(department, field, value)
     

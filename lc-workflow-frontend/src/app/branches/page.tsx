@@ -2,15 +2,14 @@
 
 import { useState } from 'react';
 import { useBranches, useDeleteBranch } from '@/hooks/useBranches';
-import { useDepartments } from '@/hooks/useDepartments';
-import { Plus, Search, Edit, Trash2, Eye, MapPin, Building, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function BranchesPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const pageSize = 10;
@@ -19,10 +18,8 @@ export default function BranchesPage() {
     page: currentPage,
     size: pageSize,
     search: searchTerm || undefined,
-    department_id: selectedDepartment || undefined,
   });
 
-  const { data: departmentsData } = useDepartments({ size: 100 });
   const deleteBranchMutation = useDeleteBranch();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -78,7 +75,7 @@ export default function BranchesPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
+          <form onSubmit={handleSearch} className="flex gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -90,23 +87,6 @@ export default function BranchesPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-            </div>
-            <div className="sm:w-64">
-              <select
-                value={selectedDepartment}
-                onChange={(e) => {
-                  setSelectedDepartment(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Departments</option>
-                {departmentsData?.items?.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </select>
             </div>
             <button
               type="submit"
@@ -128,11 +108,11 @@ export default function BranchesPage() {
               <MapPin className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No branches found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || selectedDepartment
+                {searchTerm
                   ? 'Try adjusting your search criteria.'
                   : 'Get started by creating a new branch.'}
               </p>
-              {!searchTerm && !selectedDepartment && (
+              {!searchTerm && (
                 <div className="mt-6">
                   <Link
                     href="/branches/new"
@@ -150,9 +130,10 @@ export default function BranchesPage() {
               <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
                 <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="col-span-3">Branch Name</div>
-                  <div className="col-span-3">Department</div>
+                  <div className="col-span-2">Code</div>
                   <div className="col-span-4">Address</div>
-                  <div className="col-span-2 text-right">Actions</div>
+                  <div className="col-span-2">Phone</div>
+                  <div className="col-span-1 text-right">Actions</div>
                 </div>
               </div>
 
@@ -172,21 +153,16 @@ export default function BranchesPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="col-span-3">
-                        <div className="flex items-center space-x-2">
-                          <Building className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm text-gray-900">
-                            {departmentsData?.items?.find(d => d.id === branch.department_id)?.name || 'Unknown'}
-                          </span>
-                        </div>
+                      <div className="col-span-2">
+                        <p className="text-sm font-medium text-gray-900">{branch.code}</p>
                       </div>
                       <div className="col-span-4">
                         <p className="text-sm text-gray-900">{branch.address || 'No address provided'}</p>
-                        {branch.phone && (
-                          <p className="text-xs text-gray-500">Phone: {branch.phone}</p>
-                        )}
                       </div>
                       <div className="col-span-2">
+                        <p className="text-sm text-gray-900">{branch.phone_number || 'No phone'}</p>
+                      </div>
+                      <div className="col-span-1">
                         <div className="flex items-center justify-end space-x-2">
                           <Link
                             href={`/branches/${branch.id}`}

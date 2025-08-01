@@ -24,28 +24,27 @@ async def create_branch(
             detail="Not authorized to create branches"
         )
     
-    # Check if branch name already exists in the department
+    # Check if branch name already exists
     result = await db.execute(
-        select(Branch).where(
-            (Branch.name == branch.name) & 
-            (Branch.department_id == branch.department_id)
-        )
+        select(Branch).where(Branch.name == branch.name)
     )
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Branch name already exists in this department"
+            detail="Branch name already exists"
         )
     
-    # Verify department exists
+    # Check if branch code already exists
     result = await db.execute(
-        select(Department).where(Department.id == branch.department_id)
+        select(Branch).where(Branch.code == branch.code)
     )
-    if not result.scalar_one_or_none():
+    if result.scalar_one_or_none():
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Department not found"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Branch code already exists"
         )
+    
+
     
     db_branch = Branch(**branch.dict())
     db.add(db_branch)
@@ -55,7 +54,6 @@ async def create_branch(
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_branches(
-    department_id: Optional[UUID] = Query(None, description="Filter by department"),
     search: Optional[str] = Query(None, description="Search in branch name"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
@@ -63,9 +61,6 @@ async def list_branches(
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Branch)
-    
-    if department_id:
-        query = query.where(Branch.department_id == department_id)
     
     if search:
         search_term = f"%{search}%"
@@ -134,6 +129,29 @@ async def update_branch(
         )
     
     update_data = branch_update.dict(exclude_unset=True)
+    
+    # Check if name is being updated and already exists
+    if 'name' in update_data and update_data['name'] != branch.name:
+        result = await db.execute(
+            select(Branch).where(Branch.name == update_data['name'])
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Branch name already exists"
+            )
+    
+    # Check if code is being updated and already exists
+    if 'code' in update_data and update_data['code'] != branch.code:
+        result = await db.execute(
+            select(Branch).where(Branch.code == update_data['code'])
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Branch code already exists"
+            )
+    
     for field, value in update_data.items():
         setattr(branch, field, value)
     

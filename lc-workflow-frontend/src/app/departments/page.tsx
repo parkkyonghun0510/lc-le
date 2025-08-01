@@ -141,10 +141,11 @@ export default function DepartmentsPage() {
               {/* Table Header */}
               <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
                 <div className="grid grid-cols-12 gap-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="col-span-4">Department</div>
+                  <div className="col-span-3">Department</div>
+                  <div className="col-span-2">Code</div>
                   <div className="col-span-3">Description</div>
                   <div className="col-span-2">Users</div>
-                  <div className="col-span-2">Created</div>
+                  <div className="col-span-1">Created</div>
                   <div className="col-span-1">Actions</div>
                 </div>
               </div>
@@ -154,7 +155,7 @@ export default function DepartmentsPage() {
                 {departmentsData?.items?.map((department) => (
                   <div key={department.id} className="px-6 py-4 hover:bg-gray-50">
                     <div className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-4">
+                      <div className="col-span-3">
                         <div className="flex items-center">
                           <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
                             <Building className="h-5 w-5 text-blue-600" />
@@ -163,10 +164,12 @@ export default function DepartmentsPage() {
                             <div className="text-sm font-medium text-gray-900">
                               {department.name}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              ID: {department.id}
-                            </div>
                           </div>
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="text-sm font-medium text-gray-900">
+                          {department.code}
                         </div>
                       </div>
                       <div className="col-span-3">
@@ -177,10 +180,10 @@ export default function DepartmentsPage() {
                       <div className="col-span-2">
                         <div className="flex items-center text-sm text-gray-900">
                           <Users className="h-4 w-4 mr-1 text-gray-400" />
-                          {department.user_count || 0}
+                          {department?.user_count || 0}
                         </div>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <div className="text-sm text-gray-900">
                           {new Date(department.created_at).toLocaleDateString()}
                         </div>

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCreateBranch } from '@/hooks/useBranches';
-import { useDepartments } from '@/hooks/useDepartments';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
@@ -13,13 +12,12 @@ export default function NewBranchPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
+    code: '',
     address: '',
     phone: '',
-    department_id: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { data: departmentsData } = useDepartments({ size: 100 });
   const createBranchMutation = useCreateBranch();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -37,9 +35,19 @@ export default function NewBranchPage() {
       newErrors.name = 'Branch name is required';
     }
 
-    if (!formData.department_id) {
-      newErrors.department_id = 'Department is required';
+    if (!formData.code.trim()) {
+      newErrors.code = 'Branch code is required';
+    } else if (formData.code.length < 2) {
+      newErrors.code = 'Branch code must be at least 2 characters';
+    } else if (!/^[A-Z0-9_-]+$/i.test(formData.code)) {
+      newErrors.code = 'Branch code can only contain letters, numbers, hyphens, and underscores';
     }
+
+    if (!formData.address.trim()) {
+      newErrors.address = 'Branch address is required';
+    }
+
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -55,9 +63,9 @@ export default function NewBranchPage() {
     try {
       await createBranchMutation.mutateAsync({
         name: formData.name.trim(),
-        address: formData.address.trim() || undefined,
-        phone: formData.phone.trim() || undefined,
-        department_id: formData.department_id,
+        code: formData.code.trim(),
+        address: formData.address.trim(),
+        phone_number: formData.phone.trim() || undefined,
       });
       router.push('/branches');
     } catch (error: any) {
@@ -112,53 +120,61 @@ export default function NewBranchPage() {
               </div>
             )}
 
-            {/* Branch Name */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Branch Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter branch name"
-              />
-              {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+            {/* Branch Name and Code */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Branch Name *
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.name ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter branch name"
+                />
+                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+                  Branch Code *
+                </label>
+                <input
+                  type="text"
+                  id="code"
+                  name="code"
+                  value={formData.code}
+                  onChange={(e) => {
+                    const { name, value } = e.target;
+                    setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
+                    if (errors[name]) {
+                      setErrors(prev => ({ ...prev, [name]: '' }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.code ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter branch code (e.g., NYC, LA, CHI)"
+                  maxLength={20}
+                />
+                {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+                <p className="mt-1 text-sm text-gray-500">
+                  Short code for the branch (letters, numbers, hyphens, underscores only)
+                </p>
+              </div>
             </div>
 
-            {/* Department */}
-            <div>
-              <label htmlFor="department_id" className="block text-sm font-medium text-gray-700 mb-2">
-                Department *
-              </label>
-              <select
-                id="department_id"
-                name="department_id"
-                value={formData.department_id}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.department_id ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select a department</option>
-                {departmentsData?.items?.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </select>
-              {errors.department_id && <p className="mt-1 text-sm text-red-600">{errors.department_id}</p>}
-            </div>
+
 
             {/* Address */}
             <div>
               <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                Address
+                Address *
               </label>
               <textarea
                 id="address"
@@ -216,9 +232,9 @@ export default function NewBranchPage() {
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-sm font-medium text-blue-900 mb-2">Branch Creation Guidelines</h3>
           <ul className="text-sm text-blue-700 space-y-1">
-            <li>• Branch name must be unique within the selected department</li>
-            <li>• Department selection is required for proper organization</li>
-            <li>• Address and phone number are optional but recommended</li>
+            <li>• Branch name and code must be unique across the system</li>
+            <li>• Address is required for proper branch identification</li>
+            <li>• Phone number is optional but recommended</li>
             <li>• All fields can be updated later if needed</li>
           </ul>
         </div>

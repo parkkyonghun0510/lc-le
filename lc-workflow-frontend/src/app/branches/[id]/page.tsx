@@ -2,7 +2,6 @@
 
 import { useParams } from 'next/navigation';
 import { useBranch } from '@/hooks/useBranches';
-import { useDepartment } from '@/hooks/useDepartments';
 import { useUsers } from '@/hooks/useUsers';
 import { ArrowLeft, MapPin, Building, Calendar, Users, Phone, Edit } from 'lucide-react';
 import Link from 'next/link';
@@ -14,7 +13,6 @@ export default function BranchDetailPage() {
   const branchId = params.id as string;
   
   const { data: branch, isLoading, error } = useBranch(branchId);
-  const { data: department } = useDepartment(branch?.department_id || '');
   const { data: usersData } = useUsers({ branch_id: branchId, size: 100 });
 
   if (isLoading) {
@@ -249,10 +247,7 @@ export default function BranchDetailPage() {
                 <span className="font-medium text-gray-900">Branch ID:</span>
                 <span className="ml-2 text-gray-600 font-mono">{branch.id}</span>
               </div>
-              <div>
-                <span className="font-medium text-gray-900">Department ID:</span>
-                <span className="ml-2 text-gray-600 font-mono">{branch.department_id}</span>
-              </div>
+
             </div>
           </div>
         </div>

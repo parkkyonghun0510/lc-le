@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Numeric, Date, JSON, BigInteger
+from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Numeric, Date, JSON, BigInteger, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -126,3 +126,21 @@ class File(Base):
     
     # Relationships
     uploaded_by_user = relationship("User", back_populates="uploaded_files", foreign_keys=[uploaded_by])
+
+class Setting(Base):
+    __tablename__ = "settings"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(JSON, nullable=False)
+    category = Column(String(50), nullable=False)  # general, security, notifications, etc.
+    description = Column(Text)
+    is_public = Column(Boolean, default=False)  # Whether non-admin users can read this setting
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    updated_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by])
+    updater = relationship("User", foreign_keys=[updated_by])

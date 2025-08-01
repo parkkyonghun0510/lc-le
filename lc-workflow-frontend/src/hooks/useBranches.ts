@@ -41,7 +41,7 @@ export const useBranch = (id: string) => {
     queryKey: branchKeys.detail(id),
     queryFn: () => apiClient.get<Branch>(`/branches/${id}`),
     staleTime: 5 * 60 * 1000,
-    enabled: !!id,
+    enabled: !!id && id !== 'undefined' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id),
   });
 };
 
@@ -84,7 +84,12 @@ export const useUpdateBranch = (id: string) => {
       latitude?: number;
       longitude?: number;
       is_active?: boolean;
-    }) => apiClient.patch<Branch>(`/branches/${id}`, data),
+    }) => {
+      if (!id || id === 'undefined' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+        throw new Error('Invalid branch ID format');
+      }
+      return apiClient.patch<Branch>(`/branches/${id}`, data);
+    },
     onSuccess: (updatedBranch) => {
       queryClient.setQueryData(branchKeys.detail(id), updatedBranch);
       queryClient.invalidateQueries({ queryKey: branchKeys.lists() });
@@ -101,7 +106,12 @@ export const useDeleteBranch = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/branches/${id}`),
+    mutationFn: (id: string) => {
+      if (!id || id === 'undefined' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+        throw new Error('Invalid branch ID format');
+      }
+      return apiClient.delete(`/branches/${id}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: branchKeys.lists() });
       toast.success('Branch deleted successfully!');

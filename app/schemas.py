@@ -24,11 +24,14 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
 
 class UserUpdate(BaseSchema):
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    email: Optional[str] = Field(None, max_length=255)
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
     phone_number: Optional[str] = Field(None, max_length=20)
+    password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = None
-    status: Optional[str] = None
+    is_active: Optional[bool] = None
     department_id: Optional[UUID] = None
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
@@ -97,6 +100,7 @@ class BranchResponse(BranchBase):
 
 # Application schemas
 class CustomerApplicationBase(BaseSchema):
+    # Borrower Information
     id_card_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, max_length=50)
     full_name_khmer: Optional[str] = Field(None, max_length=255)
@@ -104,38 +108,59 @@ class CustomerApplicationBase(BaseSchema):
     phone: Optional[str] = Field(None, max_length=20)
     date_of_birth: Optional[str] = None
     portfolio_officer_name: Optional[str] = Field(None, max_length=255)
+    
+    # Address Information
+    current_address: Optional[str] = None
+    province: Optional[str] = Field(None, max_length=100)
+    district: Optional[str] = Field(None, max_length=100)
+    commune: Optional[str] = Field(None, max_length=100)
+    village: Optional[str] = Field(None, max_length=100)
+    
+    # Employment Information
+    occupation: Optional[str] = Field(None, max_length=100)
+    employer_name: Optional[str] = Field(None, max_length=255)
+    monthly_income: Optional[float] = None
+    income_source: Optional[str] = Field(None, max_length=100)
+    
+    # Loan Details
     requested_amount: Optional[float] = None
     loan_purposes: Optional[List[str]] = None
     purpose_details: Optional[str] = None
     product_type: Optional[str] = Field(None, max_length=50)
     desired_loan_term: Optional[str] = Field(None, max_length=50)
     requested_disbursement_date: Optional[str] = None
+    interest_rate: Optional[float] = None
+    
+    # Guarantor Information
     guarantor_name: Optional[str] = Field(None, max_length=255)
     guarantor_phone: Optional[str] = Field(None, max_length=20)
+    guarantor_id_number: Optional[str] = Field(None, max_length=50)
+    guarantor_address: Optional[str] = None
+    guarantor_relationship: Optional[str] = Field(None, max_length=100)
+    
+    # Financial Information
+    existing_loans: Optional[List[Dict[str, Any]]] = None
+    monthly_expenses: Optional[float] = None
+    assets_value: Optional[float] = None
+    
+    # Risk Assessment
+    credit_score: Optional[int] = None
+    risk_category: Optional[str] = Field(None, max_length=20)
+    assessment_notes: Optional[str] = None
+    
+    # Additional data
     collaterals: Optional[List[Dict[str, Any]]] = None
     documents: Optional[List[Dict[str, Any]]] = None
+    
+    # Workflow tracking
+    workflow_stage: Optional[str] = Field(None, max_length=50)
+    assigned_reviewer: Optional[UUID] = None
+    priority_level: Optional[str] = Field(default='normal', max_length=20)
 
 class CustomerApplicationCreate(CustomerApplicationBase):
     pass
 
-class CustomerApplicationUpdate(BaseSchema):
-    id_card_type: Optional[str] = Field(None, max_length=50)
-    id_number: Optional[str] = Field(None, max_length=50)
-    full_name_khmer: Optional[str] = Field(None, max_length=255)
-    full_name_latin: Optional[str] = Field(None, max_length=255)
-    phone: Optional[str] = Field(None, max_length=20)
-    date_of_birth: Optional[str] = None
-    portfolio_officer_name: Optional[str] = Field(None, max_length=255)
-    requested_amount: Optional[float] = None
-    loan_purposes: Optional[List[str]] = None
-    purpose_details: Optional[str] = None
-    product_type: Optional[str] = Field(None, max_length=50)
-    desired_loan_term: Optional[str] = Field(None, max_length=50)
-    requested_disbursement_date: Optional[str] = None
-    guarantor_name: Optional[str] = Field(None, max_length=255)
-    guarantor_phone: Optional[str] = Field(None, max_length=20)
-    collaterals: Optional[List[Dict[str, Any]]] = None
-    documents: Optional[List[Dict[str, Any]]] = None
+class CustomerApplicationUpdate(CustomerApplicationBase):
     status: Optional[str] = None
 
 class CustomerApplicationResponse(CustomerApplicationBase):

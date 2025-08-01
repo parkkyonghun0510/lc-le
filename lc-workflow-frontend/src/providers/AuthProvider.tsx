@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  error: any;
+  error: string | null;
   isAdmin: boolean;
   isManager: boolean;
   isOfficer: boolean;
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated,
-        error,
+        error: error ? (typeof error === 'string' ? error : JSON.stringify(error)) : null,
         isAdmin,
         isManager,
         isOfficer,

@@ -1,68 +1,107 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
 import { apiClient } from '@/lib/api';
-import { File as CustomFile, PaginatedResponse } from '@/types/models';
+import { File, PaginatedResponse } from '@/types/models';
 import toast from 'react-hot-toast';
+import { handleApiError } from '@/lib/handleApiError';
 
 // File query keys
 export const fileKeys = {
   all: ['files'] as const,
   lists: () => [...fileKeys.all, 'list'] as const,
-  list: (filters: any) => [...fileKeys.lists(), filters] as const,
+  list: (params: any) => [...fileKeys.lists(), params] as const,
   details: () => [...fileKeys.all, 'detail'] as const,
   detail: (id: string) => [...fileKeys.details(), id] as const,
 };
 
+// File API functions
+const fileApi = {
+  getFiles: async (params: {
+    skip?: number;
+    limit?: number;
+    application_id?: string;
+  }): Promise<PaginatedResponse<File>> => {
+    const searchParams = new URLSearchParams();
+    if (params.skip !== undefined) searchParams.append('skip', params.skip.toString());
+    if (params.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params.application_id) searchParams.append('application_id', params.application_id);
+    
+    return apiClient.get(`/files?${searchParams.toString()}`);
+  },
+
+  getFile: async (id: string): Promise<File> => {
+    return apiClient.get(`/files/${id}`);
+  },
+
+  uploadFile: async (file: File, applicationId?: string, onProgress?: (progress: number) => void): Promise<File> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (applicationId) {
+      formData.append('application_id', applicationId);
+    }
+
+    return apiClient.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+  },
+
+  deleteFile: async (id: string): Promise<void> => {
+    return apiClient.delete(`/files/${id}`);
+  },
+
+  downloadFile: (id: string): string => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    return `${baseUrl}/api/v1/files/${id}/download`;
+  },
+};
+
 // File hooks
-export const useFiles = (filters: {
-  page?: number;
-  size?: number;
+export const useFiles = (params: {
+  skip?: number;
+  limit?: number;
   application_id?: string;
-  uploaded_by?: string;
-  search?: string;
 } = {}) => {
   return useQuery({
-    queryKey: fileKeys.list(filters),
-    queryFn: () => apiClient.get<PaginatedResponse<CustomFile>>('/files', {
-      params: filters,
-    }),
-    staleTime: 60 * 1000, // 1 minute
+    queryKey: fileKeys.list(params),
+    queryFn: () => fileApi.getFiles(params),
+    staleTime: 30 * 1000, // 30 seconds
   });
 };
 
 export const useFile = (id: string) => {
   return useQuery({
     queryKey: fileKeys.detail(id),
-    queryFn: () => apiClient.get<CustomFile>(`/files/${id}`),
-    staleTime: 5 * 60 * 1000,
+    queryFn: () => fileApi.getFile(id),
     enabled: !!id,
   });
 };
 
-export const useUploadFile = (applicationId?: string) => {
+export const useUploadFile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ file, application_id }: { file: globalThis.File; application_id?: string }) => {
-      const url = '/files/upload';
-      const formData = new FormData();
-      formData.append('file', file);
-      if (application_id || applicationId) {
-        formData.append('application_id', application_id || applicationId!);
-      }
-      return apiClient.post<CustomFile>(url, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    },
+    mutationFn: ({ 
+      file, 
+      applicationId, 
+      onProgress 
+    }: { 
+      file: File; 
+      applicationId?: string; 
+      onProgress?: (progress: number) => void;
+    }) => fileApi.uploadFile(file, applicationId, onProgress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
-      toast.success('File uploaded successfully!');
+      toast.success('File uploaded successfully');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to upload file';
-      toast.error(message);
+      handleApiError(error, 'Failed to upload file');
     },
   });
 };
@@ -71,98 +110,37 @@ export const useDeleteFile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/files/${id}`),
+    mutationFn: (id: string) => fileApi.deleteFile(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
-      toast.success('File deleted successfully!');
+      toast.success('File deleted successfully');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to delete file';
-      toast.error(message);
+      handleApiError(error, 'Failed to delete file');
     },
   });
 };
 
 export const useDownloadFile = () => {
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiClient.get<Blob>(`/files/${id}/download`, {
-        responseType: 'blob',
-      });
-      return response;
-    },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to download file';
-      toast.error(message);
-    },
-  });
-};
-
-// Utility hook for downloading files
-export const useFileDownload = () => {
-  const downloadFile = useDownloadFile();
-
-  const handleDownload = async (fileId: string, fileName: string) => {
-    try {
-      const blob = await downloadFile.mutateAsync(fileId);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download error:', error);
-    }
-  };
-
   return {
-    downloadFile: handleDownload,
-    isDownloading: downloadFile.isPending,
-  };
-};
-
-// File upload progress hook
-export const useFileUploadWithProgress = () => {
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const queryClient = useQueryClient();
-
-  const uploadFile = useMutation({
-    mutationFn: ({ file, application_id }: { file: globalThis.File; application_id?: string }) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (application_id) {
-        formData.append('application_id', application_id);
+    downloadFile: async (id: string, filename: string) => {
+      try {
+        const response = await apiClient.get(`/files/${id}/download`, {
+          responseType: 'blob',
+        });
+        
+        const url = window.URL.createObjectURL(new Blob([response]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download failed:', error);
+        toast.error('Failed to download file');
       }
-
-      return apiClient.post<CustomFile>('/files/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setUploadProgress(progress);
-          }
-        },
-      });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
-      toast.success('File uploaded successfully!');
-      setUploadProgress(0);
-    },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to upload file';
-      toast.error(message);
-      setUploadProgress(0);
-    },
-  });
-
-  return {
-    uploadFile,
-    uploadProgress,
   };
 };

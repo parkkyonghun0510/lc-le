@@ -40,7 +40,9 @@ export default function LoginPage() {
         {login.isError && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-600">
-              {login.error?.response?.data?.detail || 'Login failed. Please check your credentials.'}
+              {typeof login.error?.response?.data?.detail === 'string' 
+                ? login.error.response.data.detail 
+                : 'Login failed. Please check your credentials.'}
             </p>
           </div>
         )}

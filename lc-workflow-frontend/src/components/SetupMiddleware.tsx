@@ -1,34 +1,41 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { useSetupRequired } from '@/hooks/useSetup';
 
-interface SetupMiddlewareProps {
-  children: React.ReactNode;
-}
-
-export function SetupMiddleware({ children }: SetupMiddlewareProps) {
+const SetupMiddleware = ({ children }: { children: React.ReactNode }) => {
+  const { data: setupData, isLoading: isSetupLoading } = useSetupRequired();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
-  const { data: setupData, isLoading } = useSetupRequired();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && setupData && !setupData.setup_required) {
+    if (isSetupLoading || isAuthLoading) return;
+
+    const isSetupComplete = !setupData?.setup_required;
+    const isSetupPage = pathname === '/setup';
+
+    if (!isSetupComplete && !isSetupPage) {
+      router.push('/setup');
+    } else if (isSetupComplete && isSetupPage) {
+      router.push('/dashboard');
+    } else if (isSetupComplete && !isAuthenticated && pathname !== '/login') {
       router.push('/login');
     }
-  }, [setupData, isLoading, router]);
 
-  if (isLoading) {
+  }, [setupData, isSetupLoading, isAuthenticated, isAuthLoading, router, pathname]);
+
+  if (isSetupLoading || isAuthLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
-  if (!setupData?.setup_required) {
-    return null;
-  }
-
   return <>{children}</>;
-}
+};
+
+export default SetupMiddleware;

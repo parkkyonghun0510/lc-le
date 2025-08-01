@@ -26,6 +26,20 @@ export interface Department extends BaseModel {
   description?: string;
   manager_id?: string;
   is_active: boolean;
+  // Computed fields that may be included from backend
+  user_count?: number;
+  branch_count?: number;
+  active_user_count?: number;
+}
+
+// Extended department interface with relationships
+export interface DepartmentWithRelations extends Department {
+  manager?: User;
+  users?: User[];
+  branches?: Branch[];
+  user_count: number;
+  branch_count: number;
+  active_user_count: number;
 }
 
 export interface Branch extends BaseModel {
@@ -116,11 +130,14 @@ export interface UserCreate {
 }
 
 export interface UserUpdate {
+  username?: string;
+  email?: string;
   first_name?: string;
   last_name?: string;
   phone_number?: string;
+  password?: string;
   role?: string;
-  status?: string;
+  is_active?: boolean;
   department_id?: string;
   branch_id?: string;
   profile_image_url?: string;

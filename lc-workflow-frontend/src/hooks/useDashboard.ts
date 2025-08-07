@@ -46,6 +46,8 @@ export interface DashboardStats {
 
 // Recent application interface
 export interface RecentApplication {
+  phone: any;
+  portfolio_officer_name: any;
   id: string;
   full_name_latin?: string;
   full_name_khmer?: string;

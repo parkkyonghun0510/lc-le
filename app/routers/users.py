@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse
 from app.routers.auth import get_current_user, get_password_hash
+from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
@@ -243,3 +244,46 @@ async def delete_user(
     await db.commit()
     
     return {"message": "User deleted successfully"}
+
+# --- /users/me endpoints ---
+from fastapi import Body
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
+    return UserResponse.from_orm(current_user)
+
+@router.patch("/me", response_model=UserResponse)
+async def patch_me(
+    user_update: UserUpdate = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Only allow user to update their own profile
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    update_data = user_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    await db.commit()
+    await db.refresh(user)
+    return UserResponse.from_orm(user)
+
+@router.put("/me", response_model=UserResponse)
+async def put_me(
+    user_update: UserUpdate = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Only allow user to replace their own profile
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    update_data = user_update.dict()
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    await db.commit()
+    await db.refresh(user)
+    return UserResponse.from_orm(user)

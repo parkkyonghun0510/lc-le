@@ -98,7 +98,7 @@ export default function ApplicationsPage() {
     );
   };
 
-  const getLoanPurposeText = (purposes: string[] | null) => {
+  const getLoanPurposeText = (purposes: string[] | null | undefined) => {
     if (!purposes || purposes.length === 0) return 'មិនបានបញ្ជាក់';
     
     const purposeMap: { [key: string]: string } = {

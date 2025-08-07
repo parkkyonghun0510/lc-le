@@ -112,7 +112,7 @@ export default function BranchDetailPage() {
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600">
-                  {usersData?.items?.filter(user => user.is_active).length || 0}
+                    {usersData?.items?.filter(user => user.status === 'active').length || 0}
                 </div>
                 <div className="text-sm text-gray-600">Active Users</div>
               </div>
@@ -132,16 +132,16 @@ export default function BranchDetailPage() {
               <div className="flex items-center space-x-3">
                 <Building className="h-5 w-5 text-gray-400" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Department</p>
-                  <p className="text-sm text-gray-600">{department?.name || 'Loading...'}</p>
+                    <p className="text-sm font-medium text-gray-900">Branch Code</p>
+                    <p className="text-sm text-gray-600">{branch.code || 'N/A'}</p>
                 </div>
               </div>
-              {branch.phone && (
+                {branch.phone_number && (
                 <div className="flex items-center space-x-3">
                   <Phone className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">Phone</p>
-                    <p className="text-sm text-gray-600">{branch.phone}</p>
+                      <p className="text-sm text-gray-600">{branch.phone_number}</p>
                   </div>
                 </div>
               )}

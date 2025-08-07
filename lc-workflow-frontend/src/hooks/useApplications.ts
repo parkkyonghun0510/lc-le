@@ -65,7 +65,7 @@ export interface ApplicationFilters {
 
 // Get applications list
 export const useApplications = (filters: ApplicationFilters = {}) => {
-  return useQuery<ApplicationsResponse>({
+  return useQuery<ApplicationsResponse>({  // Explicit type parameter
     queryKey: ['applications', filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -75,7 +75,7 @@ export const useApplications = (filters: ApplicationFilters = {}) => {
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.size) params.append('size', filters.size.toString());
       
-      return apiClient.get(`/applications?${params.toString()}`);
+      return apiClient.get<ApplicationsResponse>(`/applications?${params.toString()}`);  // Added generic type parameter
     },
     staleTime: 30000, // 30 seconds
   });
@@ -83,9 +83,9 @@ export const useApplications = (filters: ApplicationFilters = {}) => {
 
 // Get single application
 export const useApplication = (id: string) => {
-  return useQuery<Application>({
+  return useQuery<Application>({  // Explicit type parameter
     queryKey: ['application', id],
-    queryFn: () => apiClient.get(`/applications/${id}`),
+    queryFn: () => apiClient.get<Application>(`/applications/${id}`),  // Added generic type parameter
     enabled: !!id,
   });
 };
@@ -94,9 +94,9 @@ export const useApplication = (id: string) => {
 export const useCreateApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useMutation<Application, Error, Partial<Application>>({  // Added explicit type parameters
     mutationFn: async (data: Partial<Application>) => {
-      return apiClient.post('/applications', data);
+      return apiClient.post<Application>('/applications', data);  // Added generic type parameter
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -112,9 +112,9 @@ export const useCreateApplication = () => {
 export const useUpdateApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useMutation<Application, Error, { id: string; data: Partial<Application> }>({  // Added explicit type parameters
     mutationFn: async ({ id, data }: { id: string; data: Partial<Application> }) => {
-      return apiClient.put(`/applications/${id}`, data);
+      return apiClient.put<Application>(`/applications/${id}`, data);  // Added generic type parameter
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -131,9 +131,9 @@ export const useUpdateApplication = () => {
 export const useSubmitApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useMutation<Application, Error, string>({  // Added explicit type parameters
     mutationFn: async (id: string) => {
-      return apiClient.patch(`/applications/${id}/submit`, {});
+      return apiClient.patch<Application>(`/applications/${id}/submit`, {});  // Added generic type parameter
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -150,9 +150,9 @@ export const useSubmitApplication = () => {
 export const useApproveApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useMutation<Application, Error, string>({  // Added explicit type parameters
     mutationFn: async (id: string) => {
-      return apiClient.patch(`/applications/${id}/approve`, {});
+      return apiClient.patch<Application>(`/applications/${id}/approve`, {});  // Added generic type parameter
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -169,9 +169,9 @@ export const useApproveApplication = () => {
 export const useRejectApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useMutation<Application, Error, { id: string; reason: string }>({  // Added explicit type parameters
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      return apiClient.patch(`/applications/${id}/reject`, { rejection_reason: reason });
+      return apiClient.patch<Application>(`/applications/${id}/reject`, { rejection_reason: reason });  // Added generic type parameter
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -188,9 +188,9 @@ export const useRejectApplication = () => {
 export const useDeleteApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useMutation<void, Error, string>({  // Added explicit type parameters
     mutationFn: async (id: string) => {
-      return apiClient.delete(`/applications/${id}`);
+      return apiClient.delete<void>(`/applications/${id}`);  // Added generic type parameter
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -204,9 +204,9 @@ export const useDeleteApplication = () => {
 
 // Get application statistics
 export const useApplicationStats = () => {
-  return useQuery({
+  return useQuery<any>({  // Added explicit type parameter, using 'any' as we don't know the exact type
     queryKey: ['application-stats'],
-    queryFn: () => apiClient.get('/applications/stats'),
+    queryFn: () => apiClient.get<any>('/applications/stats'),  // Added generic type parameter
     staleTime: 60000, // 1 minute
   });
 };

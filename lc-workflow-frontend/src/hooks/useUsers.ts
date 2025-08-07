@@ -122,12 +122,12 @@ export const useDeleteUser = () => {
 };
 
 // User profile hooks
-export const useUpdateProfile = () => {
+export const useUpdateProfile = (userId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: Partial<UserUpdate>) => 
-      apiClient.patch<User>('/users/me', data),
+      apiClient.patch<User>(`/users/${userId}`, data),
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(['auth', 'user'], updatedUser);
       toast.success('Profile updated successfully!');

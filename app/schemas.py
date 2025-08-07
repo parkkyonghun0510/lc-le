@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -19,9 +20,11 @@ class UserBase(BaseSchema):
     department_id: Optional[UUID] = None
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
+    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
+    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
 
 class UserUpdate(BaseSchema):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
@@ -35,12 +38,17 @@ class UserUpdate(BaseSchema):
     department_id: Optional[UUID] = None
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
+    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
 
 class UserResponse(UserBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime]
+    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    department: Optional['DepartmentResponse'] = None
+    branch: Optional['BranchResponse'] = None
+    position: Optional[str] = None
 
 class UserLogin(BaseSchema):
     username: str

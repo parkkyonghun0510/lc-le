@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToasterClient } from "@/components/ToasterClient";
 
 const inter = Inter({ 
@@ -30,10 +31,12 @@ export default function RootLayout({
     <html lang="km">
       <body className={`${inter.variable} ${notoSansKhmer.variable} font-sans antialiased`}>
         <QueryProvider>
-          <AuthProvider>
-            <ToasterClient />
-            {children}
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <ToasterClient />
+              {children}
+            </AuthProvider>
+          </ThemeProvider>
         </QueryProvider>
       </body>
     </html>

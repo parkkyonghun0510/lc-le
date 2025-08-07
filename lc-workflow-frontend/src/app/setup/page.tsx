@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSetupFirstAdmin } from '@/hooks/useSetup';
 import { Eye, EyeOff, Building2, Mail, User, Lock } from 'lucide-react';
-import { SetupMiddleware } from '@/components/SetupMiddleware';
+import SetupMiddleware from '@/components/SetupMiddleware';
 
 export default function SetupPage() {
   const router = useRouter();

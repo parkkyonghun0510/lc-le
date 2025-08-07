@@ -15,6 +15,7 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     phone_number = Column(String(20))
+    employee_id = Column(String(4), unique=True, nullable=True, comment='4-digit HR employee ID')
     role = Column(String(20), nullable=False, default='officer')
     status = Column(String(20), nullable=False, default='active')
     department_id = Column(UUID(as_uuid=True), ForeignKey('departments.id'))

@@ -32,6 +32,7 @@ export default function EditUserPage() {
     department_id: '',
     branch_id: '',
     is_active: true,
+    employee_id: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,6 +49,7 @@ export default function EditUserPage() {
         department_id: user.department_id || '',
         branch_id: user.branch_id || '',
         is_active: user.is_active,
+        employee_id: user.employee_id || '',
       });
     }
   }, [user]);
@@ -94,13 +96,16 @@ export default function EditUserPage() {
       return;
     }
 
+    // Prepare data for PATCH: strip empty fields, only send valid 4-digit employee_id
     const submitData: UserUpdate = {
       ...formData,
       department_id: formData.department_id || undefined,
       branch_id: formData.branch_id || undefined,
       phone_number: formData.phone_number || undefined,
     };
-
+    if (!submitData.employee_id || !/^\d{4}$/.test(submitData.employee_id)) {
+      delete submitData.employee_id;
+    }
     // Remove password if it's empty
     if (!submitData.password?.trim()) {
       delete submitData.password;
@@ -180,6 +185,21 @@ export default function EditUserPage() {
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Employee ID (HR 4-digit) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Employee ID (4 digits)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    pattern="\d{4}"
+                    value={formData.employee_id}
+                    onChange={(e) => handleInputChange('employee_id', e.target.value.replace(/[^\d]/g, '').slice(0, 4))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g. 1234"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Username *

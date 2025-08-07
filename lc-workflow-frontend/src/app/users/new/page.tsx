@@ -28,6 +28,7 @@ export default function NewUserPage() {
     role: 'officer',
     department_id: '',
     branch_id: '',
+    employee_id: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -76,13 +77,16 @@ export default function NewUserPage() {
       return;
     }
 
+    // Prepare data for POST: strip empty fields, only send valid 4-digit employee_id
     const submitData = {
       ...formData,
       department_id: formData.department_id || undefined,
       branch_id: formData.branch_id || undefined,
       phone_number: formData.phone_number || undefined,
     };
-
+    if (!submitData.employee_id || !/^\d{4}$/.test(submitData.employee_id)) {
+      delete submitData.employee_id;
+    }
     createUser.mutate(submitData, {
       onSuccess: () => {
         router.push('/users');
@@ -123,6 +127,21 @@ export default function NewUserPage() {
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Employee ID (HR 4-digit) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Employee ID (4 digits)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    pattern="\d{4}"
+                    value={formData.employee_id}
+                    onChange={(e) => handleInputChange('employee_id', e.target.value.replace(/[^\d]/g, '').slice(0, 4))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g. 1234"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Username *
@@ -131,9 +150,7 @@ export default function NewUserPage() {
                     type="text"
                     value={formData.username}
                     onChange={(e) => handleInputChange('username', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.username ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border ${errors.username ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                     placeholder="Enter username"
                   />
                   {errors.username && (

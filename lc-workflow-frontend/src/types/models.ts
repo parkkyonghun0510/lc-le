@@ -7,6 +7,7 @@ export interface BaseModel {
 }
 
 export interface User extends BaseModel {
+  is_active: any;
   username: string;
   email: string;
   first_name: string;
@@ -18,6 +19,7 @@ export interface User extends BaseModel {
   branch_id?: string;
   profile_image_url?: string;
   last_login_at?: string;
+  employee_id?: string;
 }
 
 export interface Department extends BaseModel {
@@ -127,6 +129,7 @@ export interface UserCreate {
   department_id?: string;
   branch_id?: string;
   profile_image_url?: string;
+  employee_id?: string;
 }
 
 export interface UserUpdate {
@@ -141,6 +144,7 @@ export interface UserUpdate {
   department_id?: string;
   branch_id?: string;
   profile_image_url?: string;
+  employee_id?: string;
 }
 
 export interface DepartmentCreate {

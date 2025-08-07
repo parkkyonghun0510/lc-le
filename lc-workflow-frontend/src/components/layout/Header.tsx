@@ -15,7 +15,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { user } = useAuthContext();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -23,7 +23,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         setProfileDropdownOpen(false);
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -46,7 +46,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex flex-1" />
-        
+
         <div className="flex items-center gap-x-4 lg:gap-x-6">
           <button
             type="button"
@@ -76,18 +76,23 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </span>
               </div>
               <span className="hidden lg:flex lg:items-center">
-                <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
-                  {user?.first_name} {user?.last_name}
+                <span className="ml-4 text-sm leading-6 text-gray-900" aria-hidden="true">
+                  <span className="font-semibold">{user?.first_name} {user?.last_name}</span>
+                  {user?.position?.title ? (
+                    <span className="ml-2 text-gray-500 truncate max-w-[10rem]">
+                      • {user?.position?.title}
+                    </span>
+                  ) : null}
                 </span>
               </span>
             </button>
-            
+
             {/* Dropdown menu */}
             {profileDropdownOpen && (
-              <div 
-                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" 
-                role="menu" 
-                aria-orientation="vertical" 
+              <div
+                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                role="menu"
+                aria-orientation="vertical"
                 aria-labelledby="user-menu-button"
                 ref={dropdownRef}
               >
@@ -96,8 +101,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <p className="truncate text-sm font-medium text-gray-900">{user?.email}</p>
                 </div>
                 <div className="border-t border-gray-100"></div>
-                <Link 
-                  href="/profile" 
+                <Link
+                  href="/profile"
                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   role="menuitem"
                   onClick={() => setProfileDropdownOpen(false)}
@@ -105,8 +110,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <UserCircleIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
                   Your Profile
                 </Link>
-                <Link 
-                  href="/settings" 
+                <Link
+                  href="/settings"
                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   role="menuitem"
                   onClick={() => setProfileDropdownOpen(false)}

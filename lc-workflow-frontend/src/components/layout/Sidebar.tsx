@@ -1,20 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  HomeIcon, 
-  DocumentTextIcon, 
-  UsersIcon, 
-  BuildingOfficeIcon, 
-  MapPinIcon, 
+import {
+  HomeIcon,
+  DocumentTextIcon,
+  UsersIcon,
+  BuildingOfficeIcon,
+  MapPinIcon,
   Cog6ToothIcon,
   FolderIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   XMarkIcon,
-  Bars3Icon,
+  BriefcaseIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthContext } from '@/providers/AuthProvider';
 
@@ -32,8 +29,9 @@ const navigation: NavItem[] = [
 ];
 
 const adminNavigation: NavItem[] = [
-  { name: 'Users', href: '/users', icon: UsersIcon, requiredRoles: ['admin', 'manager'] },
   { name: 'Departments', href: '/departments', icon: BuildingOfficeIcon, requiredRoles: ['admin', 'manager'] },
+  { name: 'Positions', href: '/positions', icon: BriefcaseIcon, requiredRoles: ['admin', 'manager'] },
+  { name: 'Users', href: '/users', icon: UsersIcon, requiredRoles: ['admin', 'manager'] },
   { name: 'Branches', href: '/branches', icon: MapPinIcon, requiredRoles: ['admin', 'manager'] },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, requiredRoles: ['admin'] },
 ];
@@ -56,17 +54,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const NavLink = ({ item }: { item: NavItem }) => {
     const isActive = pathname === item.href;
-    
+
     if (!hasRequiredRole(item.requiredRoles)) return null;
 
     return (
       <Link
         href={item.href}
-        className={`group flex items-center gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-all duration-200 ${
-          isActive
+        className={`group flex items-center gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-all duration-200 ${isActive
             ? 'bg-blue-600 text-white'
             : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
-        }`}
+          }`}
         onClick={onClose}
       >
         <item.icon className="h-5 w-5 shrink-0" />
@@ -79,9 +76,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Mobile sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:hidden ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex h-16 items-center justify-between px-4">
           <div className="text-xl font-bold text-gray-900">LC Workflow</div>
@@ -111,7 +107,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <NavLink key={item.name} item={item} />
             ))}
           </nav>
-          
+
           {/* User info */}
           {user && (
             <div className="mb-4">

@@ -6,8 +6,14 @@ export interface BaseModel {
   updated_at: string;
 }
 
+// Position types (frontend DTOs aligned with backend /positions API)
+export type PositionBase = { name: string; description?: string | null };
+export type PositionCreate = PositionBase & { is_active?: boolean };
+export type PositionUpdate = Partial<PositionCreate>;
+export type Position = PositionBase & { id: string; is_active: boolean; created_at?: string; updated_at?: string };
+
 export interface User extends BaseModel {
-  is_active: any;
+  is_active: boolean;
   username: string;
   email: string;
   first_name: string;
@@ -17,6 +23,9 @@ export interface User extends BaseModel {
   status: 'active' | 'inactive';
   department_id?: string;
   branch_id?: string;
+  // Position relations
+  position_id?: string | null;
+  position?: Position | null;
   profile_image_url?: string;
   last_login_at?: string;
   employee_id?: string;
@@ -59,7 +68,7 @@ export interface Branch extends BaseModel {
 export interface CustomerApplication extends BaseModel {
   user_id: string;
   status: ApplicationStatus;
-  
+
   // Borrower Information
   id_card_type?: string;
   id_number?: string;
@@ -68,7 +77,7 @@ export interface CustomerApplication extends BaseModel {
   phone?: string;
   date_of_birth?: string;
   portfolio_officer_name?: string;
-  
+
   // Loan Details
   requested_amount?: number;
   loan_purposes?: string[];
@@ -76,15 +85,15 @@ export interface CustomerApplication extends BaseModel {
   product_type?: string;
   desired_loan_term?: string;
   requested_disbursement_date?: string;
-  
+
   // Guarantor Information
   guarantor_name?: string;
   guarantor_phone?: string;
-  
+
   // Additional data
   collaterals?: Collateral[];
   documents?: ApplicationDocument[];
-  
+
   // Status tracking
   submitted_at?: string;
   approved_at?: string;
@@ -212,11 +221,11 @@ export interface PaginatedResponse<T> {
   pages: number;
 }
 
-export type ApplicationStatus = 
-  | 'draft' 
-  | 'submitted' 
-  | 'under_review' 
-  | 'approved' 
+export type ApplicationStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'approved'
   | 'rejected';
 
 export type UserRole = 'admin' | 'manager' | 'officer';

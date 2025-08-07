@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Numeric, Date, JSON, BigInteger, Integer
+from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Numeric, Date, JSON, BigInteger, Integer, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -20,6 +20,8 @@ class User(Base):
     status = Column(String(20), nullable=False, default='active')
     department_id = Column(UUID(as_uuid=True), ForeignKey('departments.id'))
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id'))
+    # New: position reference (nullable, indexed via migration)
+    position_id = Column(UUID(as_uuid=True), ForeignKey('positions.id'), nullable=True)
     profile_image_url = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -28,6 +30,7 @@ class User(Base):
     # Relationships
     department = relationship("Department", back_populates="users", foreign_keys=[department_id])
     branch = relationship("Branch", back_populates="users", foreign_keys=[branch_id])
+    position = relationship("Position", back_populates="users", foreign_keys=[position_id])
     applications = relationship("CustomerApplication", back_populates="user", foreign_keys="CustomerApplication.user_id")
     uploaded_files = relationship("File", back_populates="uploaded_by_user")
 
@@ -180,3 +183,16 @@ class Setting(Base):
     # Relationships
     creator = relationship("User", foreign_keys=[created_by])
     updater = relationship("User", foreign_keys=[updated_by])
+
+class Position(Base):
+    __tablename__ = "positions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    users = relationship("User", back_populates="position")

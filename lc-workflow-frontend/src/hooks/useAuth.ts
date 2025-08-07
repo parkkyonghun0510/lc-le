@@ -21,11 +21,11 @@ export const useLogin = () => {
     onSuccess: async (data) => {
       // Ensure token is stored before redirecting
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Force refetch user data to update auth state
       await queryClient.invalidateQueries({ queryKey: authKeys.user() });
       await queryClient.refetchQueries({ queryKey: authKeys.user() });
-      
+
       toast.success('Login successful!');
       // Add small delay to ensure auth state is updated
       setTimeout(() => router.push('/dashboard'), 200);
@@ -57,9 +57,10 @@ export const useLogout = () => {
 };
 
 export const useCurrentUser = () => {
-  return useQuery({
+  return useQuery<User>({
     queryKey: authKeys.user(),
-    queryFn: () => apiClient.getCurrentUser(),
+    // Ensure type aligns with updated User including optional position fields
+    queryFn: () => apiClient.getCurrentUser() as Promise<User>,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
     retryDelay: 500,
@@ -70,7 +71,7 @@ export const useCurrentUser = () => {
 // Utility hook to check if user is authenticated
 export const useAuth = () => {
   const { data: user, isLoading, error } = useCurrentUser();
-  
+
   return {
     user: user || null,
     isLoading: typeof window === 'undefined' ? false : isLoading,
@@ -82,7 +83,7 @@ export const useAuth = () => {
 // Hook to check user roles
 export const useRole = () => {
   const { user } = useAuth();
-  
+
   return {
     isAdmin: user?.role === 'admin',
     isManager: user?.role === 'manager',

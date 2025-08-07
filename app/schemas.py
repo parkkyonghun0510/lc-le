@@ -21,6 +21,8 @@ class UserBase(BaseSchema):
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
     employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    # Position FK (optional for compatibility)
+    position_id: Optional[UUID] = None
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
@@ -39,6 +41,26 @@ class UserUpdate(BaseSchema):
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
     employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    position_id: Optional[UUID] = None
+
+# Position schemas
+class PositionBase(BaseSchema):
+    name: str = Field(..., max_length=100)
+    description: Optional[str] = None
+
+class PositionCreate(PositionBase):
+    is_active: bool = True
+
+class PositionUpdate(BaseSchema):
+    name: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class Position(PositionBase):
+    id: UUID
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
 
 class UserResponse(UserBase):
     id: UUID
@@ -48,7 +70,8 @@ class UserResponse(UserBase):
     employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
     department: Optional['DepartmentResponse'] = None
     branch: Optional['BranchResponse'] = None
-    position: Optional[str] = None
+    # Replace prior string placeholder with nested position
+    position: Optional['Position'] = None
 
 class UserLogin(BaseSchema):
     username: str
@@ -60,7 +83,7 @@ class DepartmentBase(BaseSchema):
     code: str = Field(..., max_length=20)
     description: Optional[str] = None
     manager_id: Optional[UUID] = None
-    is_active: bool = True
+    is_active: Optional[bool] = None
 
 class DepartmentCreate(DepartmentBase):
     pass

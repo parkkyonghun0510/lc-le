@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from app.database import engine, Base
-from app.routers import auth, users, applications, files, departments, branches, dashboard
+from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
 from app.routers import settings as settings_router
 from app.core.config import settings
 
@@ -45,6 +45,7 @@ app.include_router(departments.router, prefix="/api/v1/departments", tags=["depa
 app.include_router(branches.router, prefix="/api/v1/branches", tags=["branches"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
+app.include_router(positions.router, prefix="/api/v1/positions", tags=["positions"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")

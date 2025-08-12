@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useFiles, useDeleteFile, useDownloadFile, useCustomers, useApplicationsByCustomer, useApplications } from '@/hooks/useFiles';
+import { useFiles, useDeleteFile, useDownloadFile, useCustomers, useApplicationsByCustomer, useApplications, useCustomerApplications, useApplicationFiles, useFileThumbnail } from '@/hooks/useFiles';
 import { useFolders } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
 import { File, User, CustomerApplication } from '@/types/models';
@@ -120,6 +120,35 @@ export default function CustomerFileExplorer({
   // Fetch all applications and files (bounded size) to compute counts
   const { data: allApplicationsData } = useApplications({ page: 1, size: 1000 });
   const { data: allFilesData } = useFiles({ page: 1, size: 1000 });
+
+  // Map: application_id -> a representative image file id for thumbnail preview
+  const applicationPreviewImageIdByAppId = useMemo(() => {
+    const map = new Map<string, string>();
+    const files = (allFilesData as any)?.items || [];
+    for (const f of files) {
+      if (!f?.application_id) continue;
+      if (map.has(f.application_id)) continue;
+      if (typeof f?.mime_type === 'string' && f.mime_type.startsWith('image/')) {
+        map.set(f.application_id, f.id);
+      }
+    }
+    return map;
+  }, [allFilesData?.items]);
+
+  const ApplicationThumb: React.FC<{ appId: string; name: string }> = ({ appId, name }) => {
+    const previewId = applicationPreviewImageIdByAppId.get(appId);
+    const { data: thumbnailUrl } = useFileThumbnail(previewId || '', 'sm');
+    if (previewId && thumbnailUrl) {
+      return (
+        <img
+          src={thumbnailUrl}
+          alt={name}
+          className="h-8 w-8 rounded object-cover border border-gray-200"
+        />
+      );
+    }
+    return <DocumentTextIcon className="h-8 w-8 text-green-500" />;
+  };
 
   // Map: application_id -> user_id (owner)
   const applicationOwnerById = useMemo(() => {
@@ -493,7 +522,7 @@ export default function CustomerFileExplorer({
                   {item.type === 'customer' ? (
                     <UserIcon className="h-8 w-8 text-blue-500" />
                   ) : item.type === 'application' ? (
-                    <DocumentTextIcon className="h-8 w-8 text-green-500" />
+                    <ApplicationThumb appId={(item as ApplicationFolder).application_id} name={(item as ApplicationFolder).name} />
                   ) : (
                     <FolderIcon className="h-8 w-8 text-yellow-500" />
                   )}
@@ -551,12 +580,13 @@ export default function CustomerFileExplorer({
                 const file = item as FileItem;
                 return (
                   <div key={file.id} className="group">
-                    <ImageThumbnail
+                      <ImageThumbnail
                       file={file}
                       size="lg"
                       className="hover:shadow-md transition-shadow"
                       onClick={() => handleItemClick(file)}
-                      showFileName={true}
+                        showFileName={true}
+                        enableHoverPreview={false}
                     />
                     
                     {showActions && (

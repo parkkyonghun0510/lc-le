@@ -21,7 +21,7 @@ export const useBranches = (filters: {
 } = {}) => {
   return useQuery({
     queryKey: branchKeys.list(filters),
-    queryFn: () => apiClient.get<PaginatedResponse<Branch>>('/branches', {
+    queryFn: () => apiClient.get<PaginatedResponse<Branch>>('/branches/', {
       params: filters,
     }),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -58,7 +58,7 @@ export const useCreateBranch = () => {
       manager_id?: string;
       latitude?: number;
       longitude?: number;
-    }) => apiClient.post<Branch>('/branches', data),
+    }) => apiClient.post<Branch>('/branches/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: branchKeys.lists() });
       toast.success('Branch created successfully!');

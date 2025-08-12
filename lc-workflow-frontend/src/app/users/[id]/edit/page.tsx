@@ -10,6 +10,7 @@ import { ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { usePositions } from '@/hooks/usePositions';
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function EditUserPage() {
   const updateUser = useUpdateUser(userId);
   const { data: departmentsData } = useDepartments({ size: 100 });
   const { data: branchesData } = useBranches({ size: 100 });
+  const { data: positionsData } = usePositions({ size: 100 });
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<UserUpdate>({
@@ -33,6 +35,9 @@ export default function EditUserPage() {
     branch_id: '',
     is_active: true,
     employee_id: '',
+    position_id: '',
+
+
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,6 +53,8 @@ export default function EditUserPage() {
         role: user.role,
         department_id: user.department_id || '',
         branch_id: user.branch_id || '',
+        position_id: user.position_id || '',
+
         is_active: user.is_active,
         employee_id: user.employee_id || '',
       });
@@ -101,6 +108,11 @@ export default function EditUserPage() {
       ...formData,
       department_id: formData.department_id || undefined,
       branch_id: formData.branch_id || undefined,
+      role: formData.role || undefined,
+      is_active: formData.is_active,
+      employee_id: formData.employee_id || undefined,
+      position_id: formData.position_id || undefined,
+
       phone_number: formData.phone_number || undefined,
     };
     if (!submitData.employee_id || !/^\d{4}$/.test(submitData.employee_id)) {
@@ -379,6 +391,24 @@ export default function EditUserPage() {
                       </option>
                     ))}
                   </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Positions
+                    </label>
+                    <select
+                      value={formData.position_id}
+                      onChange={(e) => handleInputChange('position_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Position</option>
+                      {positionsData?.items?.map((position) => (
+                        <option key={position.id} value={position.id}>
+                          {position.name}
+                        </option>
+                      ))}
+                    </select>
                 </div>
               </div>
             </div>

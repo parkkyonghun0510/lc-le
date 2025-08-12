@@ -13,7 +13,8 @@ from app.schemas import (
     CustomerApplicationCreate, 
     CustomerApplicationUpdate, 
     CustomerApplicationResponse,
-    PaginatedResponse
+    PaginatedResponse,
+    RejectionRequest,
 )
 from app.routers.auth import get_current_user
 
@@ -26,7 +27,7 @@ async def create_application(
     db: AsyncSession = Depends(get_db)
 ):
     db_application = CustomerApplication(
-        **application.dict(),
+        **application.model_dump(exclude_unset=True),
         user_id=current_user.id
     )
     db.add(db_application)
@@ -37,6 +38,7 @@ async def create_application(
 @router.get("/", response_model=PaginatedResponse)
 async def list_applications(
     status: Optional[str] = Query(None, description="Filter by status"),
+    account_id: Optional[str] = Query(None, description="Filter by account id"),
     search: Optional[str] = Query(None, description="Search in name or ID"),
     risk_category: Optional[str] = Query(None, description="Filter by risk category"),
     product_type: Optional[str] = Query(None, description="Filter by product type"),
@@ -47,7 +49,7 @@ async def list_applications(
     assigned_reviewer: Optional[UUID] = Query(None, description="Filter by assigned reviewer"),
     priority_level: Optional[str] = Query(None, description="Filter by priority level"),
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -81,6 +83,8 @@ async def list_applications(
     
     if product_type:
         query = query.where(CustomerApplication.product_type == product_type)
+    if account_id:
+        query = query.where(CustomerApplication.account_id == account_id)
     
     if amount_min is not None:
         query = query.where(CustomerApplication.requested_amount >= amount_min)
@@ -204,7 +208,7 @@ async def update_application(
         )
     
     # Update fields
-    update_data = application_update.dict(exclude_unset=True)
+    update_data = application_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(application, field, value)
     
@@ -320,7 +324,7 @@ async def approve_application(
 @router.patch("/{application_id}/reject")
 async def reject_application(
     application_id: UUID,
-    rejection_reason: str,
+    payload: RejectionRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -350,7 +354,7 @@ async def reject_application(
     application.status = "rejected"
     application.rejected_at = datetime.utcnow()
     application.rejected_by = current_user.id
-    application.rejection_reason = rejection_reason
+    application.rejection_reason = payload.rejection_reason
     
     await db.commit()
     await db.refresh(application)

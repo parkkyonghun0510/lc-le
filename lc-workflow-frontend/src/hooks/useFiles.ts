@@ -259,10 +259,19 @@ export const useFile = (id: string) => {
   });
 };
 
-export const useFileThumbnail = (id: string, size: 'sm' | 'md' | 'lg' = 'md') => {
-  return {
-    thumbnailUrl: id ? fileApi.getThumbnailUrl(id, size) : null,
-  };
+export const useFileThumbnail = (id: string, _size: 'sm' | 'md' | 'lg' = 'md') => {
+  // Backend thumbnail endpoint is not available; use presigned download URL for now
+  return useQuery<{ download_url: string }, unknown, string | null>({
+    queryKey: fileKeys.thumbnail(id),
+    queryFn: async () => {
+      if (!id) return null as unknown as { download_url: string };
+      const res = await apiClient.get(`/files/${id}/download`);
+      return res?.download_url ?? null;
+    },
+    enabled: !!id,
+    select: (data) => data ?? null,
+    staleTime: 30 * 1000,
+  });
 };
 
 export const useUploadFile = () => {

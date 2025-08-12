@@ -68,6 +68,7 @@ export interface Branch extends BaseModel {
 export interface CustomerApplication extends BaseModel {
   user_id: string;
   status: ApplicationStatus;
+  account_id?: string;
 
   // Borrower Information
   id_card_type?: string;
@@ -125,6 +126,7 @@ export interface File extends BaseModel {
   mime_type: string;
   uploaded_by: string;
   application_id?: string;
+  folder_id?: string;
 }
 
 export interface UserCreate {
@@ -135,6 +137,7 @@ export interface UserCreate {
   last_name: string;
   phone_number?: string;
   role?: string;
+  position_id?: string;
   department_id?: string;
   branch_id?: string;
   profile_image_url?: string;
@@ -151,6 +154,7 @@ export interface UserUpdate {
   role?: string;
   is_active?: boolean;
   department_id?: string;
+  position_id?: string;
   branch_id?: string;
   profile_image_url?: string;
   employee_id?: string;
@@ -177,6 +181,7 @@ export interface BranchCreate {
 }
 
 export interface CustomerApplicationCreate {
+  account_id?: string;
   id_card_type?: string;
   id_number?: string;
   full_name_khmer?: string;

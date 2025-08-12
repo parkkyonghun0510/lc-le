@@ -24,7 +24,7 @@ export const useDepartments = (filters: {
 } = {}) => {
   return useQuery({
     queryKey: departmentKeys.list(filters),
-    queryFn: () => apiClient.get<PaginatedResponse<Department>>('/departments', {
+    queryFn: () => apiClient.get<PaginatedResponse<Department>>('/departments/', {
       params: filters,
     }),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -53,7 +53,7 @@ export const useCreateDepartment = () => {
 
   return useMutation({
     mutationFn: (data: { name: string; code: string; description?: string; manager_id?: string }) =>
-      apiClient.post<Department>('/departments', data),
+      apiClient.post<Department>('/departments/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: departmentKeys.lists() });
       toast.success('Department created successfully!');
@@ -118,7 +118,7 @@ export const useDepartmentsWithCounts = (filters: {
 } = {}) => {
   return useQuery({
     queryKey: departmentKeys.list({ ...filters, include_counts: true }),
-    queryFn: () => apiClient.get<PaginatedResponse<Department>>('/departments', {
+    queryFn: () => apiClient.get<PaginatedResponse<Department>>('/departments/', {
       params: { ...filters, include_counts: true },
     }),
     staleTime: 5 * 60 * 1000,

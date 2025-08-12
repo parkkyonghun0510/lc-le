@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useUser } from '@/hooks/useUsers';
-import { ArrowLeft, Mail, Phone, Calendar, Shield, Building, MapPin, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Shield, Building, MapPin, IdCardLanyard, User as UserIcon, Network } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -115,9 +115,9 @@ export default function UserDetailPage() {
                     {user.role}
                   </span>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {user.is_active ? 'Active' : 'Inactive'}
+                      {user.status}
                   </span>
                 </div>
               </div>
@@ -146,6 +146,15 @@ export default function UserDetailPage() {
                         <p className="text-sm text-gray-600">{user.phone_number}</p>
                       </div>
                     </div>
+                    )}
+                    {user.employee_id && (
+                      <div className="flex items-center space-x-3">
+                        <IdCardLanyard className="h-5 w-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Employee ID</p>
+                          <p className="text-sm text-gray-600">{user.employee_id}</p>
+                        </div>
+                      </div>
                   )}
                 </div>
               </div>
@@ -171,6 +180,15 @@ export default function UserDetailPage() {
                         <p className="text-sm text-gray-600">{user.branch.name}</p>
                       </div>
                     </div>
+                    )}
+                    {user.position && (
+                      <div className="flex items-center space-x-3">
+                        <Network className="h-5 w-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Position</p>
+                          <p className="text-sm text-gray-600">{user.position?.name || 'N/A'}</p>
+                        </div>
+                      </div>
                   )}
                 </div>
               </div>
@@ -216,8 +234,8 @@ export default function UserDetailPage() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-900">Status:</span>
-                    <span className={`ml-2 ${user.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      <span className={`ml-2 ${user.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                        {user.status === 'active' ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                 </div>

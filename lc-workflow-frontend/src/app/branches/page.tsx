@@ -132,7 +132,7 @@ export default function BranchesPage() {
                   <div className="col-span-3">Branch Name</div>
                   <div className="col-span-2">Code</div>
                   <div className="col-span-4">Address</div>
-                  <div className="col-span-2">Phone</div>
+                      {/* <div className="col-span-2">Phone</div> */}
                   <div className="col-span-1 text-right">Actions</div>
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default function BranchesPage() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{branch.name}</p>
-                            <p className="text-xs text-gray-500">ID: {branch.id}</p>
+                            <p className="text-xs text-gray-500">Tel: {branch.phone_number}</p>
                           </div>
                         </div>
                       </div>
@@ -159,9 +159,9 @@ export default function BranchesPage() {
                       <div className="col-span-4">
                         <p className="text-sm text-gray-900">{branch.address || 'No address provided'}</p>
                       </div>
-                      <div className="col-span-2">
+                      {/* <div className="col-span-2">
                         <p className="text-sm text-gray-900">{branch.phone_number || 'No phone'}</p>
-                      </div>
+                      </div> */}
                       <div className="col-span-1">
                         <div className="flex items-center justify-end space-x-2">
                           <Link

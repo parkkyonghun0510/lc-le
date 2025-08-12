@@ -18,6 +18,7 @@ import FilePreview from '@/components/files/FilePreview';
 import FileExplorerView from '@/components/files/FileExplorerView';
 import AdvancedFileExplorer from '@/components/files/AdvancedFileExplorer';
 import FolderFileExplorer from '@/components/files/FolderFileExplorer';
+import CustomerFileExplorer from '@/components/files/CustomerFileExplorer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -27,7 +28,10 @@ export default function FilesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState<string>('');
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [viewMode, setViewMode] = useState<'table' | 'explorer' | 'advanced' | 'folders'>('folders');
+  const [viewMode, setViewMode] = useState<'table' | 'explorer' | 'advanced' | 'folders' | 'customers'>('customers');
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<File[]>([]);
+  const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
 
   const { data: filesData, isLoading, error } = useFiles({
     application_id: selectedApplicationId || undefined,
@@ -38,6 +42,21 @@ export default function FilesPage() {
     file.original_filename.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
+  const handlePreviewNavigation = (direction: 'prev' | 'next') => {
+    const newIndex = direction === 'prev' ? currentPreviewIndex - 1 : currentPreviewIndex + 1;
+    if (newIndex >= 0 && newIndex < previewFiles.length) {
+      setCurrentPreviewIndex(newIndex);
+      setPreviewFile(previewFiles[newIndex]);
+    }
+  };
+
+  const handleFilePreview = (file: File) => {
+    const files = filteredFiles;
+    const fileIndex = files.findIndex(f => f.id === file.id);
+    setPreviewFiles(files);
+    setCurrentPreviewIndex(fileIndex);
+    setPreviewFile(file);
+  };
 
 
   return (
@@ -53,6 +72,16 @@ export default function FilesPage() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('customers')}
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                      viewMode === 'customers' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Customers
+                  </button>
                   <button
                     onClick={() => setViewMode('folders')}
                     className={`px-3 py-1 text-sm rounded-md transition-colors ${
@@ -134,7 +163,11 @@ export default function FilesPage() {
           </div>
 
           {/* Files View */}
-          {viewMode === 'folders' ? (
+          {viewMode === 'customers' ? (
+            <CustomerFileExplorer
+              showActions={true}
+            />
+          ) : viewMode === 'folders' ? (
             <FolderFileExplorer
               applicationId={selectedApplicationId || undefined}
               showActions={true}
@@ -240,7 +273,7 @@ export default function FilesPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end gap-2">
                                 <button
-                                  onClick={() => {}}
+                                  onClick={() => handleFilePreview(file)}
                                   className="text-gray-600 hover:text-gray-900 p-1"
                                   title="Preview"
                                 >
@@ -272,6 +305,18 @@ export default function FilesPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* File Preview */}
+          {previewFile && (
+            <FilePreview
+              file={previewFile}
+              isOpen={!!previewFile}
+              onClose={() => setPreviewFile(null)}
+              files={previewFiles}
+              currentIndex={currentPreviewIndex}
+              onNavigate={handlePreviewNavigation}
+            />
           )}
 
           {/* Upload Modal */}

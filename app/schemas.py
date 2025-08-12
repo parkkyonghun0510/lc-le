@@ -1,12 +1,13 @@
 from __future__ import annotations
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, date
+import json
 from uuid import UUID
 
 # Base schemas
 class BaseSchema(BaseModel):
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "extra": "ignore"}
 
 # User schemas
 class UserBase(BaseSchema):
@@ -131,13 +132,15 @@ class BranchResponse(BranchBase):
 
 # Application schemas
 class CustomerApplicationBase(BaseSchema):
+    # Account grouping
+    account_id: Optional[str] = Field(None, max_length=100)
     # Borrower Information
     id_card_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, max_length=50)
     full_name_khmer: Optional[str] = Field(None, max_length=255)
     full_name_latin: Optional[str] = Field(None, max_length=255)
     phone: Optional[str] = Field(None, max_length=20)
-    date_of_birth: Optional[str] = None
+    date_of_birth: Optional[date] = None
     portfolio_officer_name: Optional[str] = Field(None, max_length=255)
     
     # Address Information
@@ -159,7 +162,7 @@ class CustomerApplicationBase(BaseSchema):
     purpose_details: Optional[str] = None
     product_type: Optional[str] = Field(None, max_length=50)
     desired_loan_term: Optional[str] = Field(None, max_length=50)
-    requested_disbursement_date: Optional[str] = None
+    requested_disbursement_date: Optional[date] = None
     interest_rate: Optional[float] = None
     
     # Guarantor Information
@@ -188,6 +191,45 @@ class CustomerApplicationBase(BaseSchema):
     assigned_reviewer: Optional[UUID] = None
     priority_level: Optional[str] = Field(default='normal', max_length=20)
 
+    # --- Validators to coerce incoming strings to proper types ---
+    @field_validator("date_of_birth", "requested_disbursement_date", mode="before")
+    @classmethod
+    def _parse_optional_date(cls, value: Any):
+        if value in (None, "", "null"):
+            return None
+        return value
+
+    @field_validator("loan_purposes", mode="before")
+    @classmethod
+    def _parse_loan_purposes(cls, value: Any):
+        if value in (None, "", "null"):
+            return None
+        if isinstance(value, str):
+            text = value.strip()
+            try:
+                if (text.startswith("[") and text.endswith("]")) or (
+                    text.startswith("{") and text.endswith("}")
+                ):
+                    return json.loads(text)
+            except Exception:
+                pass
+            # Fallback: comma-separated values
+            return [item.strip() for item in text.split(",") if item.strip()]
+        return value
+
+    @field_validator("existing_loans", "collaterals", "documents", mode="before")
+    @classmethod
+    def _parse_json_arrays(cls, value: Any):
+        if value in (None, "", "null"):
+            return None
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                # If invalid JSON string, keep as-is to allow FastAPI to return 422 elsewhere
+                return value
+        return value
+
 class CustomerApplicationCreate(CustomerApplicationBase):
     pass
 
@@ -207,6 +249,9 @@ class CustomerApplicationResponse(CustomerApplicationBase):
     rejected_by: Optional[UUID]
     rejection_reason: Optional[str]
 
+class RejectionRequest(BaseSchema):
+    rejection_reason: str
+
 # File schemas
 class FileBase(BaseSchema):
     filename: str
@@ -224,7 +269,14 @@ class FileResponse(FileBase):
     file_path: str
     uploaded_by: UUID
     application_id: Optional[UUID]
+    folder_id: Optional[UUID] = None
     created_at: datetime
+
+class FileFinalize(BaseSchema):
+    object_name: str
+    original_filename: str
+    application_id: Optional[UUID] = None
+    folder_id: Optional[UUID] = None
 
 # Authentication response
 class TokenResponse(BaseSchema):
@@ -237,7 +289,7 @@ class TokenResponse(BaseSchema):
 # Pagination schemas
 class PaginationParams(BaseSchema):
     page: int = Field(default=1, ge=1)
-    size: int = Field(default=10, ge=1, le=100)
+    size: int = Field(default=10, ge=1, le=1000)
 
 class PaginatedResponse(BaseSchema):
     items: List[Any]
@@ -245,3 +297,21 @@ class PaginatedResponse(BaseSchema):
     page: int
     size: int
     pages: int
+
+# Folder schemas
+class FolderBase(BaseSchema):
+    name: str
+    parent_id: Optional[UUID] = None
+    application_id: Optional[UUID] = None
+
+class FolderCreate(FolderBase):
+    pass
+
+class FolderUpdate(BaseSchema):
+    name: Optional[str] = None
+    parent_id: Optional[UUID] = None
+
+class FolderResponse(FolderBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime

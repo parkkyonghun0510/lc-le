@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from app.database import engine, Base
 from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
+from app.routers import folders, customers
 from app.routers import settings as settings_router
 from app.core.config import settings
 
@@ -41,6 +42,8 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(applications.router, prefix="/api/v1/applications", tags=["applications"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
+app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
+app.include_router(customers.router, prefix="/api/v1/customers", tags=["customers"])
 app.include_router(departments.router, prefix="/api/v1/departments", tags=["departments"])
 app.include_router(branches.router, prefix="/api/v1/branches", tags=["branches"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])

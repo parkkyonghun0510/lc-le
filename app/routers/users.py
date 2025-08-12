@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from typing import List, Optional
 from uuid import UUID
 
@@ -43,15 +43,25 @@ async def create_user(
     )
     db.add(db_user)
     await db.commit()
-    await db.refresh(db_user)
-    return UserResponse.from_orm(db_user)
+    # Re-fetch with relationships eagerly loaded to avoid lazy IO during serialization
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+        )
+        .where(User.id == db_user.id)
+    )
+    db_user_loaded = result.scalar_one_or_none()
+    return UserResponse.model_validate(db_user_loaded)
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_users(
     role: Optional[str] = Query(None, description="Filter by role"),
     search: Optional[str] = Query(None, description="Search in username, email, or name"),
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -61,7 +71,15 @@ async def list_users(
             detail="Not authorized to list users"
         )
     
-    query = select(User)
+    # Eager-load relationships to avoid lazy IO during Pydantic validation
+    query = (
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+        )
+    )
     
     if role:
         query = query.where(User.role == role)
@@ -75,9 +93,20 @@ async def list_users(
             (User.last_name.ilike(search_term))
         )
     
-    # Count total
-    count_result = await db.execute(select(User))
-    total = len(count_result.scalars().all())
+    # Count total with the same filters applied
+    count_query = select(func.count()).select_from(User)
+    if role:
+        count_query = count_query.where(User.role == role)
+    if search:
+        search_term = f"%{search}%"
+        count_query = count_query.where(
+            (User.username.ilike(search_term)) |
+            (User.email.ilike(search_term)) |
+            (User.first_name.ilike(search_term)) |
+            (User.last_name.ilike(search_term))
+        )
+    count_result = await db.execute(count_query)
+    total = int(count_result.scalar() or 0)
     
     # Apply pagination
     offset = (page - 1) * size
@@ -87,7 +116,7 @@ async def list_users(
     users = result.scalars().all()
     
     return PaginatedResponse(
-        items=[UserResponse.from_orm(user) for user in users],
+        items=[UserResponse.model_validate(user) for user in users],
         total=total,
         page=page,
         size=size,
@@ -106,7 +135,15 @@ async def get_user(
             detail="Not authorized to access this user"
         )
     
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+        )
+        .where(User.id == user_id)
+    )
     user = result.scalar_one_or_none()
     
     if not user:
@@ -115,7 +152,7 @@ async def get_user(
             detail="User not found"
         )
     
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
@@ -130,7 +167,15 @@ async def update_user(
             detail="Not authorized to update this user"
         )
     
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+        )
+        .where(User.id == user_id)
+    )
     user = result.scalar_one_or_none()
     
     if not user:
@@ -166,7 +211,7 @@ async def update_user(
     
     await db.commit()
     await db.refresh(user)
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def patch_user(
@@ -181,7 +226,15 @@ async def patch_user(
             detail="Not authorized to update this user"
         )
     
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+        )
+        .where(User.id == user_id)
+    )
     user = result.scalar_one_or_none()
     
     if not user:
@@ -217,7 +270,7 @@ async def patch_user(
     
     await db.commit()
     await db.refresh(user)
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 @router.delete("/{user_id}")
 async def delete_user(

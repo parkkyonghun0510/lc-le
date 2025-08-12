@@ -76,6 +76,8 @@ class CustomerApplication(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     status = Column(String(20), nullable=False, default='draft')
+    # External/customer account grouping identifier
+    account_id = Column(String(100))
     
     # Borrower Information
     id_card_type = Column(String(50))  # national_id, passport, family_book
@@ -149,6 +151,19 @@ class CustomerApplication(Base):
     approver = relationship("User", foreign_keys=[approved_by])
     rejector = relationship("User", foreign_keys=[rejected_by])
     reviewer = relationship("User", foreign_keys=[assigned_reviewer])
+    # Application-linked resources
+    files = relationship(
+        "File",
+        primaryjoin="CustomerApplication.id==File.application_id",
+        viewonly=True,
+        lazy="selectin",
+    )
+    folders = relationship(
+        "Folder",
+        primaryjoin="CustomerApplication.id==Folder.application_id",
+        viewonly=True,
+        lazy="selectin",
+    )
 
 class File(Base):
     __tablename__ = "files"
@@ -161,10 +176,13 @@ class File(Base):
     mime_type = Column(String(100), nullable=False)
     uploaded_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     application_id = Column(UUID(as_uuid=True), ForeignKey('customer_applications.id'))
+    folder_id = Column(UUID(as_uuid=True), ForeignKey('folders.id'), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     uploaded_by_user = relationship("User", back_populates="uploaded_files", foreign_keys=[uploaded_by])
+    folder = relationship("Folder", back_populates="files", foreign_keys=[folder_id])
+    application = relationship("CustomerApplication", foreign_keys=[application_id])
 
 class Setting(Base):
     __tablename__ = "settings"
@@ -196,3 +214,19 @@ class Position(Base):
 
     # Relationships
     users = relationship("User", back_populates="position")
+
+
+class Folder(Base):
+    __tablename__ = "folders"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey('folders.id'), nullable=True)
+    application_id = Column(UUID(as_uuid=True), ForeignKey('customer_applications.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    parent = relationship("Folder", remote_side=[id], backref="children")
+    files = relationship("File", back_populates="folder")
+    application = relationship("CustomerApplication", foreign_keys=[application_id])

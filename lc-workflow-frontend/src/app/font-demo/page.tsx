@@ -40,7 +40,7 @@ export default function FontDemoPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2">ព័ត៌មានកម្ចី</h3>
                 <p className="text-base">
-                  ចំនួនទឹកប្រាក់ស្នើសុំ: ៥០,០០០ ដុល្លារអាមេរិក<br/>
+                  ចំនួនទឹកប្រាក់ស្នើសុំ: ៥០,០០០ ៛ (រៀល)<br/>
                   រយៈពេលកម្ចី: ២៤ ខែ<br/>
                   គោលបំណង: ពង្រីកអាជីវកម្ម<br/>
                   ប្រភេទផលិតផល: កម្ចីអាជីវកម្មតូច
@@ -86,7 +86,7 @@ export default function FontDemoPage() {
                 </KhmerText>
                 <p className="text-base">
                   <KhmerText>ចំនួនទឹកប្រាក់: </KhmerText>
-                  <EnglishText>$50,000 USD</EnglishText>
+                  <EnglishText>50,000 ៛</EnglishText>
                 </p>
                 <p className="text-base">
                   <KhmerText>រយៈពេល: </KhmerText>

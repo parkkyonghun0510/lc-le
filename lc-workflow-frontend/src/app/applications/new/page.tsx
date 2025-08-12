@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { useCreateApplication } from '@/hooks/useApplications';
+import { useCreateApplication, useUpdateApplication } from '@/hooks/useApplications';
+import { useCreateFolder } from '@/hooks/useFolders';
+import { useUploadFile } from '@/hooks/useFiles';
+import type { Collateral, ApplicationDocument } from '@/types/models';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -12,7 +15,6 @@ import {
   UserGroupIcon,
   DocumentDuplicateIcon,
   PlusIcon,
-  XMarkIcon,
   CalendarIcon,
   IdentificationIcon,
   PhoneIcon,
@@ -21,7 +23,8 @@ import {
   TruckIcon,
   AcademicCapIcon,
   HeartIcon,
-  EllipsisHorizontalIcon
+  EllipsisHorizontalIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
 const loanPurposes = [
@@ -61,9 +64,42 @@ const loanTerms = [
 export default function NewApplicationPage() {
   const router = useRouter();
   const createMutation = useCreateApplication();
+  const updateMutation = useUpdateApplication();
+  const uploadMutation = useUploadFile();
+  const createFolderMutation = useCreateFolder();
 
-  const [formData, setFormData] = useState({
+  type FormFieldValue = string | number | string[];
+  interface ApplicationFormState {
     // Customer Information
+    account_id: string;
+    id_card_type: string;
+    id_number: string;
+    full_name_khmer: string;
+    full_name_latin: string;
+    phone: string;
+    date_of_birth: string;
+    portfolio_officer_name: string;
+
+    // Loan Details
+    requested_amount: string;
+    loan_purposes: string[];
+    purpose_details: string;
+    product_type: string;
+    desired_loan_term: string;
+    requested_disbursement_date: string;
+
+    // Guarantor Information
+    guarantor_name: string;
+    guarantor_phone: string;
+
+    // Additional data
+    collaterals: Collateral[];
+    documents: ApplicationDocument[];
+  }
+
+  const [formData, setFormData] = useState<ApplicationFormState>({
+    // Customer Information
+    account_id: '',
     id_card_type: '',
     id_number: '',
     full_name_khmer: '',
@@ -85,12 +121,29 @@ export default function NewApplicationPage() {
     guarantor_phone: '',
 
     // Additional data
-    collaterals: [] as any[],
-    documents: [] as any[]
+    collaterals: [] as Collateral[],
+    documents: [] as ApplicationDocument[]
   });
 
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const docTypes = [
+    { id: 'borrower_photo', label: 'រូបថតអ្នកខ្ចី', role: 'borrower' },
+    { id: 'borrower_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (មុខ)', role: 'borrower' },
+    { id: 'borrower_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (ក្រោយ)', role: 'borrower' },
+    { id: 'guarantor_photo', label: 'រូបថតអ្នកធានា', role: 'guarantor' },
+    { id: 'guarantor_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (មុខ)', role: 'guarantor' },
+    { id: 'guarantor_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (ក្រោយ)', role: 'guarantor' },
+    { id: 'driver_license', label: 'បណ្ណបើកបរ', role: 'borrower' },
+    { id: 'passport', label: 'លិខិតឆ្លងដែន', role: 'borrower' },
+    { id: 'business_license', label: 'អាជ្ញាបណ្ណអាជីវកម្ម', role: 'borrower' },
+    { id: 'land_title', label: 'បណ្ណកម្មសិទ្ធិដី', role: 'collateral' },
+    { id: 'house_photo', label: 'រូបផ្ទះ', role: 'collateral' },
+    { id: 'collateral_other', label: 'បញ្ចាំផ្សេងៗ', role: 'collateral' },
+  ];
+  const [selectedDocs, setSelectedDocs] = useState<Record<string, boolean>>({});
+  const [docFiles, setDocFiles] = useState<Record<string, globalThis.File[]>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   const steps = [
     { id: 1, title: 'ព័ត៌មានអតិថិជន', icon: UserIcon },
@@ -99,7 +152,7 @@ export default function NewApplicationPage() {
     { id: 4, title: 'ឯកសារ', icon: DocumentDuplicateIcon }
   ];
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: keyof ApplicationFormState, value: FormFieldValue) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -169,7 +222,70 @@ export default function NewApplicationPage() {
 
     try {
       const result = await createMutation.mutateAsync(submitData);
-      router.push(`/applications/${result.id}`);
+      const applicationId = result.id as string;
+
+      // Create folders for selected document types under this application
+      const folderIdByDocType: Record<string, string> = {};
+      for (const def of docTypes) {
+        if (!selectedDocs[def.id]) continue;
+        try {
+          const folder = await createFolderMutation.mutateAsync({
+            name: def.label,
+            application_id: applicationId,
+          });
+          // Some fallbacks in the folder hook may return partials; coerce conservatively
+          const newFolder: { id?: string } = folder as unknown as { id?: string };
+          folderIdByDocType[def.id] = newFolder.id ?? '';
+        } catch {
+          // Continue without a folder if creation fails
+        }
+      }
+
+      // After creation, upload selected document files into their folders and update application's documents JSON
+      type UploadedDoc = {
+        type: string;
+        role: string;
+        file_id: string;
+        filename: string;
+        original_filename: string;
+        mime_type: string;
+        size: number;
+        uploaded_at: string;
+      };
+      const uploads: UploadedDoc[] = [];
+      for (const def of docTypes) {
+        if (!selectedDocs[def.id]) continue;
+        const files = docFiles[def.id] || [];
+        const folderId = folderIdByDocType[def.id];
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          const key = `${def.id}-${i}-${f.name}`;
+          setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+          const uploaded = await uploadMutation.mutateAsync({ 
+            file: f, 
+            applicationId,
+            folderId,
+            onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [key]: p }))
+          });
+          uploads.push({
+            type: def.id,
+            role: def.role,
+            file_id: uploaded.id,
+            filename: uploaded.filename,
+            original_filename: uploaded.original_filename,
+            mime_type: uploaded.mime_type,
+            size: uploaded.file_size,
+            uploaded_at: uploaded.created_at,
+          });
+          setUploadProgress(prev => ({ ...prev, [key]: 100 }));
+        }
+      }
+
+      if (uploads.length > 0) {
+        await updateMutation.mutateAsync({ id: applicationId, data: { documents: uploads } });
+      }
+
+      router.push(`/applications/${applicationId}`);
     } catch (error) {
       console.error('Error creating application:', error);
     }
@@ -186,6 +302,18 @@ export default function NewApplicationPage() {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Account ID
+                </label>
+                <input
+                  type="text"
+                  value={formData.account_id}
+                  onChange={(e) => handleInputChange('account_id', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter account/customer id"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   ឈ្មោះជាភាសាខ្មែរ *
@@ -305,7 +433,7 @@ export default function NewApplicationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ចំនួនទឹកប្រាក់ស្នើសុំ (USD) *
+                  ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛) *
                 </label>
                 <input
                   type="number"
@@ -462,18 +590,67 @@ export default function NewApplicationPage() {
               ឯកសារភ្ជាប់
             </h2>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
-                អ្នកអាចភ្ជាប់ឯកសារបន្ទាប់ពីបង្កើតពាក្យសុំរួចរាល់។ ឯកសារដែលត្រូវការ៖ អត្តសញ្ញាណប័ណ្ណ, វិក្កយបត្រប្រាក់ខែ, ឯកសារកម្មសិទ្ធិ។
-              </p>
-            </div>
+            <div className="space-y-4">
+              {docTypes.map(def => (
+                <div key={def.id} className="border border-gray-200 rounded-lg p-4">
+                  <label className="inline-flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={!!selectedDocs[def.id]}
+                      onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
+                    />
+                    <span className="font-medium text-gray-900">{def.label}</span>
+                  </label>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <DocumentDuplicateIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">មិនទាន់មានឯកសារ</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                អ្នកនឹងអាចភ្ជាប់ឯកសារបន្ទាប់ពីបង្កើតពាក្យសុំ
-              </p>
+                  {selectedDocs[def.id] && (
+                    <div className="mt-3 space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setDocFiles(prev => ({ ...prev, [def.id]: files as File[] }));
+                        }}
+                        className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {Array.isArray(docFiles[def.id]) && docFiles[def.id].length > 0 && (
+                        <>
+                          {(() => {
+                            const completed = docFiles[def.id].filter((file, idx) => {
+                              const key = `${def.id}-${idx}-${file.name}`;
+                              return uploadProgress[key] === 100;
+                            }).length;
+                            return completed > 0 ? (
+                              <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+                                <CheckCircleIcon className="w-4 h-4" />
+                                <span>{completed} uploaded</span>
+                              </div>
+                            ) : null;
+                          })()}
+                          <div className="space-y-1">
+                            {docFiles[def.id].map((file, idx) => {
+                              const key = `${def.id}-${idx}-${file.name}`;
+                              const progress = uploadProgress[key] ?? 0;
+                              return (
+                                <div key={key} className="text-xs text-gray-600">
+                                  <div className="flex justify-between">
+                                    <span className="truncate max-w-[70%]" title={file.name}>{file.name}</span>
+                                    <span>{progress}%</span>
+                                  </div>
+                                  <div className="w-full h-2 bg-gray-200 rounded">
+                                    <div className="h-2 bg-blue-600 rounded" style={{ width: `${progress}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         );

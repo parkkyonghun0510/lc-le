@@ -10,12 +10,16 @@ import { ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { usePositions } from '@/hooks/usePositions';
 
 export default function NewUserPage() {
   const router = useRouter();
   const createUser = useCreateUser();
   const { data: departmentsData } = useDepartments({ size: 100 });
   const { data: branchesData } = useBranches({ size: 100 });
+  const { data: positionsData } = usePositions({ size: 100 });
+
+
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<UserCreate>({
@@ -26,6 +30,7 @@ export default function NewUserPage() {
     last_name: '',
     phone_number: '',
     role: 'officer',
+    position_id: '',
     department_id: '',
     branch_id: '',
     employee_id: '',
@@ -65,6 +70,8 @@ export default function NewUserPage() {
     if (formData.phone_number && !/^\+?[\d\s-()]+$/.test(formData.phone_number)) {
       newErrors.phone_number = 'Please enter a valid phone number';
     }
+    // Position is optional; do not block submission if selected or empty
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -83,6 +90,8 @@ export default function NewUserPage() {
       department_id: formData.department_id || undefined,
       branch_id: formData.branch_id || undefined,
       phone_number: formData.phone_number || undefined,
+      position_id: formData.position_id || undefined,
+
     };
     if (!submitData.employee_id || !/^\d{4}$/.test(submitData.employee_id)) {
       delete submitData.employee_id;
@@ -316,7 +325,26 @@ export default function NewUserPage() {
                       </option>
                     ))}
                   </select>
-                </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Position
+                    </label>
+                    <select
+                      value={formData.position_id}
+                      onChange={(e) => handleInputChange('position_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Position</option>
+                      {positionsData?.items?.map((position) => (
+                        <option key={position.id} value={position.id}>
+                          {position.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
               </div>
             </div>
 

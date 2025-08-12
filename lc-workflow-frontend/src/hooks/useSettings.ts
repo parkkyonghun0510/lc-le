@@ -57,7 +57,7 @@ export const useSettings = (category?: string) => {
     queryKey: settingsKeys.list(category),
     queryFn: (): Promise<SettingsByCategory> => {
       const params = category ? `?category=${category}` : '';
-      return apiClient.get(`/settings${params}`);
+      return apiClient.get(`/settings/${params}`);
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -91,7 +91,7 @@ export const useCreateSetting = () => {
 
   return useMutation({
     mutationFn: (data: SettingCreate): Promise<Setting> => 
-      apiClient.post('/settings', data),
+      apiClient.post('/settings/', data),
     onSuccess: (newSetting) => {
       // Invalidate all settings queries
       queryClient.invalidateQueries({ queryKey: settingsKeys.all });

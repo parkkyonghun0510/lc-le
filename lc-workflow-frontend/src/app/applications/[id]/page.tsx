@@ -5,6 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplication, useSubmitApplication, useApproveApplication, useRejectApplication } from '@/hooks/useApplications';
+import { useFiles, useDownloadFile } from '@/hooks/useFiles';
+import { useFolders } from '@/hooks/useFolders';
+import type { File as ApiFile } from '@/types/models';
+import FilePreview from '@/components/files/FilePreview';
+import ImageThumbnail from '@/components/files/ImageThumbnail';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   ArrowLeftIcon,
@@ -19,7 +24,7 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   BuildingOfficeIcon,
-  MapPinIcon,
+  
   DocumentDuplicateIcon,
   UserGroupIcon,
   BanknotesIcon,
@@ -29,6 +34,7 @@ import {
   HeartIcon,
   EllipsisHorizontalIcon
 } from '@heroicons/react/24/outline';
+import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -103,6 +109,39 @@ export default function ApplicationDetailPage() {
   const submitMutation = useSubmitApplication();
   const approveMutation = useApproveApplication();
   const rejectMutation = useRejectApplication();
+
+  // Files/folders for grouping
+  const { data: allFilesData } = useFiles({ application_id: applicationId, limit: 100 });
+  const { data: appFolders = [] } = useFolders({ application_id: applicationId });
+  const files: ApiFile[] = allFilesData?.items || [];
+  const { downloadFile } = useDownloadFile();
+  const [previewFile, setPreviewFile] = useState<ApiFile | null>(null);
+  const [previewList, setPreviewList] = useState<ApiFile[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  const isImageFile = (f: ApiFile) => {
+    const byMime = typeof f.mime_type === 'string' && f.mime_type.toLowerCase().startsWith('image/');
+    const byExt = typeof f.original_filename === 'string' && /\.(jpg|jpeg|png|gif|webp|bmp|tiff|heic)$/i.test(f.original_filename);
+    return byMime || byExt;
+  };
+
+  const openPreview = (file: ApiFile, list: ApiFile[]) => {
+    setPreviewList(list);
+    const idx = list.findIndex(f => f.id === file.id);
+    setPreviewIndex(idx >= 0 ? idx : 0);
+    setPreviewFile(file);
+  };
+
+  const navigatePreview = (direction: 'prev' | 'next') => {
+    setPreviewIndex((prev) => {
+      const newIdx = direction === 'prev' ? prev - 1 : prev + 1;
+      if (newIdx >= 0 && newIdx < previewList.length) {
+        setPreviewFile(previewList[newIdx]);
+        return newIdx;
+      }
+      return prev;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -182,6 +221,24 @@ export default function ApplicationDetailPage() {
                   កាលបរិច្ឆេទបង្កើត: {formatDate(application.created_at)}
                 </p>
               </div>
+
+              {previewFile && (
+                <FilePreview
+                  file={previewFile}
+                  isOpen={!!previewFile}
+                  onClose={() => setPreviewFile(null)}
+                  files={previewList}
+                  currentIndex={previewIndex}
+                  onNavigate={navigatePreview}
+                  caption={(
+                    (() => {
+                      const folder = appFolders.find(f => f.id === previewFile.folder_id);
+                      if (folder) return `Folder: ${folder.name}`;
+                      return 'Folder: Other';
+                    })()
+                  )}
+                />
+              )}
             </div>
 
             <div className="flex items-center space-x-3">
@@ -443,36 +500,248 @@ export default function ApplicationDetailPage() {
                 </div>
               )}
 
-              {/* Documents */}
-              {application.documents && application.documents.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                    <DocumentDuplicateIcon className="w-6 h-6 mr-2 text-orange-600" />
-                    ឯកសារភ្ជាប់
-                  </h2>
+              {/* Files grouped by folder */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  <DocumentDuplicateIcon className="w-6 h-6 mr-2 text-orange-600" />
+                  ឯកសារ (តាមថត)
+                </h2>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {application.documents.map((doc, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-center mb-2">
-                          <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-900 truncate">
-                            {doc.name || `ឯកសារ ${index + 1}`}
-                          </span>
+                {appFolders.length === 0 && files.length === 0 ? (
+                  <p className="text-gray-500">មិនមានឯកសារ</p>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Known folders first: borrower, guarantor, collateral */}
+                    {['borrower', 'guarantor', 'collateral'].map((role) => {
+                      const folder = appFolders.find(f => f.name.toLowerCase() === role);
+                      const folderFiles = files.filter(f => f.folder_id === folder?.id);
+                      if (!folder && folderFiles.length === 0) return null;
+                      return (
+                        <div key={role}>
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold capitalize">{role}</h3>
+                            <span className="text-xs text-gray-500">{folderFiles.length} files</span>
+                          </div>
+                          {folderFiles.length === 0 ? (
+                            <p className="text-sm text-gray-500">គ្មានឯកសារ</p>
+                          ) : (
+                            <>
+                              {(() => {
+                                const imageFiles = folderFiles.filter(f => isImageFile(f));
+                                const otherFiles = folderFiles.filter(f => !isImageFile(f));
+                                return (
+                                  <div className="space-y-4">
+                                    {imageFiles.length > 0 && (
+                                      <div>
+                                        <div className="mb-2 text-sm text-gray-700">រូបភាព</div>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                          {imageFiles.map(file => (
+                                            <div
+                                              key={file.id}
+                                              className="border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
+                                              onClick={() => openPreview(file, folderFiles)}
+                                            >
+                                              <ImageThumbnail file={file} size="lg" className="w-full h-40" />
+                                              <div className="mt-2 text-xs text-gray-700 truncate" title={file.original_filename}>
+                                                {file.original_filename}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {otherFiles.length > 0 && (
+                                      <div>
+                                        <div className="mb-2 text-sm text-gray-700">ឯកសារ</div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                          {otherFiles.map(file => (
+                                            <div key={file.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                                              <div className="flex items-center mb-1">
+                                                <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
+                                                <span className="text-sm font-medium text-gray-900 truncate" title={file.original_filename}>
+                                                  {file.original_filename}
+                                                </span>
+                                              </div>
+                                              <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
+                                              <div className="mt-2 flex items-center gap-2">
+                                                <button
+                                                  className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                                  onClick={() => openPreview(file, folderFiles)}
+                                                >
+                                                  <EyeIcon className="w-4 h-4 mr-1" /> មើល
+                                                </button>
+                                                <button
+                                                  className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                                  onClick={() => downloadFile(file.id, file.original_filename)}
+                                                >
+                                                  <ArrowDownTrayIcon className="w-4 h-4 mr-1" /> ទាញយក
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-500">
-                          {doc.type || 'ប្រភេទមិនស្គាល់'}
-                        </p>
-                        {doc.size && (
-                          <p className="text-xs text-gray-500">
-                            ទំហំ: {(doc.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
+
+                    {/* Any other folders */}
+                    {appFolders
+                      .filter(f => !['borrower', 'guarantor', 'collateral'].includes(f.name.toLowerCase()))
+                      .map(folder => {
+                        const folderFiles = files.filter(f => f.folder_id === folder.id);
+                        return (
+                          <div key={folder.id}>
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-lg font-semibold">{folder.name}</h3>
+                              <span className="text-xs text-gray-500">{folderFiles.length} files</span>
+                            </div>
+                            {folderFiles.length === 0 ? (
+                              <p className="text-sm text-gray-500">គ្មានឯកសារ</p>
+                            ) : (
+                              <>
+                                {(() => {
+                                  const imageFiles = folderFiles.filter(f => isImageFile(f));
+                                  const otherFiles = folderFiles.filter(f => !isImageFile(f));
+                                  return (
+                                    <div className="space-y-4">
+                                      {imageFiles.length > 0 && (
+                                        <div>
+                                          <div className="mb-2 text-sm text-gray-700">រូបភាព</div>
+                                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                            {imageFiles.map(file => (
+                                              <div
+                                                key={file.id}
+                                                className="border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
+                                                onClick={() => openPreview(file, folderFiles)}
+                                              >
+                                                <ImageThumbnail file={file} size="lg" className="w-full h-40" />
+                                                <div className="mt-2 text-xs text-gray-700 truncate" title={file.original_filename}>
+                                                  {file.original_filename}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {otherFiles.length > 0 && (
+                                        <div>
+                                          <div className="mb-2 text-sm text-gray-700">ឯកសារ</div>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {otherFiles.map(file => (
+                                              <div key={file.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                                                <div className="flex items-center mb-1">
+                                                  <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
+                                                  <span className="text-sm font-medium text-gray-900 truncate" title={file.original_filename}>
+                                                    {file.original_filename}
+                                                  </span>
+                                                </div>
+                                                <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
+                                                <div className="mt-2 flex items-center gap-2">
+                                                  <button
+                                                    className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                                    onClick={() => openPreview(file, folderFiles)}
+                                                  >
+                                                    <EyeIcon className="w-4 h-4 mr-1" /> មើល
+                                                  </button>
+                                                  <button
+                                                    className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                                    onClick={() => downloadFile(file.id, file.original_filename)}
+                                                  >
+                                                    <ArrowDownTrayIcon className="w-4 h-4 mr-1" /> ទាញយក
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                    {/* Orphan files (no folder) */}
+                    {(() => {
+                      const orphanFiles = files.filter(f => !f.folder_id);
+                      if (orphanFiles.length === 0) return null;
+                      const imageFiles = orphanFiles.filter(f => isImageFile(f));
+                      const otherFiles = orphanFiles.filter(f => !isImageFile(f));
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold">Other</h3>
+                            <span className="text-xs text-gray-500">{orphanFiles.length} files</span>
+                          </div>
+                          <div className="space-y-4">
+                            {imageFiles.length > 0 && (
+                              <div>
+                                <div className="mb-2 text-sm text-gray-700">រូបភាព</div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                  {imageFiles.map(file => (
+                                    <div
+                                      key={file.id}
+                                      className="border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
+                                      onClick={() => openPreview(file, orphanFiles)}
+                                    >
+                                      <ImageThumbnail file={file} size="lg" className="w-full h-40" />
+                                      <div className="mt-2 text-xs text-gray-700 truncate" title={file.original_filename}>
+                                        {file.original_filename}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {otherFiles.length > 0 && (
+                              <div>
+                                <div className="mb-2 text-sm text-gray-700">ឯកសារ</div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {otherFiles.map(file => (
+                                    <div key={file.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                                      <div className="flex items-center mb-1">
+                                        <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
+                                        <span className="text-sm font-medium text-gray-900 truncate" title={file.original_filename}>
+                                          {file.original_filename}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
+                                      <div className="mt-2 flex items-center gap-2">
+                                        <button
+                                          className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                          onClick={() => openPreview(file, orphanFiles)}
+                                        >
+                                          <EyeIcon className="w-4 h-4 mr-1" /> មើល
+                                        </button>
+                                        <button
+                                          className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                          onClick={() => downloadFile(file.id, file.original_filename)}
+                                        >
+                                          <ArrowDownTrayIcon className="w-4 h-4 mr-1" /> ទាញយក
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Sidebar */}

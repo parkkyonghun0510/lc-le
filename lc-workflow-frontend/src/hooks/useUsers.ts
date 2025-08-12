@@ -19,13 +19,15 @@ export const useUsers = (filters: {
   size?: number;
   role?: string;
   department_id?: string;
+  position_id?: string;
+
   branch_id?: string;
   search?: string;
   status?: string;
 } = {}) => {
   return useQuery({
     queryKey: userKeys.list(filters),
-    queryFn: () => apiClient.get<PaginatedResponse<User>>('/users', {
+    queryFn: () => apiClient.get<PaginatedResponse<User>>('/users/', {
       params: filters,
     }),
     staleTime: 60 * 1000, // 1 minute
@@ -36,6 +38,8 @@ export const useInfiniteUsers = (filters: {
   size?: number;
   role?: string;
   department_id?: string;
+  position_id?: string;   
+
   branch_id?: string;
   search?: string;
   status?: string;
@@ -43,7 +47,7 @@ export const useInfiniteUsers = (filters: {
   return useInfiniteQuery({
     queryKey: userKeys.list(filters),
     queryFn: ({ pageParam = 1 }) => 
-      apiClient.get<PaginatedResponse<User>>('/users', {
+      apiClient.get<PaginatedResponse<User>>('/users/', {
         params: { ...filters, page: pageParam },
       }),
     getNextPageParam: (lastPage) => {
@@ -70,7 +74,7 @@ export const useCreateUser = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: UserCreate) => apiClient.post<User>('/users', data),
+    mutationFn: (data: UserCreate) => apiClient.post<User>('/users/', data),
     onSuccess: (newUser) => {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
       toast.success('User created successfully!');

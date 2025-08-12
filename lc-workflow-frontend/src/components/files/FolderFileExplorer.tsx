@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile } from '@/hooks/useFiles';
+import { useFolders, useCreateFolder, useDeleteFolder } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
 import { File } from '@/types/models';
 import {
@@ -81,38 +82,22 @@ export default function FolderFileExplorer({
   const [newFolderName, setNewFolderName] = useState('');
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
-  const { data: filesData, isLoading, error, refetch } = useFiles({
+  const { data: filesData, isLoading: isLoadingFiles, error: filesError, refetch: refetchFiles } = useFiles({
     application_id: applicationId,
     limit: 100,
+  });
+
+  const currentParentId = currentPath.length > 0 ? currentPath[currentPath.length - 1] : undefined;
+  const { data: foldersData, isLoading: isLoadingFolders, error: foldersError, refetch: refetchFolders } = useFolders({
+    parent_id: currentParentId,
+    application_id: applicationId,
   });
 
   const deleteFileMutation = useDeleteFile();
   const { downloadFile } = useDownloadFile();
 
-  // Mock folder structure - in real implementation, this would come from API
-  const mockFolders: FolderItem[] = [
-    {
-      id: 'documents',
-      name: 'Documents',
-      type: 'folder',
-      created_at: new Date().toISOString(),
-      file_count: 5
-    },
-    {
-      id: 'images',
-      name: 'Images',
-      type: 'folder',
-      created_at: new Date().toISOString(),
-      file_count: 12
-    },
-    {
-      id: 'contracts',
-      name: 'Contracts',
-      type: 'folder',
-      created_at: new Date().toISOString(),
-      file_count: 3
-    }
-  ];
+  const createFolderMutation = useCreateFolder();
+  const deleteFolderMutation = useDeleteFolder();
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -179,10 +164,16 @@ export default function FolderFileExplorer({
   const currentItems = useMemo(() => {
     const items: ExplorerItem[] = [];
 
-    // Add folders (only at root level for now)
-    if (currentPath.length === 0) {
-      items.push(...mockFolders);
-    }
+    // Add folders (for current parent path)
+    const apiFolders = foldersData || [];
+    const folderItems: FolderItem[] = apiFolders.map((f) => ({
+      id: f.id,
+      name: f.name,
+      type: 'folder' as const,
+      created_at: f.created_at,
+      file_count: f.file_count,
+    }));
+    items.push(...folderItems);
 
     // Add files
     if (filesData?.items) {
@@ -261,7 +252,7 @@ export default function FolderFileExplorer({
     });
 
     return items;
-  }, [filesData?.items, sortField, sortDirection, searchTerm, currentPath, mockFolders]);
+  }, [filesData?.items, sortField, sortDirection, searchTerm, currentPath, foldersData]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -325,13 +316,16 @@ export default function FolderFileExplorer({
     }
   };
 
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      // In real implementation, this would call an API
-      console.log('Creating folder:', newFolderName);
-      setNewFolderName('');
-      setShowNewFolderDialog(false);
-    }
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    await createFolderMutation.mutateAsync({
+      name: newFolderName.trim(),
+      parent_id: currentParentId,
+      application_id: applicationId,
+    });
+    setNewFolderName('');
+    setShowNewFolderDialog(false);
+    refetchFolders();
   };
 
   const handleDelete = async () => {
@@ -359,7 +353,7 @@ export default function FolderFileExplorer({
     </button>
   );
 
-  if (isLoading) {
+  if (isLoadingFiles || isLoadingFolders) {
     return (
       <div className="flex items-center justify-center h-32">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -367,12 +361,12 @@ export default function FolderFileExplorer({
     );
   }
 
-  if (error) {
+  if (filesError || foldersError) {
     return (
       <div className="text-center py-8">
         <p className="text-red-600 text-sm">Error loading files. Please try again.</p>
         <button
-          onClick={() => refetch()}
+          onClick={() => { refetchFiles(); refetchFolders(); }}
           className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 mx-auto"
         >
           <ArrowPathIcon className="h-4 w-4" />
@@ -444,8 +438,8 @@ export default function FolderFileExplorer({
 
         {/* Actions and View Controls */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowNewFolderDialog(true)}
+              <button
+                onClick={() => setShowNewFolderDialog(true)}
             className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"
           >
             <PlusIcon className="h-4 w-4" />
@@ -697,8 +691,11 @@ export default function FolderFileExplorer({
               </button>
               <hr className="my-1" />
               <button
-                onClick={() => {
-                  // Delete folder logic
+                onClick={async () => {
+                  if (contextMenu?.item.type === 'folder') {
+                    await deleteFolderMutation.mutateAsync(contextMenu.item.id);
+                    refetchFolders();
+                  }
                   setContextMenu(null);
                 }}
                 className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"

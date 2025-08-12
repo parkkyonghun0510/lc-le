@@ -75,7 +75,7 @@ export const useApplications = (filters: ApplicationFilters = {}) => {
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.size) params.append('size', filters.size.toString());
       
-      return apiClient.get<ApplicationsResponse>(`/applications?${params.toString()}`);  // Added generic type parameter
+      return apiClient.get<ApplicationsResponse>(`/applications/?${params.toString()}`);  // Added generic type parameter
     },
     staleTime: 30000, // 30 seconds
   });
@@ -96,7 +96,7 @@ export const useCreateApplication = () => {
   
   return useMutation<Application, Error, Partial<Application>>({  // Added explicit type parameters
     mutationFn: async (data: Partial<Application>) => {
-      return apiClient.post<Application>('/applications', data);  // Added generic type parameter
+      return apiClient.post<Application>('/applications/', data);  // Added generic type parameter
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });

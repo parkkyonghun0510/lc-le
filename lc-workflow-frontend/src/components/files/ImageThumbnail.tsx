@@ -12,6 +12,7 @@ interface ImageThumbnailProps {
   className?: string;
   onClick?: () => void;
   showFileName?: boolean;
+  enableHoverPreview?: boolean;
 }
 
 export default function ImageThumbnail({ 
@@ -19,10 +20,12 @@ export default function ImageThumbnail({
   size = 'md', 
   className = '', 
   onClick, 
-  showFileName = false 
+  showFileName = false,
+  enableHoverPreview = false,
 }: ImageThumbnailProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   
   const sizeClasses = {
     sm: 'w-16 h-16',
@@ -30,9 +33,9 @@ export default function ImageThumbnail({
     lg: 'w-32 h-32'
   };
 
-  // Use the new thumbnail hook
-  const thumbnailSize = size === 'sm' ? 64 : size === 'md' ? 96 : 128;
-  const { data: thumbnailUrl, isLoading: isThumbnailLoading } = useFileThumbnail(file.id, thumbnailSize);
+  // Use the thumbnail hook with size key
+  const sizeKey: 'sm' | 'md' | 'lg' = size;
+  const { data: thumbnailUrl, isLoading: isThumbnailLoading } = useFileThumbnail(file.id, sizeKey);
   
   useEffect(() => {
     setIsLoading(isThumbnailLoading);
@@ -70,6 +73,8 @@ export default function ImageThumbnail({
     <div 
       className={`relative ${sizeClasses[size]} ${className} ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
     >
       {isImage && !hasError ? (
         <div className="relative w-full h-full">
@@ -90,7 +95,24 @@ export default function ImageThumbnail({
               }`}
               onLoad={handleImageLoad}
               onError={handleImageError}
+              loading="lazy"
+              decoding="async"
             />
+          )}
+
+          {/* Hover large preview */}
+          {enableHoverPreview && isHovering && thumbnailUrl && (
+            <div className="absolute z-20 left-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-1">
+              <img
+                src={thumbnailUrl}
+                alt={file.original_filename}
+                className="object-contain rounded-md"
+                style={{ width: size === 'lg' ? 256 : 192, height: size === 'lg' ? 256 : 192 }}
+                loading="lazy"
+                decoding="async"
+                onError={handleImageError}
+              />
+            </div>
           )}
         </div>
       ) : (

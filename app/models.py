@@ -110,6 +110,13 @@ class CustomerApplication(Base):
     requested_disbursement_date = Column(Date)
     interest_rate = Column(Numeric(5, 2))  # Annual percentage rate
     
+    # Additional loan fields from frontend
+    loan_amount = Column(Numeric(15, 2))  # Current/approved loan amount
+    loan_status = Column(String(20))  # draft, active, disbursed, completed, defaulted
+    loan_purpose = Column(String(255))  # Single purpose description
+    loan_start_date = Column(Date)  # Actual disbursement date
+    loan_end_date = Column(Date)  # Loan maturity date
+    
     # Guarantor Information
     guarantor_name = Column(String(255))
     guarantor_phone = Column(String(20))
@@ -130,6 +137,16 @@ class CustomerApplication(Base):
     # Additional data
     collaterals = Column(JSON)  # Array of collateral details
     documents = Column(JSON)  # Array of document references
+    
+    # Photo/Document paths from frontend
+    profile_image = Column(Text)  # Customer profile photo URL
+    borrower_nid_photo_path = Column(Text)
+    borrower_home_or_land_photo_path = Column(Text)
+    borrower_business_photo_path = Column(Text)
+    guarantor_nid_photo_path = Column(Text)
+    guarantor_home_or_land_photo_path = Column(Text)
+    guarantor_business_photo_path = Column(Text)
+    profile_photo_path = Column(Text)
     
     # Workflow tracking
     workflow_stage = Column(String(50))  # initial_review, credit_check, approval_pending, etc.

@@ -20,42 +20,58 @@ async def get_customers(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all customers with file counts"""
-    # For this implementation, we'll use the users who have applications as "customers"
-    # Get distinct users who have applications
-    query = (
-        select(User)
-        .join(CustomerApplication, User.id == CustomerApplication.user_id)
-        .group_by(User.id)
-    )
-    
-    # Apply role-based filtering
+    # For this implementation, "customers" are Users who have at least one CustomerApplication
+    # Build a role-filtered subquery of distinct applicant user_ids
+    base_app_q = select(CustomerApplication.user_id).distinct()
+
+    # Role-based filtering on the applications and/or users
     if current_user.role == "officer":
-        # Officers can only see their own customers
-        query = query.where(CustomerApplication.user_id == current_user.id)
+        # Officers only see applications they created
+        base_app_q = base_app_q.where(CustomerApplication.user_id == current_user.id)
     elif current_user.role == "manager":
-        # Managers can see customers from their department/branch
+        # Managers see applicants within their department/branch
+        # Need to constrain by the User owning the application
+        # We'll use a correlated EXISTS by filtering Users later; here we keep app user_ids distinct
+        pass
+    # Admins: no restriction
+
+    # Build the users query from the filtered distinct applicant IDs
+    users_q = select(User).where(User.id.in_(base_app_q.subquery()))
+
+    if current_user.role == "manager":
         if current_user.department_id:
-            query = query.where(User.department_id == current_user.department_id)
+            users_q = users_q.where(User.department_id == current_user.department_id)
         elif current_user.branch_id:
-            query = query.where(User.branch_id == current_user.branch_id)
-    # Admins can see all customers
-    
-    # Count total customers
-    count_query = select(func.count()).select_from(
-        select(User.id)
-        .join(CustomerApplication, User.id == CustomerApplication.user_id)
-        .group_by(User.id)
-        .subquery()
+            users_q = users_q.where(User.branch_id == current_user.branch_id)
+
+    # Order and paginate
+    users_q = users_q.order_by(desc(User.created_at)).offset((page - 1) * size).limit(size)
+
+    # Count total customers using the same filtered set
+    count_q = select(func.count()).select_from(
+        select(User.id).where(User.id.in_(base_app_q.subquery())).subquery()
     )
-    
-    # Apply pagination
-    query = query.offset((page - 1) * size).limit(size)
-    
+    if current_user.role == "manager":
+        if current_user.department_id:
+            count_q = select(func.count()).select_from(
+                select(User.id)
+                .where(User.id.in_(base_app_q.subquery()))
+                .where(User.department_id == current_user.department_id)
+                .subquery()
+            )
+        elif current_user.branch_id:
+            count_q = select(func.count()).select_from(
+                select(User.id)
+                .where(User.id.in_(base_app_q.subquery()))
+                .where(User.branch_id == current_user.branch_id)
+                .subquery()
+            )
+
     # Execute queries
-    result = await db.execute(query)
+    result = await db.execute(users_q)
     customers = result.scalars().all()
     
-    count_result = await db.execute(count_query)
+    count_result = await db.execute(count_q)
     total = count_result.scalar_one() or 0
     
     # Get file counts for each customer

@@ -261,11 +261,11 @@ export const useFile = (id: string) => {
 
 export const useFileThumbnail = (id: string, _size: 'sm' | 'md' | 'lg' = 'md') => {
   // Backend thumbnail endpoint is not available; use presigned download URL for now
-  return useQuery<{ download_url: string }, unknown, string | null>({
+  return useQuery<string | null>({
     queryKey: fileKeys.thumbnail(id),
     queryFn: async () => {
-      if (!id) return null as unknown as { download_url: string };
-      const res = await apiClient.get(`/files/${id}/download`);
+      if (!id) return null;
+      const res = (await apiClient.get(`/files/${id}/download`)) as { download_url?: string };
       return res?.download_url ?? null;
     },
     enabled: !!id,
@@ -333,8 +333,8 @@ export const useDownloadFile = () => {
   return {
     downloadFile: async (id: string, filename: string) => {
       try {
-        const response = await apiClient.get(`/files/${id}/download`);
-        const { download_url } = response;
+        const response = (await apiClient.get(`/files/${id}/download`)) as { download_url?: string };
+        const download_url = response?.download_url;
         
         if (download_url) {
           // Create a temporary link for the presigned URL

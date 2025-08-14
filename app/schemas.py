@@ -165,6 +165,13 @@ class CustomerApplicationBase(BaseSchema):
     requested_disbursement_date: Optional[date] = None
     interest_rate: Optional[float] = None
     
+    # Additional loan fields from frontend
+    loan_amount: Optional[float] = None
+    loan_status: Optional[str] = Field(None, max_length=20)
+    loan_purpose: Optional[str] = Field(None, max_length=255)
+    loan_start_date: Optional[date] = None
+    loan_end_date: Optional[date] = None
+    
     # Guarantor Information
     guarantor_name: Optional[str] = Field(None, max_length=255)
     guarantor_phone: Optional[str] = Field(None, max_length=20)
@@ -186,17 +193,36 @@ class CustomerApplicationBase(BaseSchema):
     collaterals: Optional[List[Dict[str, Any]]] = None
     documents: Optional[List[Dict[str, Any]]] = None
     
+    # Photo/Document paths from frontend
+    profile_image: Optional[str] = None
+    borrower_nid_photo_path: Optional[str] = None
+    borrower_home_or_land_photo_path: Optional[str] = None
+    borrower_business_photo_path: Optional[str] = None
+    guarantor_nid_photo_path: Optional[str] = None
+    guarantor_home_or_land_photo_path: Optional[str] = None
+    guarantor_business_photo_path: Optional[str] = None
+    profile_photo_path: Optional[str] = None
+    
     # Workflow tracking
     workflow_stage: Optional[str] = Field(None, max_length=50)
     assigned_reviewer: Optional[UUID] = None
     priority_level: Optional[str] = Field(default='normal', max_length=20)
 
     # --- Validators to coerce incoming strings to proper types ---
-    @field_validator("date_of_birth", "requested_disbursement_date", mode="before")
+    @field_validator("date_of_birth", "requested_disbursement_date", "loan_start_date", "loan_end_date", mode="before")
     @classmethod
     def _parse_optional_date(cls, value: Any):
         if value in (None, "", "null"):
             return None
+        # Handle DateTime objects from frontend (extract date part)
+        if isinstance(value, str):
+            try:
+                # Try parsing ISO datetime string and extract date
+                from datetime import datetime
+                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                return dt.date()
+            except:
+                pass
         return value
 
     @field_validator("loan_purposes", mode="before")
@@ -251,6 +277,62 @@ class CustomerApplicationResponse(CustomerApplicationBase):
 
 class RejectionRequest(BaseSchema):
     rejection_reason: str
+
+# Enhanced CustomerCard response for frontend UI
+class CustomerCardResponse(BaseSchema):
+    # Primary identification
+    id: UUID
+    display_name: str  # Computed from full_name_latin or full_name_khmer
+    id_number: Optional[str] = None  # National ID for rapid identification
+    phone: Optional[str] = None
+    
+    # Loan status and lifecycle
+    loan_status: Optional[str] = None
+    status: str  # Application status (draft, submitted, approved, etc.)
+    loan_amount: Optional[float] = None  # Approved/current loan amount
+    requested_amount: Optional[float] = None  # Original requested amount
+    interest_rate: Optional[float] = None
+    loan_start_date: Optional[date] = None  # Actual disbursement date
+    loan_end_date: Optional[date] = None    # Loan maturity date
+    
+    # Loan details as chips
+    loan_purposes: Optional[List[str]] = None
+    product_type: Optional[str] = None
+    desired_loan_term: Optional[str] = None
+    
+    # Secondary details
+    portfolio_officer_name: Optional[str] = None
+    risk_category: Optional[str] = None
+    priority_level: Optional[str] = None
+    
+    # Visual elements
+    profile_image: Optional[str] = None
+    profile_photo_path: Optional[str] = None
+    status_color: str  # Computed based on loan_status and status
+    
+    # Timestamps
+    created_at: datetime  # Can be used as loanStartDate fallback
+    updated_at: datetime
+    submitted_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None
+    
+    # System feedback
+    sync_status: str = "synced"  # Default to synced, can be updated by frontend
+    
+    # Guarantor (if needed for card)
+    guarantor_name: Optional[str] = None
+    
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def compute_display_name(cls, v, info):
+        # This will be computed in the API endpoint
+        return v
+    
+    @field_validator("status_color", mode="before") 
+    @classmethod
+    def compute_status_color(cls, v, info):
+        # This will be computed in the API endpoint
+        return v
 
 # File schemas
 class FileBase(BaseSchema):

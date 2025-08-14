@@ -15,6 +15,7 @@ from app.schemas import (
     CustomerApplicationResponse,
     PaginatedResponse,
     RejectionRequest,
+    BaseSchema,
 )
 from app.routers.auth import get_current_user
 
@@ -134,6 +135,118 @@ async def list_applications(
     
     return PaginatedResponse(
         items=[CustomerApplicationResponse.from_orm(app) for app in applications],
+        total=total,
+        page=page,
+        size=size,
+        pages=(total + size - 1) // size
+    )
+
+@router.get("/cards", response_model=PaginatedResponse)
+async def get_customer_cards(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    loan_status: Optional[str] = Query(None, description="Filter by loan status"),
+    search: Optional[str] = Query(None, description="Search in name or ID"),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get customer cards optimized for UI display"""
+    from app.schemas import CustomerCardResponse
+    
+    # Base query with relationships
+    query = select(CustomerApplication).options(
+        selectinload(CustomerApplication.user)
+    )
+    
+    # Apply role-based filtering (same as list_applications)
+    if current_user.role == "officer":
+        query = query.where(CustomerApplication.user_id == current_user.id)
+    elif current_user.role == "manager":
+        if current_user.department_id:
+            dept_users = select(User.id).where(User.department_id == current_user.department_id)
+            query = query.where(CustomerApplication.user_id.in_(dept_users))
+        elif current_user.branch_id:
+            branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
+            query = query.where(CustomerApplication.user_id.in_(branch_users))
+    
+    # Apply filters
+    if status:
+        query = query.where(CustomerApplication.status == status)
+    
+    if loan_status:
+        query = query.where(CustomerApplication.loan_status == loan_status)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            or_(
+                CustomerApplication.full_name_khmer.ilike(search_term),
+                CustomerApplication.full_name_latin.ilike(search_term),
+                CustomerApplication.id_number.ilike(search_term),
+                CustomerApplication.phone.ilike(search_term),
+                CustomerApplication.portfolio_officer_name.ilike(search_term)
+            )
+        )
+    
+    # Count total
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
+    
+    # Apply pagination and ordering
+    offset = (page - 1) * size
+    query = query.order_by(
+        desc(CustomerApplication.priority_level == 'urgent'),
+        desc(CustomerApplication.priority_level == 'high'),
+        desc(CustomerApplication.created_at)
+    ).offset(offset).limit(size)
+    
+    result = await db.execute(query)
+    applications = result.scalars().all()
+    
+    # Transform to CustomerCardResponse
+    cards = []
+    for app in applications:
+        # Compute display name
+        display_name = app.full_name_latin or app.full_name_khmer or f"Customer {app.id_number or 'Unknown'}"
+        
+        # Compute status color
+        status_color = _get_status_color(app.status, app.loan_status)
+        
+        card_data = {
+            "id": app.id,
+            "display_name": display_name,
+            "id_number": app.id_number,
+            "phone": app.phone,
+            "loan_status": app.loan_status,
+            "status": app.status,
+            "loan_amount": float(app.loan_amount) if app.loan_amount else None,
+            "requested_amount": float(app.requested_amount) if app.requested_amount else None,
+            "interest_rate": float(app.interest_rate) if app.interest_rate else None,
+            "loan_start_date": app.loan_start_date,
+            "loan_end_date": app.loan_end_date,
+            "loan_purposes": app.loan_purposes,
+            "product_type": app.product_type,
+            "desired_loan_term": app.desired_loan_term,
+            "portfolio_officer_name": app.portfolio_officer_name,
+            "risk_category": app.risk_category,
+            "priority_level": app.priority_level,
+            "profile_image": app.profile_image,
+            "profile_photo_path": app.profile_photo_path,
+            "status_color": status_color,
+            "created_at": app.created_at,
+            "updated_at": app.updated_at,
+            "submitted_at": app.submitted_at,
+            "approved_at": app.approved_at,
+            "sync_status": "synced",
+            "guarantor_name": app.guarantor_name
+        }
+        
+        cards.append(CustomerCardResponse(**card_data))
+    
+    return PaginatedResponse(
+        items=cards,
         total=total,
         page=page,
         size=size,
@@ -283,9 +396,15 @@ async def submit_application(
     
     return CustomerApplicationResponse.from_orm(application)
 
+class ApprovalRequest(BaseSchema):
+    approved_amount: Optional[float] = None
+    approved_interest_rate: Optional[float] = None
+    approved_loan_term: Optional[str] = None
+
 @router.patch("/{application_id}/approve")
 async def approve_application(
     application_id: UUID,
+    approval_data: Optional[ApprovalRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -315,6 +434,18 @@ async def approve_application(
     application.status = "approved"
     application.approved_at = datetime.utcnow()
     application.approved_by = current_user.id
+    application.loan_status = "active"  # Set to active when approved
+    
+    # Set approved amounts (use requested if not specified)
+    if approval_data:
+        application.loan_amount = approval_data.approved_amount or application.requested_amount
+        if approval_data.approved_interest_rate:
+            application.interest_rate = approval_data.approved_interest_rate
+        if approval_data.approved_loan_term:
+            application.desired_loan_term = approval_data.approved_loan_term
+    else:
+        # Default: approved amount equals requested amount
+        application.loan_amount = application.requested_amount
     
     await db.commit()
     await db.refresh(application)
@@ -612,11 +743,12 @@ async def get_application_stats(
         .where(CustomerApplication.requested_amount.isnot(None))
     )
     
+    amount_row = amount_stats.first()
     return {
         "status_distribution": {row.status: row.count for row in status_counts},
         "risk_distribution": {row.risk_category: row.count for row in risk_counts},
         "product_distribution": {row.product_type: row.count for row in product_counts},
-        "amount_statistics": dict(amount_stats.first()._asdict()) if amount_stats.first() else {}
+        "amount_statistics": dict(amount_row._mapping) if amount_row else {}
     }
 
 @router.get("/export/csv")
@@ -700,6 +832,26 @@ async def export_applications_csv(
         media_type='text/csv',
         headers={'Content-Disposition': 'attachment; filename=applications.csv'}
     )
+ 
+
+def _get_status_color(status: str, loan_status: Optional[str] = None) -> str:
+    """Compute status color based on application and loan status"""
+    if status == "rejected":
+        return "red"
+    elif status == "approved" and loan_status == "disbursed":
+        return "green"
+    elif status == "approved" and loan_status == "active":
+        return "blue"
+    elif status == "approved" and loan_status == "completed":
+        return "gray"
+    elif status == "approved" and loan_status == "defaulted":
+        return "red"
+    elif status == "submitted":
+        return "yellow"
+    elif status == "draft":
+        return "gray"
+    else:
+        return "blue"  # default
 
 @router.patch("/{application_id}/workflow-stage")
 async def update_workflow_stage(
@@ -743,3 +895,141 @@ async def update_workflow_stage(
     await db.refresh(application)
     
     return CustomerApplicationResponse.from_orm(application)
+
+@router.get("/enums/options")
+async def get_application_options():
+    """Get all enum options for frontend dropdowns"""
+    return {
+        "id_card_types": [
+            {"value": "cambodian_identity", "label": "Cambodian Identity Card"},
+            {"value": "passport", "label": "Passport"},
+            {"value": "family_book", "label": "Family Book"}
+        ],
+        "loan_statuses": [
+            {"value": "draft", "label": "Draft"},
+            {"value": "active", "label": "Active"},
+            {"value": "disbursed", "label": "Disbursed"},
+            {"value": "completed", "label": "Completed"},
+            {"value": "defaulted", "label": "Defaulted"}
+        ],
+        "loan_purposes": [
+            {"value": "commerce", "label": "Commerce/Business"},
+            {"value": "agriculture", "label": "Agriculture"},
+            {"value": "education", "label": "Education"},
+            {"value": "housing", "label": "Housing"},
+            {"value": "vehicle", "label": "Vehicle"},
+            {"value": "medical", "label": "Medical"},
+            {"value": "other", "label": "Other"}
+        ],
+        "product_types": [
+            {"value": "micro_loan", "label": "Micro Loan"},
+            {"value": "sme_loan", "label": "SME Loan"},
+            {"value": "agriculture_loan", "label": "Agriculture Loan"},
+            {"value": "housing_loan", "label": "Housing Loan"},
+            {"value": "education_loan", "label": "Education Loan"},
+            {"value": "monthly", "label": "Monthly Payment"},
+            {"value": "weekly", "label": "Weekly Payment"}
+        ],
+        "loan_terms": [
+            {"value": "3_months", "label": "3 Months"},
+            {"value": "6_months", "label": "6 Months"},
+            {"value": "12_months", "label": "12 Months"},
+            {"value": "18_months", "label": "18 Months"},
+            {"value": "24_months", "label": "24 Months"},
+            {"value": "36_months", "label": "36 Months"}
+        ],
+        "risk_categories": [
+            {"value": "low", "label": "Low Risk"},
+            {"value": "medium", "label": "Medium Risk"},
+            {"value": "high", "label": "High Risk"}
+        ],
+        "priority_levels": [
+            {"value": "low", "label": "Low Priority"},
+            {"value": "normal", "label": "Normal Priority"},
+            {"value": "high", "label": "High Priority"},
+            {"value": "urgent", "label": "Urgent"}
+        ],
+        "application_statuses": [
+            {"value": "draft", "label": "Draft"},
+            {"value": "submitted", "label": "Submitted"},
+            {"value": "approved", "label": "Approved"},
+            {"value": "rejected", "label": "Rejected"}
+        ],
+        "workflow_stages": [
+            {"value": "initial_review", "label": "Initial Review"},
+            {"value": "document_verification", "label": "Document Verification"},
+            {"value": "credit_check", "label": "Credit Check"},
+            {"value": "risk_assessment", "label": "Risk Assessment"},
+            {"value": "approval_pending", "label": "Approval Pending"},
+            {"value": "final_review", "label": "Final Review"},
+            {"value": "under_review", "label": "Under Review"}
+        ]
+    }
+
+@router.patch("/{application_id}/loan-status")
+async def update_loan_status(
+    application_id: UUID,
+    loan_status: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update loan status (for disbursed loans)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update loan status"
+        )
+    
+    valid_statuses = ["draft", "active", "disbursed", "completed", "defaulted"]
+    if loan_status not in valid_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid loan status. Must be one of: {', '.join(valid_statuses)}"
+        )
+    
+    result = await db.execute(
+        select(CustomerApplication).where(CustomerApplication.id == application_id)
+    )
+    application = result.scalar_one_or_none()
+    
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+    
+    application.loan_status = loan_status
+    
+    # Set loan start date when disbursed
+    if loan_status == "disbursed" and not application.loan_start_date:
+        application.loan_start_date = datetime.utcnow().date()
+        
+        # Calculate loan end date based on desired term
+        if application.desired_loan_term and not application.loan_end_date:
+            application.loan_end_date = _calculate_loan_end_date(
+                application.loan_start_date, 
+                application.desired_loan_term
+            )
+    
+    await db.commit()
+    await db.refresh(application)
+    
+    return CustomerApplicationResponse.from_orm(application)
+
+def _calculate_loan_end_date(start_date: date, loan_term: str) -> date:
+    """Calculate loan end date based on start date and term"""
+    from dateutil.relativedelta import relativedelta
+    
+    # Parse loan term (e.g., "12_months", "6_months")
+    if "_months" in loan_term:
+        months = int(loan_term.split("_")[0])
+        return start_date + relativedelta(months=months)
+    elif "_weeks" in loan_term:
+        weeks = int(loan_term.split("_")[0])
+        return start_date + relativedelta(weeks=weeks)
+    elif "_years" in loan_term:
+        years = int(loan_term.split("_")[0])
+        return start_date + relativedelta(years=years)
+    else:
+        # Default to 12 months if term format is unclear
+        return start_date + relativedelta(months=12)

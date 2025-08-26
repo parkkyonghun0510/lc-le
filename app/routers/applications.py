@@ -901,9 +901,14 @@ async def get_application_options():
     """Get all enum options for frontend dropdowns"""
     return {
         "id_card_types": [
-            {"value": "cambodian_identity", "label": "Cambodian Identity Card"},
-            {"value": "passport", "label": "Passport"},
-            {"value": "family_book", "label": "Family Book"}
+            {"value": "cambodian_identity", "label": "អត្តសញ្ញាណប័ណ្ណសញ្ជាតិខ្មែរ"},
+            {"value": "passport", "label": "លិខិតឆ្លងដែន"},
+            {"value": "driver-license", "label": "ប័ណ្ណបើកបរ"},
+            {"value": "gov-card", "label": "ប័ណ្ណមន្ត្រីរាជការ"},
+            {"value": "monk-card", "label": "ប័ណ្ណព្រះសង្ឃ"},
+            {"value": "family-book", "label": " សៀវភៅគ្រួសារ"},
+            {"value": "birth-certificate", "label": " សំបុត្រកំណើត"},
+            {"value": "other", "label": " ផ្សេងៗ"}
         ],
         "loan_statuses": [
             {"value": "draft", "label": "Draft"},
@@ -922,13 +927,10 @@ async def get_application_options():
             {"value": "other", "label": "Other"}
         ],
         "product_types": [
-            {"value": "micro_loan", "label": "Micro Loan"},
-            {"value": "sme_loan", "label": "SME Loan"},
-            {"value": "agriculture_loan", "label": "Agriculture Loan"},
-            {"value": "housing_loan", "label": "Housing Loan"},
-            {"value": "education_loan", "label": "Education Loan"},
-            {"value": "monthly", "label": "Monthly Payment"},
-            {"value": "weekly", "label": "Weekly Payment"}
+            {"value": "monthly_loan", "label": "បង់​ប្រចាំ ខែ"},
+            {"value": "biweekly_loan", "label": "បង់​ប្រចាំ ២សប្តាហ៍"},
+            {"value": "weekly_loan", "label": "បង់​ប្រចាំ សប្តាហ៍"},
+            {"value": "daily_loan", "label": "បង់​ប្រចាំ ថ្ងៃ"}
         ],
         "loan_terms": [
             {"value": "3_months", "label": "3 Months"},

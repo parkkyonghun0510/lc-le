@@ -6,9 +6,14 @@ router = APIRouter()
 async def get_id_card_types():
     """Get available ID card types"""
     return [
-        {"value": "cambodian_identity", "label": "Cambodian Identity Card"},
-        {"value": "passport", "label": "Passport"},
-        {"value": "family_book", "label": "Family Book"}
+        {"value": "cambodian_identity", "label": "អត្តសញ្ញាណប័ណ្ណសញ្ជាតិខ្មែរ"},
+        {"value": "passport", "label": "លិខិតឆ្លងដែន"},
+        {"value": "driver-license", "label": "ប័ណ្ណបើកបរ"},
+        {"value": "gov-card", "label": "ប័ណ្ណមន្ត្រីរាជការ"},
+        {"value": "monk-card", "label": "ប័ណ្ណព្រះសង្ឃ"},
+        {"value": "family-book", "label": " សៀវភៅគ្រួសារ"},
+        {"value": "birth-certificate", "label": " សំបុត្រកំណើត"},
+        {"value": "other", "label": " ផ្សេងៗ"}
     ]
 
 @router.get("/loan-statuses")
@@ -39,13 +44,12 @@ async def get_loan_purposes():
 async def get_product_types():
     """Get available product types"""
     return [
-        {"value": "micro_loan", "label": "Micro Loan"},
-        {"value": "sme_loan", "label": "SME Loan"},
-        {"value": "agriculture_loan", "label": "Agriculture Loan"},
-        {"value": "housing_loan", "label": "Housing Loan"},
-        {"value": "education_loan", "label": "Education Loan"},
-        {"value": "monthly", "label": "បង់​ប្រចាំ ខែ"},
-        {"value": "weekly", "label": "បង់​ប្រចាំ សប្តាហ៍"}
+        {"value": "monthly_loan", "label": "បង់​ប្រចាំ ខែ"},
+        {"value": "biweekly_loan", "label": "បង់​ប្រចាំ ២សប្តាហ៍"},
+        {"value": "weekly_loan", "label": "បង់​ប្រចាំ សប្តាហ៍"},
+        {"value": "daily_loan", "label": "បង់​ប្រចាំ ថ្ងៃ"}
+
+
     ]
 
 @router.get("/all")

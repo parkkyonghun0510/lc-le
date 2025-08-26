@@ -232,16 +232,40 @@ class CustomerApplicationBase(BaseSchema):
             return None
         if isinstance(value, str):
             text = value.strip()
+            if not text:  # Empty string after strip
+                return None
             try:
+                # Try to parse as JSON first
                 if (text.startswith("[") and text.endswith("]")) or (
                     text.startswith("{") and text.endswith("}")
                 ):
-                    return json.loads(text)
-            except Exception:
-                pass
+                    parsed = json.loads(text)
+                    # Ensure result is a list
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if item]
+                    elif isinstance(parsed, dict):
+                        # Convert dict values to list
+                        return [str(v).strip() for v in parsed.values() if v]
+                    else:
+                        return [str(parsed).strip()] if parsed else None
+            except json.JSONDecodeError:
+                pass  # Fall through to comma-separated parsing
+            except Exception as e:
+                print(f"Warning: Error parsing loan_purposes JSON: {e}")
+                
             # Fallback: comma-separated values
-            return [item.strip() for item in text.split(",") if item.strip()]
-        return value
+            items = [item.strip() for item in text.split(",") if item.strip()]
+            return items if items else None
+            
+        # If it's already a list, clean it up
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if item]
+            
+        # If it's any other type, convert to string and wrap in list
+        if value is not None:
+            return [str(value).strip()]
+            
+        return None
 
     @field_validator("existing_loans", "collaterals", "documents", mode="before")
     @classmethod
@@ -249,12 +273,27 @@ class CustomerApplicationBase(BaseSchema):
         if value in (None, "", "null"):
             return None
         if isinstance(value, str):
+            value = value.strip()
+            if not value:  # Empty string after strip
+                return None
             try:
-                return json.loads(value)
-            except Exception:
-                # If invalid JSON string, keep as-is to allow FastAPI to return 422 elsewhere
-                return value
-        return value
+                parsed = json.loads(value)
+                # Ensure result is a list for these fields
+                if not isinstance(parsed, list):
+                    return [parsed] if parsed is not None else None
+                return parsed
+            except json.JSONDecodeError as e:
+                # Log the error for debugging but return None instead of raising
+                # This allows the API to continue processing with None value
+                print(f"Warning: Invalid JSON in field validation: {e}")
+                return None
+            except Exception as e:
+                print(f"Warning: Unexpected error parsing JSON field: {e}")
+                return None
+        # If it's already a list or dict, return as-is
+        if isinstance(value, (list, dict)):
+            return value
+        return None
 
 class CustomerApplicationCreate(CustomerApplicationBase):
     pass

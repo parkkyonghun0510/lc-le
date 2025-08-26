@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+import secrets
+import os
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -15,18 +17,18 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
     
-    # JWT
-    SECRET_KEY: str = "your-secret-key-here"
+    # JWT - Generate secure secret key if not provided
+    SECRET_KEY: str = secrets.token_urlsafe(32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # Server
     HOST: str = "0.0.0.0"
-    PORT: int = 8090
+    PORT: int = int(os.getenv("PORT", 8090))  # Use Railway's PORT or default to 8090
     DEBUG: bool = False
     
-    # CORS
+    # CORS - Restrict origins in production
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:8080",
@@ -39,6 +41,27 @@ class Settings(BaseSettings):
     # File Storage
     UPLOAD_DIR: str = "static/uploads"
     MAX_FILE_SIZE: int = 10485760  # 10MB
+    ALLOWED_FILE_TYPES: List[str] = [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf", "text/plain", "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ]
+    
+    # Security Settings
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 100  # requests per window
+    RATE_LIMIT_WINDOW: int = 60  # window in seconds
+    
+    # Password Policy
+    MIN_PASSWORD_LENGTH: int = 8
+    REQUIRE_PASSWORD_SPECIAL_CHARS: bool = True
+    REQUIRE_PASSWORD_NUMBERS: bool = True
+    REQUIRE_PASSWORD_UPPERCASE: bool = True
+    
+    # Session Security
+    SESSION_COOKIE_SECURE: bool = True
+    SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_SAMESITE: str = "lax"
     
     # Environment variables from podman-compose.yml
     MINIO_ENDPOINT: str = ""
@@ -47,6 +70,12 @@ class Settings(BaseSettings):
     MINIO_BUCKET_NAME: str = "lc-workflow-files"
     MINIO_SECURE: bool = False
     CORS_ORIGINS: str = ""
+    
+    # Railway specific environment variables
+    DRAGONFLY_URL: str = ""
+    MINIO_PRIVATE_ENDPOINT: str = ""
+    MINIO_ROOT_USER: str = ""
+    MINIO_ROOT_PASSWORD: str = ""
     
     # S3 aliases for compatibility
     S3_ENDPOINT: str = ""

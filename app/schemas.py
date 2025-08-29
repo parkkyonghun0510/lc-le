@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import json
 from uuid import UUID
+from enum import Enum
 
 # Base schemas
 class BaseSchema(BaseModel):
@@ -21,13 +22,13 @@ class UserBase(BaseSchema):
     department_id: Optional[UUID] = None
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
-    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
     # Position FK (optional for compatibility)
     position_id: Optional[UUID] = None
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
-    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
 
 class UserUpdate(BaseSchema):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
@@ -41,7 +42,7 @@ class UserUpdate(BaseSchema):
     department_id: Optional[UUID] = None
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
-    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
     position_id: Optional[UUID] = None
 
 # Position schemas
@@ -68,7 +69,7 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime]
-    employee_id: Optional[str] = Field(None, max_length=4, pattern='^\d{4}$')
+    employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
     department: Optional['DepartmentResponse'] = None
     branch: Optional['BranchResponse'] = None
     # Replace prior string placeholder with nested position
@@ -436,3 +437,69 @@ class FolderResponse(FolderBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+
+# Selfie capture and validation schemas for Flutter app
+class SelfieType(str, Enum):
+    CUSTOMER_PROFILE = "customer_profile"
+    CUSTOMER_WITH_OFFICER = "customer_with_officer"
+    ID_VERIFICATION = "id_verification"
+    LOCATION_VERIFICATION = "location_verification"
+
+class SelfieUploadRequest(BaseSchema):
+    application_id: UUID
+    selfie_type: SelfieType
+    customer_id_number: Optional[str] = Field(None, max_length=50)
+    customer_name: Optional[str] = Field(None, max_length=255)
+    location_latitude: Optional[float] = None
+    location_longitude: Optional[float] = None
+    location_address: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=500)
+    
+class SelfieMetadata(BaseSchema):
+    selfie_type: SelfieType
+    captured_at: datetime
+    captured_by_user_id: UUID
+    customer_id_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    location_latitude: Optional[float] = None
+    location_longitude: Optional[float] = None
+    location_address: Optional[str] = None
+    face_detection_confidence: Optional[float] = None
+    image_quality_score: Optional[float] = None
+    is_validated: bool = False
+    validation_notes: Optional[str] = None
+    notes: Optional[str] = None
+
+class SelfieResponse(BaseSchema):
+    id: UUID
+    application_id: UUID
+    file_path: str
+    original_filename: str
+    selfie_type: SelfieType
+    metadata: SelfieMetadata
+    created_at: datetime
+    status: str = "pending_validation"  # pending_validation, validated, rejected
+
+class SelfieValidationRequest(BaseSchema):
+    selfie_id: UUID
+    is_approved: bool
+    validation_notes: Optional[str] = Field(None, max_length=500)
+    face_detection_confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
+    image_quality_score: Optional[float] = Field(None, ge=0.0, le=10.0)
+
+class SelfieValidationResponse(BaseSchema):
+    selfie_id: UUID
+    is_approved: bool
+    validation_notes: Optional[str] = None
+    validated_by: UUID
+    validated_at: datetime
+    
+class SelfieListResponse(BaseSchema):
+    id: UUID
+    application_id: UUID
+    customer_name: Optional[str] = None
+    selfie_type: SelfieType
+    captured_at: datetime
+    captured_by: UserResponse
+    status: str
+    thumbnail_url: Optional[str] = None

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from app.database import engine, Base
 from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
-from app.routers import folders, customers, enums
+from app.routers import folders, customers, enums, selfies
 from app.routers import settings as settings_router
 from app.core.config import settings
 
@@ -50,6 +50,7 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboar
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(positions.router, prefix="/api/v1/positions", tags=["positions"])
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
+app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")

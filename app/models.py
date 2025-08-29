@@ -247,3 +247,48 @@ class Folder(Base):
     parent = relationship("Folder", remote_side=[id], backref="children")
     files = relationship("File", back_populates="folder")
     application = relationship("CustomerApplication", foreign_keys=[application_id])
+
+class Selfie(Base):
+    __tablename__ = "selfies"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    application_id = Column(UUID(as_uuid=True), ForeignKey('customer_applications.id'), nullable=False)
+    file_id = Column(UUID(as_uuid=True), ForeignKey('files.id'), nullable=False)
+    
+    # Selfie metadata
+    selfie_type = Column(String(50), nullable=False)  # customer_profile, customer_with_officer, id_verification, location_verification
+    captured_at = Column(DateTime(timezone=True), server_default=func.now())
+    captured_by_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    
+    # Customer information
+    customer_id_number = Column(String(50))
+    customer_name = Column(String(255))
+    
+    # Location data
+    location_latitude = Column(Numeric(10, 8))
+    location_longitude = Column(Numeric(11, 8))
+    location_address = Column(Text)
+    
+    # AI/ML validation fields
+    face_detection_confidence = Column(Numeric(5, 4))  # 0.0000 to 1.0000
+    image_quality_score = Column(Numeric(4, 2))  # 0.00 to 10.00
+    
+    # Validation status
+    status = Column(String(20), nullable=False, default='pending_validation')  # pending_validation, validated, rejected
+    is_validated = Column(Boolean, default=False)
+    validated_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    validated_at = Column(DateTime(timezone=True))
+    validation_notes = Column(Text)
+    
+    # General notes
+    notes = Column(Text)
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    application = relationship("CustomerApplication", foreign_keys=[application_id])
+    file = relationship("File", foreign_keys=[file_id])
+    captured_by = relationship("User", foreign_keys=[captured_by_user_id])
+    validator = relationship("User", foreign_keys=[validated_by])

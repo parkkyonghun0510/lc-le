@@ -14,6 +14,11 @@ from app.core.config import settings
 
 load_dotenv()
 
+# Startup diagnostics
+print(f"[Startup] HOST={settings.HOST}, PORT={settings.PORT}, DEBUG={settings.DEBUG}")
+print(f"[Startup] DATABASE_URL set: {bool(getattr(settings, 'DATABASE_URL', ''))}")
+print(f"[Startup] Allowed origins count: {len(settings.ALLOWED_ORIGINS)}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Try to create database tables, but don't fail if database is not available

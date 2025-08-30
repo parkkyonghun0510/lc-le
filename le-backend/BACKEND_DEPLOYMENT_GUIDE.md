@@ -262,7 +262,48 @@ If you need to populate initial data:
 2. Monitor the deployment logs in Railway Dashboard
 3. Wait for the deployment to complete
 
-### Step 6: Verify Deployment
+### Step 6: Run Database Migrations
+
+**Important**: The application now starts without running migrations automatically to prevent startup failures. You need to run migrations separately after the app is deployed and healthy.
+
+#### Option 1: Using Railway CLI (Recommended)
+
+1. Install Railway CLI:
+   ```bash
+   npm install -g @railway/cli
+   ```
+
+2. Login and connect to your project:
+   ```bash
+   railway login
+   railway link
+   ```
+
+3. Run migrations:
+   ```bash
+   railway run python migrate.py
+   ```
+
+#### Option 2: Using Railway Dashboard
+
+1. Go to your backend service in Railway Dashboard
+2. Click on "Deployments" tab
+3. Click "Deploy" → "Custom Start Command"
+4. Enter: `python migrate.py`
+5. This will run a one-time migration job
+
+#### Option 3: Manual Migration via Service Shell
+
+1. In Railway Dashboard, go to your backend service
+2. Click "Shell" tab (if available)
+3. Run: `python migrate.py`
+
+**Note**: The `migrate.py` script will:
+- Wait for database connectivity
+- Run Alembic migrations safely
+- Provide detailed logging of the process
+
+### Step 7: Verify Deployment
 
 1. Check the service URL in Railway Dashboard
 2. Test the health endpoint: `https://your-service.railway.app/api/v1/health`
@@ -298,7 +339,36 @@ node scripts/verify-backend-deployment.js
 
 ### Common Issues
 
-#### 1. Build Failures
+#### 1. Health Check Failures (Service Unavailable)
+
+**Problem**: Railway health check fails with "service unavailable" errors, preventing deployment
+
+**Symptoms**:
+```
+Attempt #1 failed with service unavailable. Continuing to retry...
+1/1 replicas never became healthy!
+Healthcheck failed!
+```
+
+**Root Cause**: The application fails to start due to database connection issues during startup, causing the health endpoint to be unreachable.
+
+**Solution**: The backend has been updated to handle this gracefully:
+
+1. **Graceful Database Handling**: The app now starts even if the database is unavailable initially
+2. **Separated Migrations**: Database migrations are no longer run during app startup
+3. **Resilient Health Check**: The health endpoint returns "healthy" even when database is disconnected
+
+**Configuration Changes Made**:
+- `railway.toml`: Removed `alembic upgrade head &&` from startCommand
+- `app/main.py`: Added try-catch in lifespan function and health endpoint
+- `migrate.py`: Created separate migration script
+
+**Manual Steps After Deployment**:
+1. Wait for app to deploy successfully
+2. Run migrations separately using `railway run python migrate.py`
+3. Verify health endpoint shows database as "connected"
+
+#### 2. Build Failures
 
 **Problem**: Build fails during dependency installation
 

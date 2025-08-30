@@ -3,7 +3,7 @@ builder = "dockerfile"
 buildContext = "."
 # Use relative path to Dockerfile inside this service directory
 # Railway resolves from the service root; remove leading slash
-dockerfilePath = "Dockerfile"
+dockerfilePath = "/lc-workflow-frontend/Dockerfile"
 
 [deploy]
 startCommand = "node server.js"

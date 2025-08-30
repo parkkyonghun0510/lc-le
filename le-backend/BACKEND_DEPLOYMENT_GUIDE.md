@@ -342,6 +342,42 @@ railway shell
 alembic upgrade head
 ```
 
+#### 3a. AsyncEngine Driver Error
+
+**Problem**: `sqlalchemy.exc.InvalidRequestError: The asyncio extension requires an async driver to be used. The loaded 'psycopg2' is not async.`
+
+**Root Cause**: Alembic is trying to use psycopg2 (synchronous driver) with AsyncEngine
+
+**Solution**: The backend has been configured to automatically handle this by:
+
+1. **Automatic URL conversion** in `migrations/env.py`:
+   ```python
+   # Convert psycopg2 URL to asyncpg for async operations
+   if database_url.startswith("postgresql://"):
+       database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+   elif database_url.startswith("postgres://"):
+       database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+   ```
+
+2. **Using create_async_engine** instead of AsyncEngine wrapper:
+   ```python
+   connectable = create_async_engine(
+       configuration["sqlalchemy.url"],
+       poolclass=pool.NullPool,
+       future=True,
+   )
+   ```
+
+3. **AsyncPG dependency** included in `requirements.txt`:
+   ```
+   asyncpg>=0.29.0
+   ```
+
+**Verification**: Run the deployment verification script:
+```bash
+node scripts/verify-backend-deployment.js
+```
+
 #### 4. CORS Errors
 
 **Problem**: Frontend cannot access API due to CORS

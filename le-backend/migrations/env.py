@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from alembic import context
 import asyncio
 import os
@@ -26,6 +26,11 @@ target_metadata = Base.metadata
 # override sqlalchemy.url with environment variable
 database_url = os.getenv("DATABASE_URL")
 if database_url:
+    # Convert psycopg2 URL to asyncpg for async operations
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
     config.set_main_option("sqlalchemy.url", database_url)
 
 def run_migrations_offline():
@@ -43,13 +48,13 @@ def run_migrations_offline():
 
 async def run_migrations_online():
     """Run migrations in 'online' mode."""
-    connectable = AsyncEngine(
-        engine_from_config(
-            config.get_section(config.config_ini_section),
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-            future=True,
-        )
+    configuration = config.get_section(config.config_ini_section)
+    configuration["sqlalchemy.url"] = config.get_main_option("sqlalchemy.url")
+    
+    connectable = create_async_engine(
+        configuration["sqlalchemy.url"],
+        poolclass=pool.NullPool,
+        future=True,
     )
 
     async with connectable.connect() as connection:

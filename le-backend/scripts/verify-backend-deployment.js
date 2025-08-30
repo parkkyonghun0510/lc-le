@@ -264,6 +264,7 @@ class BackendDeploymentVerifier {
     checkDatabaseMigrations() {
         this.log('Checking database migrations...', 'step');
         
+        // Check migrations directory
         const migrationsDir = path.join(this.projectRoot, 'migrations', 'versions');
         if (fs.existsSync(migrationsDir)) {
             const migrations = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.py'));
@@ -274,6 +275,39 @@ class BackendDeploymentVerifier {
             }
         } else {
             this.addError('Migrations directory not found');
+        }
+        
+        // Check async driver configuration in env.py
+        const envPyPath = path.join(this.projectRoot, 'migrations', 'env.py');
+        if (fs.existsSync(envPyPath)) {
+            const envPyContent = fs.readFileSync(envPyPath, 'utf8');
+            
+            // Check for async imports
+            if (envPyContent.includes('create_async_engine')) {
+                this.log('✓ Async engine configuration found in migrations/env.py');
+            } else {
+                this.addError('Missing create_async_engine import in migrations/env.py');
+            }
+            
+            // Check for asyncpg URL conversion
+            if (envPyContent.includes('postgresql+asyncpg://')) {
+                this.log('✓ AsyncPG driver configuration found in migrations/env.py');
+            } else {
+                this.addError('Missing asyncpg driver configuration in migrations/env.py');
+            }
+            
+            // Check for asyncpg dependency
+            const requirementsPath = path.join(this.projectRoot, 'requirements.txt');
+            if (fs.existsSync(requirementsPath)) {
+                const requirementsContent = fs.readFileSync(requirementsPath, 'utf8');
+                if (requirementsContent.includes('asyncpg')) {
+                    this.log('✓ AsyncPG dependency found in requirements.txt');
+                } else {
+                    this.addError('Missing asyncpg dependency in requirements.txt');
+                }
+            }
+        } else {
+            this.addError('migrations/env.py file not found');
         }
     }
 

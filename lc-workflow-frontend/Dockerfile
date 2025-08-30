@@ -6,7 +6,8 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
+# Install ALL dependencies (including dev) so build stage has TypeScript available
+RUN npm ci && npm cache clean --force
 
 # Rebuild the source code only when needed
 FROM node:20-alpine AS builder

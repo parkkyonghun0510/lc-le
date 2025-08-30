@@ -102,7 +102,6 @@ export default function EditApplicationPage() {
           const f = files[i];
           const key = `${def.id}-${i}-${f.name}`;
           setUploadProgress(prev => ({ ...prev, [key]: 0 }));
-          // eslint-disable-next-line no-await-in-loop
           const uploaded = await uploadMutation.mutateAsync({ 
             file: f, 
             applicationId,

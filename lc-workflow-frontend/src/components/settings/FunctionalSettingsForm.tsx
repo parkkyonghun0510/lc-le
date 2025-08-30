@@ -184,7 +184,7 @@ export function FunctionalSettingsForm({ category, title, description }: Functio
           <div className="flex items-center gap-2">
             <CheckIcon className="h-5 w-5 text-blue-600" />
             <span className="text-sm font-medium text-blue-800">
-              You have unsaved changes. Click "Save Changes" to apply them.
+              You have unsaved changes. Click &quot;Save Changes&quot; to apply them.
             </span>
           </div>
         </div>

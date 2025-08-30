@@ -163,24 +163,24 @@ export default function UserDetailPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Organization</h3>
                 <div className="space-y-4">
-                  {user.department && (
+                  {user.department_id && (
                     <div className="flex items-center space-x-3">
                       <Building className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Department</p>
-                        <p className="text-sm text-gray-600">{user.department.name}</p>
+                        <p className="text-sm text-gray-600">{user.department_id}</p>
                       </div>
                     </div>
                   )}
-                  {user.branch && (
+                  {user.branch_id && (
                     <div className="flex items-center space-x-3">
                       <MapPin className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Branch</p>
-                        <p className="text-sm text-gray-600">{user.branch.name}</p>
+                        <p className="text-sm text-gray-600">{user.branch_id}</p>
                       </div>
                     </div>
-                    )}
+                  )}
                     {user.position && (
                       <div className="flex items-center space-x-3">
                         <Network className="h-5 w-5 text-gray-400" />

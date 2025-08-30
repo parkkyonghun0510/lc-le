@@ -223,8 +223,8 @@ export default function FolderFileExplorer({
 
       switch (sortField) {
         case 'name':
-          aValue = a.name || (a as FileItem).original_filename;
-          bValue = b.name || (b as FileItem).original_filename;
+          aValue = a.type === 'folder' ? (a as FolderItem).name : (a as FileItem).original_filename;
+          bValue = b.type === 'folder' ? (b as FolderItem).name : (b as FileItem).original_filename;
           aValue = aValue.toLowerCase();
           bValue = bValue.toLowerCase();
           break;

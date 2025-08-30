@@ -162,7 +162,7 @@ export const useDepartmentWithRelations = (id: string) => {
           // Create extended department object
           const departmentWithRelations: DepartmentWithRelations = {
             ...departmentResponse,
-            users: usersResponse || [],
+            users: (usersResponse as any) || [],
             branches: [], // We'll implement branches later if needed
             user_count: (statsResponse as any)?.user_count || 0,
             branch_count: (statsResponse as any)?.branch_count || 0,

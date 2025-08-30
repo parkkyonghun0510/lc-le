@@ -1,6 +1,8 @@
 [build]
-builder = "DOCKERFILE"
+builder = "dockerfile"
+buildContext = "."
 dockerfilePath = "Dockerfile"
+watchPatterns = ["./**"]
 
 [deploy]
 startCommand = "node server.js"

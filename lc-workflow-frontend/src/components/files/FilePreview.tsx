@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { File } from '@/types/models';
 import { 
   XMarkIcon, 
@@ -41,34 +41,6 @@ export default function FilePreview({
   const { downloadFile } = useDownloadFile();
 
   // Reset zoom and position when file changes
-  // Add keyboard event listeners for navigation and zoom
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      
-      switch (e.key) {
-        case 'ArrowLeft':
-          if (onNavigate) onNavigate('prev');
-          break;
-        case 'ArrowRight':
-          if (onNavigate) onNavigate('next');
-          break;
-        case '+':
-        case '=':
-          handleZoomIn();
-          break;
-        case '-':
-          handleZoomOut();
-          break;
-        case 'Escape':
-          onClose();
-          break;
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onNavigate, onClose]);
 
   useEffect(() => {
     setImageZoom(1);
@@ -119,11 +91,11 @@ export default function FilePreview({
     setIsDragging(false);
   };
 
-  const handleZoomIn = () => {
+  const handleZoomIn = useCallback(() => {
     setImageZoom(prev => Math.min(prev * 1.5, 5));
-  };
+  }, []);
 
-  const handleZoomOut = () => {
+  const handleZoomOut = useCallback(() => {
     setImageZoom(prev => {
       const newZoom = Math.max(prev / 1.5, 1);
       if (newZoom === 1) {
@@ -131,9 +103,9 @@ export default function FilePreview({
       }
       return newZoom;
     });
-  };
+  }, []);
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!isOpen) return;
     
     switch (e.key) {
@@ -162,12 +134,12 @@ export default function FilePreview({
         }
         break;
     }
-  };
+  }, [isOpen, onClose, onNavigate, currentIndex, files.length, file.mime_type, handleZoomIn, handleZoomOut]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, files.length, file.mime_type]);
+  }, [handleKeyDown]);
 
   const renderPreview = () => {
     if (file.mime_type.startsWith('image/') && !imageError) {

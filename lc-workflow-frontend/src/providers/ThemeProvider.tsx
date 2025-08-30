@@ -18,7 +18,7 @@ type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   // Backend theme configuration
-  themeConfig?: any;
+  themeConfig?: Record<string, unknown>;
   isThemeLoading: boolean;
   isThemeError: boolean;
 };
@@ -45,16 +45,18 @@ export function ThemeProvider({
   // Check if user is authenticated
   const { isAuthenticated } = useAuth();
   
-  // Fetch backend theme settings if enabled
-  const { data: themeSettings, isLoading: isThemeLoading, isError: isThemeError } = 
-    useBackendSettings ? useThemeSettings() : { data: undefined, isLoading: false, isError: false };
+  // Fetch backend theme settings (always call hook, conditionally use result)
+  const { data: themeSettings, isLoading: isThemeLoading, isError: isThemeError } = useThemeSettings();
+  
+  // Only use backend settings if enabled
+  const shouldUseBackendSettings = useBackendSettings && themeSettings;
   
   // Mutation for updating theme settings
   const { mutate: updateThemeSettings } = useUpdateThemeSettings();
   
   // Initialize theme from localStorage or backend once the component is mounted
   useEffect(() => {
-    if (useBackendSettings && themeSettings?.theme_config?.mode) {
+    if (shouldUseBackendSettings && themeSettings?.theme_config?.mode) {
       // Use backend theme mode
       setThemeState(themeSettings.theme_config.mode);
     } else {
@@ -69,7 +71,7 @@ export function ThemeProvider({
         console.error('localStorage is not available:', error);
       }
     }
-  }, [storageKey, useBackendSettings, themeSettings]);
+  }, [storageKey, shouldUseBackendSettings, themeSettings]);
 
   useEffect(() => {
     try {
@@ -110,7 +112,7 @@ export function ThemeProvider({
       }
       setThemeState(newTheme);
     },
-    themeConfig: themeSettings?.theme_config,
+    themeConfig: themeSettings?.theme_config as Record<string, unknown> | undefined,
     isThemeLoading,
     isThemeError
   };

@@ -22,26 +22,27 @@ export function ThemedDashboardCard({
   const { theme, themeConfig } = useTheme();
   
   // Get theme colors based on current theme
-  const backgroundColor = themeConfig?.colors[theme]?.surface || 
+  const colors = (themeConfig as any)?.colors?.[theme] || {};
+  const backgroundColor = colors?.surface || 
     (theme === 'dark' ? '#1E1E1E' : '#FFFFFF');
     
-  const textColor = themeConfig?.colors[theme]?.text_primary || 
+  const textColor = colors?.text_primary || 
     (theme === 'dark' ? '#FFFFFF' : '#212121');
     
-  const secondaryTextColor = themeConfig?.colors[theme]?.text_secondary || 
+  const secondaryTextColor = colors?.text_secondary || 
     (theme === 'dark' ? '#B3B3B3' : '#757575');
     
-  const primaryColor = themeConfig?.colors[theme]?.primary || '#2196F3';
+  const primaryColor = colors?.primary || '#2196F3';
   
-  const successColor = themeConfig?.colors[theme]?.success || '#4CAF50';
-  const errorColor = themeConfig?.colors[theme]?.error || '#F44336';
+  const successColor = colors?.success || '#4CAF50';
+  const errorColor = colors?.error || '#F44336';
 
   return (
     <div 
       className="rounded-xl p-6 shadow-sm transition-all duration-200 hover:shadow-md"
       style={{
         backgroundColor,
-        border: `1px solid ${themeConfig?.colors[theme]?.divider || (theme === 'dark' ? '#373737' : '#E0E0E0')}`
+        border: `1px solid ${colors?.divider || (theme === 'dark' ? '#373737' : '#E0E0E0')}`
       }}
     >
       <div className="flex items-start justify-between">

@@ -1,11 +1,11 @@
 'use client';
 
-import { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 
 interface KhmerTextProps {
   children: ReactNode;
   className?: string;
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
 }
 
 export function KhmerText({ children, className = '', as: Component = 'span', ...props }: KhmerTextProps) {
@@ -30,4 +30,4 @@ export function EnglishText({ children, className = '', as: Component = 'span', 
       {children}
     </Component>
   );
-} 
+}

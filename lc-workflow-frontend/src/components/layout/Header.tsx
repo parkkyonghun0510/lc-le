@@ -80,9 +80,9 @@ export function Header({ onMenuClick }: HeaderProps) {
               <span className="hidden lg:flex lg:items-center">
                 <span className="ml-4 text-sm leading-6 text-gray-900 dark:text-white" aria-hidden="true">
                   <span className="font-semibold">{user?.first_name} {user?.last_name}</span>
-                  {user?.position?.title ? (
+                  {(user as any)?.position?.title ? (
                     <span className="ml-2 text-gray-500 dark:text-gray-400 truncate max-w-[10rem]">
-                      • {user?.position?.title}
+                      • {(user as any)?.position?.title}
                     </span>
                   ) : null}
                 </span>

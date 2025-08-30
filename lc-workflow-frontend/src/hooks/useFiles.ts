@@ -3,6 +3,7 @@ import { apiClient } from '@/lib/api';
 import { File as ApiFile, PaginatedResponse, CustomerApplication, User } from '@/types/models';
 import toast from 'react-hot-toast';
 import { handleApiError } from '@/lib/handleApiError';
+import { API_ORIGIN_FOR_LINKS } from '@/lib/api';
 
 // Define Folder type based on backend schema
 export interface Folder {
@@ -123,12 +124,12 @@ const fileApi = {
   },
 
   downloadFile: (id: string): string => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const baseUrl = API_ORIGIN_FOR_LINKS;
     return `${baseUrl}/api/v1/files/${id}/download`;
   },
   
   getThumbnailUrl: (id: string, size: 'sm' | 'md' | 'lg' = 'md'): string => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const baseUrl = API_ORIGIN_FOR_LINKS;
     return `${baseUrl}/api/v1/files/${id}/thumbnail?size=${size}`;
   },
 };

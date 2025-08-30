@@ -2,32 +2,53 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AuthResponse, LoginCredentials } from '@/types/models';
 import { handleApiError } from './handleApiError';
 
-// Prefer env value; auto-upgrade to HTTPS when the page is served via HTTPS to avoid mixed content
+// Prefer env value with normalization; auto-upgrade to HTTPS when the page is served via HTTPS to avoid mixed content
 const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-function getApiBaseUrl(): string {
+function normalizeBaseUrl(raw: string): string {
   try {
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && RAW_API_BASE_URL.startsWith('http://')) {
-      return RAW_API_BASE_URL.replace(/^http:\/\//i, 'https://');
+    let url = raw.trim();
+    // Remove trailing slashes
+    url = url.replace(/\/$/, '');
+    // Remove trailing /api or /api/v1 segments if provided in env
+    url = url.replace(/\/(api|api\/v1)\/?$/i, '');
+
+    // If running in browser over HTTPS and raw is http, upgrade to https to avoid mixed content
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
+      url = url.replace(/^http:\/\//i, 'https://');
     }
-  } catch {}
-  return RAW_API_BASE_URL;
+
+    return url;
+  } catch {
+    return raw;
+  }
 }
 
-const API_BASE_URL = getApiBaseUrl();
+export function getApiOrigin(): string {
+  return normalizeBaseUrl(RAW_API_BASE_URL);
+}
+
+const API_ORIGIN = getApiOrigin();
+const API_BASE_URL = `${API_ORIGIN}/api/v1`;
 
 class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${API_BASE_URL}/api/v1`,
+      baseURL: API_BASE_URL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
       withCredentials: true,
     });
+
+    if (process.env.NODE_ENV !== 'production') {
+      // Helpful for diagnosing wrong API URL in dev
+      // eslint-disable-next-line no-console
+      console.debug('[api] Using API base URL:', API_BASE_URL);
+    }
 
     this.setupInterceptors();
   }
@@ -36,7 +57,7 @@ class ApiClient {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('access_token');
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -49,7 +70,7 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        const originalRequestUrl = error.config.url;
+        const originalRequestUrl = error.config?.url as string | undefined;
 
         if (error.response?.status === 401) {
           // Don't redirect for /auth/me failures, as this is used for auth checks.
@@ -86,9 +107,11 @@ class ApiClient {
     });
     const { access_token, refresh_token, user } = response.data;
 
-    localStorage.setItem('access_token', access_token);
-    localStorage.setItem('refresh_token', refresh_token);
-    localStorage.setItem('user', JSON.stringify(user));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('user', JSON.stringify(user));
+    }
 
     return response.data;
   }
@@ -129,7 +152,7 @@ class ApiClient {
 
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.delete(url, config);
-    return response.data;
+    return response.data as unknown as T;
   }
 
   // File upload helper
@@ -154,3 +177,6 @@ class ApiClient {
 // Export singleton instance
 export const apiClient = new ApiClient();
 export const axiosInstance = apiClient['client'];
+
+// Convenience export for other modules needing the API origin (without /api/v1)
+export const API_ORIGIN_FOR_LINKS = API_ORIGIN;

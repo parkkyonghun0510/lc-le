@@ -5,6 +5,8 @@ dockerfilePath = "/lc-workflow-frontend/Dockerfile"
 
 [deploy]
 startCommand = "node server.js"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 

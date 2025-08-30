@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --font-inter: var(--font-inter);
+  --font-khmer: var(--font-khmer);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-khmer: var(--font-khmer), "Noto Sans Khmer", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121212;
+    --foreground: #ffffff;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-khmer), var(--font-inter), system-ui, sans-serif;
+}
+
+/* Font utility classes */
+.font-khmer {
+  font-family: var(--font-khmer), "Noto Sans Khmer", system-ui, sans-serif;
+}
+
+.font-english {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Responsive font sizes for Khmer */
+.text-khmer-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-khmer-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-khmer-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.text-khmer-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.text-khmer-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.text-khmer-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.text-khmer-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.text-khmer-4xl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}

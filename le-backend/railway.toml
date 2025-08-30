@@ -7,3 +7,13 @@ healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+# Environment variables for Railway deployment
+[env]
+PYTHON_VERSION = "3.11"
+PIP_NO_CACHE_DIR = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+
+# Build configuration
+[build.env]
+PYTHON_VERSION = "3.11"

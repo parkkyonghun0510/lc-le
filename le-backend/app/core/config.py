@@ -121,9 +121,16 @@ class Settings(BaseSettings):
         if not self.S3_BUCKET_NAME and self.MINIO_BUCKET_NAME:
             self.S3_BUCKET_NAME = self.MINIO_BUCKET_NAME
         
-        # Handle CORS origins from environment
+        # Handle CORS origins from environment and merge with default origins
         if self.CORS_ORIGINS:
-            origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
-            self.ALLOWED_ORIGINS.extend(origins)
+            cors_list = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+            if cors_list:
+                # Merge with existing origins, avoiding duplicates
+                all_origins = list(set(self.ALLOWED_ORIGINS + cors_list))
+                self.ALLOWED_ORIGINS = all_origins
+        
+        # Ensure upload directory exists
+        import os
+        os.makedirs(self.UPLOAD_DIR, exist_ok=True)
 
 settings = Settings()

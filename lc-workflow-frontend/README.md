@@ -13,6 +13,8 @@ A modern, responsive web application for managing loan applications and customer
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 - **Real-time Updates**: Automatic data synchronization using React Query
 - **Modern UI**: Clean, professional interface with Tailwind CSS
+- **Dynamic Theme System**: Light, dark, and system theme modes with customizable colors
+- **Accessibility Features**: High contrast mode and adjustable font scaling
 
 ## Tech Stack
 
@@ -69,6 +71,7 @@ src/
 │   └── unauthorized/    # Access denied page
 ├── components/            # Reusable UI components
 │   ├── auth/             # Authentication components
+│   ├── examples/         # Theme system example components
 │   └── layout/           # Layout components (Header, Sidebar)
 ├── hooks/                # Custom React hooks
 │   ├── useAuth.ts      # Authentication hooks
@@ -76,12 +79,14 @@ src/
 │   ├── useUsers.ts     # User management hooks
 │   ├── useDepartments.ts # Department management hooks
 │   ├── useBranches.ts  # Branch management hooks
-│   └── useFiles.ts     # File management hooks
+│   ├── useFiles.ts     # File management hooks
+│   └── useThemeSettings.ts # Theme system hooks
 ├── lib/                  # Utility functions
 │   └── api.ts          # API client configuration
 ├── providers/            # React context providers
 │   ├── AuthProvider.tsx # Authentication context
-│   └── QueryProvider.tsx # React Query configuration
+│   ├── QueryProvider.tsx # React Query configuration
+│   └── ThemeProvider.tsx # Theme system context
 └── types/                # TypeScript type definitions
     └── models.ts         # API response and model types
 ```
@@ -151,7 +156,17 @@ NEXT_PUBLIC_APP_NAME=LC Workflow
 2. Add API methods in `src/lib/api.ts`
 3. Create React Query hooks in `src/hooks/`
 4. Build UI components in `src/components/`
-5. Add routes in `src/app/`
+5. Add routes in `src/app/
+
+### Theme Integration
+
+To use the theme system in your components:
+
+1. Import the theme hook: `import { useTheme } from "@/providers/ThemeProvider"`
+2. Access theme properties: `const { theme, themeConfig } = useTheme()`
+3. Apply theme colors dynamically based on the current theme mode
+
+See `THEME_USAGE_GUIDE.md` for detailed implementation examples.
 
 ## Deployment
 

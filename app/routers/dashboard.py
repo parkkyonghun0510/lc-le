@@ -31,9 +31,9 @@ async def get_dashboard_stats(
         )
         
         # Filter by user role
-        if current_user.role == 'officer':
+        if str(current_user.role) == 'officer':
             app_stats_query = app_stats_query.where(CustomerApplication.user_id == current_user.id)
-        elif current_user.role == 'manager' and current_user.department_id:
+        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
             # Manager can see applications from their department
             dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
             dept_users_result = await db.execute(dept_users_query)
@@ -55,9 +55,9 @@ async def get_dashboard_stats(
         )
         
         # Filter by user role
-        if current_user.role == 'manager' and current_user.department_id:
+        if str(current_user.role) == 'manager' and current_user.department_id is not None:
             user_stats_query = user_stats_query.where(User.department_id == current_user.department_id)
-        elif current_user.role == 'officer':
+        elif str(current_user.role) == 'officer':
             # Officers can only see their own stats
             user_stats_query = user_stats_query.where(User.id == current_user.id)
         
@@ -87,9 +87,9 @@ async def get_dashboard_stats(
         )
         
         # Filter files by user role
-        if current_user.role == 'officer':
+        if str(current_user.role) == 'officer':
             file_stats_query = file_stats_query.where(File.uploaded_by == current_user.id)
-        elif current_user.role == 'manager' and current_user.department_id:
+        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
             # Manager can see files from their department users
             dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
             dept_users_result = await db.execute(dept_users_query)
@@ -99,36 +99,61 @@ async def get_dashboard_stats(
         file_stats_result = await db.execute(file_stats_query)
         file_stats = file_stats_result.first()
 
+        # Handle potential None values
+        app_stats_total = getattr(app_stats, 'total', 0) if app_stats else 0
+        app_stats_draft = getattr(app_stats, 'draft', 0) if app_stats else 0
+        app_stats_submitted = getattr(app_stats, 'submitted', 0) if app_stats else 0
+        app_stats_under_review = getattr(app_stats, 'under_review', 0) if app_stats else 0
+        app_stats_approved = getattr(app_stats, 'approved', 0) if app_stats else 0
+        app_stats_rejected = getattr(app_stats, 'rejected', 0) if app_stats else 0
+        
+        user_stats_total = getattr(user_stats, 'total', 0) if user_stats else 0
+        user_stats_active = getattr(user_stats, 'active', 0) if user_stats else 0
+        user_stats_inactive = getattr(user_stats, 'inactive', 0) if user_stats else 0
+        user_stats_admins = getattr(user_stats, 'admins', 0) if user_stats else 0
+        user_stats_managers = getattr(user_stats, 'managers', 0) if user_stats else 0
+        user_stats_officers = getattr(user_stats, 'officers', 0) if user_stats else 0
+        user_stats_viewers = getattr(user_stats, 'viewers', 0) if user_stats else 0
+        
+        dept_stats_total = getattr(dept_stats, 'total', 0) if dept_stats else 0
+        dept_stats_active = getattr(dept_stats, 'active', 0) if dept_stats else 0
+        
+        branch_stats_total = getattr(branch_stats, 'total', 0) if branch_stats else 0
+        branch_stats_active = getattr(branch_stats, 'active', 0) if branch_stats else 0
+        
+        file_stats_total = getattr(file_stats, 'total', 0) if file_stats else 0
+        file_stats_total_size = getattr(file_stats, 'total_size', 0) if file_stats else 0
+
         return {
             "applications": {
-                "total": app_stats.total or 0,
-                "draft": app_stats.draft or 0,
-                "submitted": app_stats.submitted or 0,
-                "pending": (app_stats.submitted or 0) + (app_stats.under_review or 0),
-                "under_review": app_stats.under_review or 0,
-                "approved": app_stats.approved or 0,
-                "rejected": app_stats.rejected or 0,
+                "total": app_stats_total or 0,
+                "draft": app_stats_draft or 0,
+                "submitted": app_stats_submitted or 0,
+                "pending": (app_stats_submitted or 0) + (app_stats_under_review or 0),
+                "under_review": app_stats_under_review or 0,
+                "approved": app_stats_approved or 0,
+                "rejected": app_stats_rejected or 0,
             },
             "users": {
-                "total": user_stats.total or 0,
-                "active": user_stats.active or 0,
-                "inactive": user_stats.inactive or 0,
-                "admins": user_stats.admins or 0,
-                "managers": user_stats.managers or 0,
-                "officers": user_stats.officers or 0,
-                "viewers": user_stats.viewers or 0,
+                "total": user_stats_total or 0,
+                "active": user_stats_active or 0,
+                "inactive": user_stats_inactive or 0,
+                "admins": user_stats_admins or 0,
+                "managers": user_stats_managers or 0,
+                "officers": user_stats_officers or 0,
+                "viewers": user_stats_viewers or 0,
             },
             "departments": {
-                "total": dept_stats.total or 0,
-                "active": dept_stats.active or 0,
+                "total": dept_stats_total or 0,
+                "active": dept_stats_active or 0,
             },
             "branches": {
-                "total": branch_stats.total or 0,
-                "active": branch_stats.active or 0,
+                "total": branch_stats_total or 0,
+                "active": branch_stats_active or 0,
             },
             "files": {
-                "total": file_stats.total or 0,
-                "total_size": file_stats.total_size or 0,
+                "total": file_stats_total or 0,
+                "total_size": int(file_stats_total_size or 0),
             }
         }
     
@@ -151,9 +176,9 @@ async def get_recent_applications(
         query = select(CustomerApplication).order_by(desc(CustomerApplication.created_at)).limit(limit)
         
         # Filter by user role
-        if current_user.role == 'officer':
+        if str(current_user.role) == 'officer':
             query = query.where(CustomerApplication.user_id == current_user.id)
-        elif current_user.role == 'manager' and current_user.department_id:
+        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
             # Manager can see applications from their department
             dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
             dept_users_result = await db.execute(dept_users_query)
@@ -168,7 +193,7 @@ async def get_recent_applications(
                 "id": str(app.id),
                 "full_name_latin": app.full_name_latin,
                 "full_name_khmer": app.full_name_khmer,
-                "requested_amount": float(app.requested_amount) if app.requested_amount else None,
+                "requested_amount": float(str(app.requested_amount)) if app.requested_amount is not None else None,
                 "status": app.status,
                 "created_at": app.created_at.isoformat(),
                 "user_id": str(app.user_id),
@@ -205,9 +230,9 @@ async def get_activity_timeline(
         ).order_by(desc(CustomerApplication.created_at))
         
         # Filter by user role
-        if current_user.role == 'officer':
+        if str(current_user.role) == 'officer':
             app_query = app_query.where(CustomerApplication.user_id == current_user.id)
-        elif current_user.role == 'manager' and current_user.department_id:
+        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
             dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
             dept_users_result = await db.execute(dept_users_query)
             dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
@@ -218,7 +243,7 @@ async def get_activity_timeline(
         
         # Get users created in the date range (admin/manager only)
         users = []
-        if current_user.role in ['admin', 'manager']:
+        if str(current_user.role) in ['admin', 'manager']:
             user_query = select(User).where(
                 and_(
                     User.created_at >= start_date,
@@ -226,7 +251,7 @@ async def get_activity_timeline(
                 )
             ).order_by(desc(User.created_at))
             
-            if current_user.role == 'manager' and current_user.department_id:
+            if str(current_user.role) == 'manager' and current_user.department_id is not None:
                 user_query = user_query.where(User.department_id == current_user.department_id)
             
             user_result = await db.execute(user_query)
@@ -236,12 +261,17 @@ async def get_activity_timeline(
         activities = []
         
         for app in applications:
+            # Handle Decimal conversion properly
+            requested_amount = 0.0
+            if app.requested_amount is not None:
+                requested_amount = float(str(app.requested_amount))
+                
             activities.append({
                 "id": str(app.id),
                 "type": "application",
                 "action": "created",
                 "title": f"New application from {app.full_name_latin or app.full_name_khmer or 'Unknown'}",
-                "description": f"Loan application for ${app.requested_amount or 0:,.2f}",
+                "description": f"Loan application for ${requested_amount:,.2f}",
                 "status": app.status,
                 "timestamp": app.created_at.isoformat(),
                 "user_id": str(app.user_id),
@@ -292,9 +322,9 @@ async def get_performance_metrics(
         )
         
         # Filter by user role
-        if current_user.role == 'officer':
+        if str(current_user.role) == 'officer':
             processed_query = processed_query.where(CustomerApplication.user_id == current_user.id)
-        elif current_user.role == 'manager' and current_user.department_id:
+        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
             dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
             dept_users_result = await db.execute(dept_users_query)
             dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
@@ -314,9 +344,16 @@ async def get_performance_metrics(
             )
         )
         
-        if current_user.role == 'officer':
+        # Define dept_user_ids for manager role
+        dept_user_ids = []
+        if str(current_user.role) == 'manager' and current_user.department_id is not None:
+            dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
+            dept_users_result = await db.execute(dept_users_query)
+            dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
+        
+        if str(current_user.role) == 'officer':
             approved_query = approved_query.where(CustomerApplication.user_id == current_user.id)
-        elif current_user.role == 'manager' and current_user.department_id:
+        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
             approved_query = approved_query.where(CustomerApplication.user_id.in_(dept_user_ids))
         
         approved_result = await db.execute(approved_query)

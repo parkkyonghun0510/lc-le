@@ -22,8 +22,8 @@ export function Layout({ children }: LayoutProps) {
         <div className="lg:pl-64">
           <Header onMenuClick={() => setSidebarOpen(true)} />
           
-          <main className="py-10">
-            <div className="px-4 sm:px-6 lg:px-8">
+          <main className="py-10 bg-white dark:bg-gray-900">
+            <div className="px-4 sm:px-6 lg:px-8 text-gray-900 dark:text-white">
               {children}
             </div>
           </main>

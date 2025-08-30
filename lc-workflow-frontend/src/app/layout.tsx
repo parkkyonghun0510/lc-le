@@ -31,7 +31,7 @@ export default function RootLayout({
     <html lang="km">
       <body className={`${inter.variable} ${notoSansKhmer.variable} font-sans antialiased`}>
         <QueryProvider>
-          <ThemeProvider>
+          <ThemeProvider useBackendSettings={true}>
             <AuthProvider>
               <ToasterClient />
               {children}

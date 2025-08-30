@@ -14,6 +14,7 @@ import {
   useApplicationSettings,
   useNotificationSettings
 } from '@/hooks/useSettings';
+import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import {
     Cog6ToothIcon,
     UserGroupIcon,
@@ -76,11 +77,10 @@ const settingSections: SettingSection[] = [
         icon: BellIcon,
     },
     {
-        id: 'integrations',
-        name: 'Integrations',
-        description: 'Third-party services and API configurations',
-        icon: GlobeAltIcon,
-        adminOnly: true,
+        id: 'theme',
+        name: 'Theme & Appearance',
+        description: 'Customize the look and feel of the application',
+        icon: CircleStackIcon,
     },
     {
         id: 'backup',
@@ -151,8 +151,8 @@ export default function SettingsPage() {
                 return <ApplicationSettings />;
             case 'notifications':
                 return <NotificationSettings />;
-            case 'integrations':
-                return <IntegrationSettings />;
+            case 'theme':
+                return <ThemeSettings />;
             case 'backup':
                 return <BackupSettings />;
             case 'analytics':

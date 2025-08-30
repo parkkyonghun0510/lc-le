@@ -43,13 +43,24 @@ export const useLogout = () => {
   return useMutation({
     mutationFn: () => apiClient.logout(),
     onSuccess: () => {
+      // Clear local storage (apiClient.logout already does this, but just in case)
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      
+      // Clear React Query cache
       queryClient.clear();
+      
+      // Redirect to login
       router.push('/login');
       toast.success('Logged out successfully');
     },
     onError: (error: any) => {
       handleApiError(error, 'Logout failed');
-      // Still clear cache and redirect even if logout API fails
+      // Even if logout API fails, clear local data and redirect
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
       queryClient.clear();
       router.push('/login');
     },

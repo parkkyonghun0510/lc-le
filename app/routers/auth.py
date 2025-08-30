@@ -198,6 +198,14 @@ async def check_setup_required(db: AsyncSession = Depends(get_db)):
     users = result.scalars().all()
     return {"setup_required": len(users) == 0}
 
+@router.post("/logout")
+async def logout():
+    """Logout endpoint - clears user session"""
+    # In a stateless JWT setup, "logout" is primarily handled client-side
+    # by clearing tokens. This endpoint can be used for any server-side
+    # cleanup if needed.
+    return {"message": "Successfully logged out"}
+
 @router.post("/setup-first-admin", response_model=UserResponse)
 async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)):
     """Create the first admin user when no users exist"""

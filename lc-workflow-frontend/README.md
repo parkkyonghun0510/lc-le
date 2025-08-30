@@ -200,6 +200,24 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
+### Railway Deployment
+
+1. Create a new project on Railway
+2. Connect your GitHub repository
+3. Railway will automatically detect the Dockerfile
+4. Set the following environment variables in Railway:
+   - `NEXT_PUBLIC_API_URL` - Your backend API URL
+   - `NEXT_PUBLIC_WS_URL` - Your WebSocket URL
+   - `NEXT_SECRET_KEY` - Your secret key for encryption
+5. Deploy the application
+
+The application will be available at `https://your-project.up.railway.app`
+
+For production deployments, make sure to:
+- Update the environment variables to point to your production backend
+- Set proper security headers
+- Configure custom domains if needed
+
 ## Contributing
 
 1. Fork the repository

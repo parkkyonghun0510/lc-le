@@ -2,19 +2,28 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AuthResponse, LoginCredentials } from '@/types/models';
 import { handleApiError } from './handleApiError';
 
-// Prefer env value with normalization; auto-upgrade to HTTPS when the page is served via HTTPS to avoid mixed content
+// Force HTTPS in production environments to prevent mixed content issues
 const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 function normalizeBaseUrl(raw: string): string {
   try {
     let url = raw.trim();
+    
     // Remove trailing slashes
     url = url.replace(/\/$/, '');
+    
     // Remove trailing /api or /api/v1 segments if provided in env
     url = url.replace(/\/(api|api\/v1)\/?$/i, '');
 
-    // If running in browser over HTTPS and raw is http, upgrade to https to avoid mixed content
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
+    // Force HTTPS in production environments
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isRailway = process.env.RAILWAY_ENVIRONMENT === 'production';
+    
+    if (isProduction || isRailway) {
+      // Always use HTTPS in production
+      url = url.replace(/^http:\/\//i, 'https://');
+    } else if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
+      // Auto-upgrade to HTTPS when page is served via HTTPS
       url = url.replace(/^http:\/\//i, 'https://');
     }
 
@@ -66,26 +75,49 @@ class ApiClient {
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor to handle token refresh
+    // Response interceptor to handle token refresh and authentication errors
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
         const originalRequestUrl = error.config?.url as string | undefined;
+        const status = error.response?.status;
 
-        if (error.response?.status === 401) {
-          // Don't redirect for /auth/me failures, as this is used for auth checks.
+        if (status === 401) {
+          // Handle authentication errors
+          console.error('Authentication error:', error.response?.data?.detail || 'Unauthorized');
+          
+          // Don't redirect for /auth/me failures, as this is used for auth checks
           if (originalRequestUrl?.endsWith('/auth/me')) {
             return Promise.reject(error);
           }
 
-          // For other 401s, redirect to login.
+          // Clear invalid tokens
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+          }
+
+          // Redirect to login with error message
           if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            window.location.href = '/login';
+            const errorMessage = encodeURIComponent(error.response?.data?.detail || 'Session expired. Please login again.');
+            window.location.href = `/login?error=${errorMessage}`;
           }
           return Promise.reject(error);
         }
 
-        // For all other errors, use the global handler.
+        if (status === 403) {
+          console.error('Forbidden access:', error.response?.data?.detail || 'Access denied');
+        }
+
+        // Handle mixed content errors specifically
+        if (error.message?.includes('mixed content') || error.message?.includes('blocked')) {
+          console.error('Mixed content error detected. Ensure HTTPS is used for all API calls.');
+          console.error('Current API URL:', API_BASE_URL);
+          console.error('Please check NEXT_PUBLIC_API_URL environment variable');
+        }
+
+        // For all other errors, use the global handler
         if (!originalRequestUrl?.endsWith('/auth/me')) {
             handleApiError(error, 'An unexpected error occurred');
         }

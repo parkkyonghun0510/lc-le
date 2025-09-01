@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-09-01T10:46:18.291Z",
+  "checks": {
+    "envFiles": true,
+    "railwayConfig": true,
+    "apiClient": true,
+    "nextConfig": true,
+    "hardcodedHttp": false
+  },
+  "recommendations": [
+    "Set Railway environment variables for HTTPS URLs",
+    "Redeploy after configuration changes",
+    "Clear browser cache",
+    "Verify HTTPS in browser dev tools"
+  ]
+}

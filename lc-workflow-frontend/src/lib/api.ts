@@ -19,12 +19,18 @@ function normalizeBaseUrl(raw: string): string {
     const isProduction = process.env.NODE_ENV === 'production';
     const isRailway = process.env.RAILWAY_ENVIRONMENT === 'production';
     
-    if (isProduction || isRailway) {
+    // Ensure Railway deployments always use HTTPS
+    if (isProduction || isRailway || url.includes('railway.app')) {
       // Always use HTTPS in production
       url = url.replace(/^http:\/\//i, 'https://');
     } else if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
       // Auto-upgrade to HTTPS when page is served via HTTPS
       url = url.replace(/^http:\/\//i, 'https://');
+    }
+
+    // Ensure WSS for WebSocket URLs
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('ws://')) {
+      url = url.replace(/^ws:\/\//i, 'wss://');
     }
 
     return url;
@@ -53,10 +59,16 @@ class ApiClient {
       withCredentials: true,
     });
 
-    if (process.env.NODE_ENV !== 'production') {
-      // Helpful for diagnosing wrong API URL in dev
-      // eslint-disable-next-line no-console
-      console.debug('[api] Using API base URL:', API_BASE_URL);
+    // Always log API URL for debugging in all environments
+    if (typeof window !== 'undefined') {
+      console.log('[api] Environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        RAILWAY_ENVIRONMENT: process.env.RAILWAY_ENVIRONMENT,
+        RAW_API_BASE_URL: RAW_API_BASE_URL,
+        API_BASE_URL: API_BASE_URL,
+        windowLocation: window.location.href,
+        windowProtocol: window.location.protocol
+      });
     }
 
     this.setupInterceptors();

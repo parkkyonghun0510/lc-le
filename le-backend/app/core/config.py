@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Union
 import secrets
 import os
 
@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     # File Storage
     UPLOAD_DIR: str = "static/uploads"
     MAX_FILE_SIZE: int = 10485760  # 10MB
-    ALLOWED_FILE_TYPES: List[str] = [
+    # Define as Union to handle both list and string from env
+    ALLOWED_FILE_TYPES: Union[List[str], str] = [
         "image/jpeg", "image/png", "image/gif", "image/webp",
         "application/pdf", "text/plain", "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -69,7 +70,8 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = ""
     MINIO_BUCKET_NAME: str = "lc-workflow-files"
     MINIO_SECURE: bool = False
-    CORS_ORIGINS: str = ""
+    # Define as Union to handle both list and string from env
+    CORS_ORIGINS: Union[List[str], str] = []
     
     # Railway specific environment variables
     DRAGONFLY_URL: str = ""
@@ -122,12 +124,28 @@ class Settings(BaseSettings):
             self.S3_BUCKET_NAME = self.MINIO_BUCKET_NAME
         
         # Handle CORS origins from environment and merge with default origins
-        if self.CORS_ORIGINS:
+        if isinstance(self.CORS_ORIGINS, str):
             cors_list = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
             if cors_list:
                 # Merge with existing origins, avoiding duplicates
                 all_origins = list(set(self.ALLOWED_ORIGINS + cors_list))
                 self.ALLOWED_ORIGINS = all_origins
+        elif isinstance(self.CORS_ORIGINS, list):
+            if self.CORS_ORIGINS:
+                # Merge with existing origins, avoiding duplicates
+                all_origins = list(set(self.ALLOWED_ORIGINS + self.CORS_ORIGINS))
+                self.ALLOWED_ORIGINS = all_origins
+                
+        # Handle ALLOWED_FILE_TYPES from environment
+        if isinstance(self.ALLOWED_FILE_TYPES, str):
+            self.ALLOWED_FILE_TYPES = [ftype.strip() for ftype in self.ALLOWED_FILE_TYPES.split(',') if ftype.strip()]
+        elif not isinstance(self.ALLOWED_FILE_TYPES, list):
+            # Fallback to default if neither string nor list
+            self.ALLOWED_FILE_TYPES = [
+                "image/jpeg", "image/png", "image/gif", "image/webp",
+                "application/pdf", "text/plain", "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ]
         
         # Ensure upload directory exists
         import os

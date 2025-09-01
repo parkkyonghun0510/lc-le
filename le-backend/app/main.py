@@ -8,9 +8,10 @@ from dotenv import load_dotenv
 
 from app.database import engine, Base
 from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
-from app.routers import folders, customers, enums, selfies
+from app.routers import folders, customers, enums, selfies, validation
 from app.routers import settings as settings_router
 from app.core.config import settings
+from app.core.error_handlers import register_error_handlers
 
 load_dotenv()
 
@@ -47,6 +48,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register error handlers
+register_error_handlers(app)
+
 # Include routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
@@ -61,20 +65,21 @@ app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["set
 app.include_router(positions.router, prefix="/api/v1/positions", tags=["positions"])
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
+app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
-async def root():
+async def root() -> dict:
     return {"message": "LC Work Flow API is running"}
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict:
     return {"status": "healthy"}
 
 @app.get("/api/v1/health")
-async def api_health_check():
+async def api_health_check() -> dict:
     try:
         # Test database connectivity
         from sqlalchemy import text

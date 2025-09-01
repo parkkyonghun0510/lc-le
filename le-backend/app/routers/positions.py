@@ -14,7 +14,7 @@ router = APIRouter()
 async def create_position(
     position: schemas.PositionCreate,
     db: AsyncSession = Depends(get_db),
-):
+) -> schemas.Position:
     db_position = models.Position(**position.model_dump())
     db.add(db_position)
     try:
@@ -37,7 +37,7 @@ async def read_positions(
     search: Optional[str] = Query(default=None),
     is_active: Optional[bool] = Query(default=None),
     db: AsyncSession = Depends(get_db),
-):
+) -> schemas.PaginatedResponse:
     try:
         print(f"DEBUG: Starting read_positions endpoint")
         print(f"DEBUG: Parameters - page: {page}, size: {size}, search: {search}, is_active: {is_active}")
@@ -99,7 +99,7 @@ async def read_positions(
         raise e
 
 @router.get("/{position_id}", response_model=schemas.Position)
-async def read_position(position_id: UUID, db: AsyncSession = Depends(get_db)):
+async def read_position(position_id: UUID, db: AsyncSession = Depends(get_db)) -> schemas.Position:
     result = await db.execute(
         select(models.Position).where(models.Position.id == position_id)
     )
@@ -113,7 +113,7 @@ async def update_position(
     position_id: UUID,
     position: schemas.PositionUpdate,
     db: AsyncSession = Depends(get_db),
-):
+) -> schemas.Position:
     # Fetch existing
     result = await db.execute(
         select(models.Position).where(models.Position.id == position_id)
@@ -137,7 +137,7 @@ async def update_position(
     return db_position
 
 @router.delete("/{position_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_position(position_id: UUID, db: AsyncSession = Depends(get_db)):
+async def delete_position(position_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
     result = await db.execute(
         select(models.Position).where(models.Position.id == position_id)
     )

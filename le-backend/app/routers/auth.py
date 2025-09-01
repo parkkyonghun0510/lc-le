@@ -99,7 +99,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     return user
 
 @router.post("/login", response_model=TokenResponse)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)) -> TokenResponse:
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -144,7 +144,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 async def refresh_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db)
-):
+) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token",
@@ -192,14 +192,14 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
 
 @router.get("/setup-required")
-async def check_setup_required(db: AsyncSession = Depends(get_db)):
+async def check_setup_required(db: AsyncSession = Depends(get_db)) -> dict:
     """Check if initial setup is required (no users in database)"""
     result = await db.execute(select(User))
     users = result.scalars().all()
     return {"setup_required": len(users) == 0}
 
 @router.post("/logout")
-async def logout():
+async def logout() -> dict:
     """Logout endpoint - clears user session"""
     # In a stateless JWT setup, "logout" is primarily handled client-side
     # by clearing tokens. This endpoint can be used for any server-side
@@ -207,7 +207,7 @@ async def logout():
     return {"message": "Successfully logged out"}
 
 @router.post("/setup-first-admin", response_model=UserResponse)
-async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)):
+async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)) -> UserResponse:
     """Create the first admin user when no users exist"""
     # Check if setup is actually required
     result = await db.execute(select(User))

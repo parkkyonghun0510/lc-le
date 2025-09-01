@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, desc
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 
@@ -18,7 +19,7 @@ async def get_customers(
     size: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> PaginatedResponse:
     """Get all customers with file counts"""
     # For this implementation, "customers" are Users who have at least one CustomerApplication
     # Build a role-filtered subquery of distinct applicant user_ids
@@ -35,8 +36,12 @@ async def get_customers(
         pass
     # Admins: no restriction
 
-    # Build the users query from the filtered distinct applicant IDs
-    users_q = select(User).where(User.id.in_(base_app_q.subquery()))
+    # Build the users query from the filtered distinct applicant IDs with eager loading
+    users_q = select(User).options(
+        selectinload(User.department),
+        selectinload(User.branch),
+        selectinload(User.position)
+    ).where(User.id.in_(base_app_q.subquery()))
 
     if current_user.role == "manager":
         if current_user.department_id:
@@ -107,10 +112,14 @@ async def get_customer_applications(
     customer_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> List[dict]:
     """Get applications for a customer with file counts"""
-    # Verify customer exists
-    customer_query = select(User).where(User.id == customer_id)
+    # Verify customer exists with eager loading
+    customer_query = select(User).options(
+        selectinload(User.department),
+        selectinload(User.branch),
+        selectinload(User.position)
+    ).where(User.id == customer_id)
     customer_result = await db.execute(customer_query)
     customer = customer_result.scalar_one_or_none()
     

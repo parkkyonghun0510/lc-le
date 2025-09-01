@@ -18,7 +18,7 @@ async def create_branch(
     branch: BranchCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> BranchResponse:
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -64,7 +64,7 @@ async def list_branches(
     size: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> PaginatedResponse:
     # Build base query with relationships
     query = select(Branch).options(selectinload(Branch.manager))
     
@@ -145,7 +145,7 @@ async def list_branches(
 async def get_active_branches(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> List[BranchResponse]:
     """Get all active branches for dropdowns/selects"""
     result = await db.execute(
         select(Branch)
@@ -160,7 +160,7 @@ async def get_branch(
     branch_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> BranchResponse:
     result = await db.execute(
         select(Branch).where(Branch.id == branch_id)
     )
@@ -180,7 +180,7 @@ async def partial_update_branch(
     branch_update: BranchUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> BranchResponse:
     # Similar logic can be added here for partial updates if different from full updates
     return await update_branch(branch_id, branch_update, current_user, db)
 
@@ -191,7 +191,7 @@ async def update_branch(
     branch_update: BranchUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> BranchResponse:
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -245,7 +245,7 @@ async def delete_branch(
     branch_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, str]:
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -273,7 +273,7 @@ async def toggle_branch_status(
     branch_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Toggle branch active/inactive status"""
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
@@ -307,7 +307,7 @@ async def get_branch_stats(
     branch_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Get branch statistics"""
     # Check if branch exists
     result = await db.execute(
@@ -349,7 +349,7 @@ async def get_branch_users(
     branch_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> List[Dict[str, Any]]:
     """Get users in a specific branch"""
     # Check if branch exists
     result = await db.execute(

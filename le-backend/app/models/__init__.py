@@ -1,0 +1,33 @@
+# Models package
+from .audit import AuditLog, AuditEventType
+
+# Import models from parent models.py using relative import
+import importlib
+import importlib.util
+import sys
+from pathlib import Path
+
+# Get the parent directory and import models
+parent_dir = Path(__file__).parent.parent
+models_path = parent_dir / "models.py"
+
+if models_path.exists():
+    spec = importlib.util.spec_from_file_location("parent_models", models_path)
+    parent_models = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(parent_models)
+    
+    # Import all model classes
+    User = parent_models.User
+    Department = parent_models.Department
+    Branch = parent_models.Branch
+    CustomerApplication = parent_models.CustomerApplication
+    File = parent_models.File
+    Setting = parent_models.Setting
+    Position = parent_models.Position
+    Folder = parent_models.Folder
+    Selfie = parent_models.Selfie
+
+__all__ = [
+    "AuditLog", "AuditEventType", "User", "Department", "Branch", 
+    "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie"
+]

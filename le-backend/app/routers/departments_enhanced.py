@@ -18,7 +18,7 @@ async def create_department(
     department: DepartmentCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> DepartmentResponse:
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -63,7 +63,7 @@ async def list_departments(
     size: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> PaginatedResponse:
     # Build base query
     if include_counts:
         # Include user count subquery
@@ -182,7 +182,7 @@ async def list_departments(
 async def get_active_departments(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> List[DepartmentResponse]:
     """Get all active departments for dropdowns/selects"""
     result = await db.execute(
         select(Department)
@@ -197,7 +197,7 @@ async def get_department(
     department_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> DepartmentResponse:
     result = await db.execute(
         select(Department).where(Department.id == department_id)
     )
@@ -217,7 +217,7 @@ async def partial_update_department(
     department_update: DepartmentUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> DepartmentResponse:
     """Partial update department (PATCH method)"""
     return await update_department(department_id, department_update, current_user, db)
 
@@ -227,7 +227,7 @@ async def update_department(
     department_update: DepartmentUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> DepartmentResponse:
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -281,7 +281,7 @@ async def delete_department(
     department_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, str]:
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -309,7 +309,7 @@ async def toggle_department_status(
     department_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Toggle department active/inactive status"""
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
@@ -343,7 +343,7 @@ async def get_department_stats(
     department_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Get department statistics"""
     # Check if department exists
     result = await db.execute(
@@ -395,7 +395,7 @@ async def get_department_users(
     limit: Optional[int] = Query(None, description="Limit number of users returned"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> List[Dict[str, Any]]:
     """Get users in a specific department"""
     # Check if department exists
     result = await db.execute(
@@ -439,7 +439,7 @@ async def get_department_with_relations(
     users_limit: Optional[int] = Query(10, description="Limit number of users returned"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Get department with all its relationships in a single call"""
     # Check if department exists
     result = await db.execute(

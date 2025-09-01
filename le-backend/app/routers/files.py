@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc, func
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import UUID
 import uuid
 import os
@@ -24,7 +24,7 @@ async def upload_file(
     folder_id: Optional[UUID] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -108,7 +108,7 @@ async def create_upload_url(
     folder_id: Optional[UUID] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict:
     # Authorization checks similar to binary upload
     if application_id is not None:
         app_q = await db.execute(select(CustomerApplication).where(CustomerApplication.id == application_id))
@@ -142,7 +142,7 @@ async def finalize_uploaded_file(
     payload: FileFinalize,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     # Authorization re-checks
     if payload.application_id is not None:
         app_q = await db.execute(select(CustomerApplication).where(CustomerApplication.id == payload.application_id))
@@ -193,7 +193,7 @@ async def get_files(
     folder_id: Optional[UUID] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> PaginatedResponse:
     query = select(File)
     
     if application_id:
@@ -238,7 +238,7 @@ async def get_file(
     file_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     result = await db.execute(
         select(File).where(File.id == file_id)
     )
@@ -264,7 +264,7 @@ async def delete_file(
     file_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, str]:
     result = await db.execute(
         select(File).where(File.id == file_id)
     )
@@ -300,7 +300,7 @@ async def download_file(
     file_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, str]:
     result = await db.execute(
         select(File).where(File.id == file_id)
     )

@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse
 from app.routers.auth import get_current_user, get_password_hash
+from app.services.async_validation_service import AsyncValidationService, DuplicateValidationError
 from sqlalchemy.orm import selectinload
 
 router = APIRouter()
@@ -25,16 +26,14 @@ async def create_user(
             detail="Not authorized to create users"
         )
     
-    # Check if username or email already exists
-    result = await db.execute(
-        select(User).where(
-            (User.username == user.username) | (User.email == user.email)
-        )
-    )
-    if result.scalar_one_or_none():
+    # Use comprehensive validation service for duplicate checking
+    try:
+        validation_service = AsyncValidationService(db)
+        await validation_service.validate_user_duplicates(user.dict())
+    except DuplicateValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username or email already exists"
+            detail=str(e)
         )
     
     db_user = User(
@@ -160,7 +159,7 @@ async def update_user(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> UserResponse:
     if current_user.role not in ["admin", "manager"] and current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -186,19 +185,15 @@ async def update_user(
     
     update_data = user_update.dict(exclude_unset=True)
     
-    # Check for username/email conflicts if they're being updated
-    if 'username' in update_data or 'email' in update_data:
-        conflict_query = select(User).where(User.id != user_id)
-        if 'username' in update_data:
-            conflict_query = conflict_query.where(User.username == update_data['username'])
-        if 'email' in update_data:
-            conflict_query = conflict_query.where(User.email == update_data['email'])
-        
-        conflict_result = await db.execute(conflict_query)
-        if conflict_result.scalar_one_or_none():
+    # Use comprehensive validation service for duplicate checking
+    if update_data:  # Only validate if there's data to update
+        try:
+            validation_service = AsyncValidationService(db)
+            await validation_service.validate_user_duplicates(update_data, exclude_id=user_id)
+        except DuplicateValidationError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username or email already exists"
+                detail=str(e)
             )
     
     # Handle password update
@@ -219,7 +214,7 @@ async def patch_user(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> UserResponse:
     if current_user.role not in ["admin", "manager"] and current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -245,20 +240,16 @@ async def patch_user(
     
     update_data = user_update.dict(exclude_unset=True)
     
-    # Check for username/email conflicts if they're being updated
-    if 'username' in update_data or 'email' in update_data:
-        conflict_query = select(User).where(User.id != user_id)
-        if 'username' in update_data:
-            conflict_query = conflict_query.where(User.username == update_data['username'])
-        if 'email' in update_data:
-            conflict_query = conflict_query.where(User.email == update_data['email'])
-        
-        conflict_result = await db.execute(conflict_query)
-        if conflict_result.scalar_one_or_none():
+    # Use comprehensive validation service for duplicate checking
+    if update_data:  # Only validate if there's data to update
+        try:
+            validation_service = AsyncValidationService(db)
+            await validation_service.validate_user_duplicates(update_data, exclude_id=user_id)
+        except DuplicateValidationError as e:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username or email already exists"
-            )
+                 status_code=status.HTTP_400_BAD_REQUEST,
+                 detail=str(e)
+             )
     
     # Handle password update
     if 'password' in update_data and update_data['password']:
@@ -277,7 +268,7 @@ async def delete_user(
     user_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> dict:
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -310,13 +301,31 @@ async def patch_me(
     user_update: UserUpdate = Body(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> UserResponse:
     # Only allow user to update their own profile
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
     update_data = user_update.dict(exclude_unset=True)
+    
+    # Use comprehensive validation service for duplicate checking
+    if update_data:  # Only validate if there's data to update
+        try:
+            validation_service = AsyncValidationService(db)
+            await validation_service.validate_user_duplicates(update_data, exclude_id=current_user.id)
+        except DuplicateValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+    
+    # Handle password update
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data['password'])
+        del update_data['password']
+    
     for field, value in update_data.items():
         setattr(user, field, value)
     await db.commit()
@@ -328,13 +337,31 @@ async def put_me(
     user_update: UserUpdate = Body(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> UserResponse:
     # Only allow user to replace their own profile
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
     update_data = user_update.dict()
+    
+    # Use comprehensive validation service for duplicate checking
+    if update_data:  # Only validate if there's data to update
+        try:
+            validation_service = AsyncValidationService(db)
+            await validation_service.validate_user_duplicates(update_data, exclude_id=current_user.id)
+        except DuplicateValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+    
+    # Handle password update
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data['password'])
+        del update_data['password']
+    
     for field, value in update_data.items():
         setattr(user, field, value)
     await db.commit()

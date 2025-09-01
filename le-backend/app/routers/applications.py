@@ -26,7 +26,7 @@ async def create_application(
     application: CustomerApplicationCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     db_application = CustomerApplication(
         **application.model_dump(exclude_unset=True),
         user_id=current_user.id
@@ -53,7 +53,7 @@ async def list_applications(
     size: int = Query(10, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> PaginatedResponse:
     # Base query with relationships
     query = select(CustomerApplication).options(
         selectinload(CustomerApplication.user),
@@ -150,7 +150,7 @@ async def get_customer_cards(
     size: int = Query(10, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> PaginatedResponse:
     """Get customer cards optimized for UI display"""
     from app.schemas import CustomerCardResponse
     
@@ -258,7 +258,7 @@ async def get_application(
     application_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     result = await db.execute(
         select(CustomerApplication)
         .options(
@@ -301,7 +301,7 @@ async def update_application(
     application_update: CustomerApplicationUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     result = await db.execute(
         select(CustomerApplication).where(CustomerApplication.id == application_id)
     )
@@ -363,7 +363,7 @@ async def submit_application(
     application_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     result = await db.execute(
         select(CustomerApplication).where(CustomerApplication.id == application_id)
     )
@@ -458,7 +458,7 @@ async def reject_application(
     payload: RejectionRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -497,7 +497,7 @@ async def get_application_relationships(
     application_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Get detailed relationship information for an application"""
     result = await db.execute(
         select(CustomerApplication)
@@ -595,7 +595,7 @@ async def assign_reviewer(
     reviewer_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     """Assign a reviewer to an application"""
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
@@ -683,7 +683,7 @@ async def update_priority(
 async def get_application_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """Get application statistics summary"""
     base_query = select(CustomerApplication)
     
@@ -859,7 +859,7 @@ async def update_workflow_stage(
     workflow_stage: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> CustomerApplicationResponse:
     """Update application workflow stage"""
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(

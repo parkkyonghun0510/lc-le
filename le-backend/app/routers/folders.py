@@ -17,7 +17,7 @@ async def list_folders(
     application_id: Optional[UUID] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> List[FolderResponse]:
     query = select(Folder)
     if parent_id is None:
         query = query.where(Folder.parent_id.is_(None))
@@ -36,7 +36,7 @@ async def create_folder(
     payload: FolderCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> FolderResponse:
     # If folder is for an application, ensure user can access that application
     if payload.application_id is not None:
         app_res = await db.execute(select(CustomerApplication).where(CustomerApplication.id == payload.application_id))
@@ -63,7 +63,7 @@ async def update_folder(
     payload: FolderUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> FolderResponse:
     result = await db.execute(select(Folder).where(Folder.id == folder_id))
     folder = result.scalar_one_or_none()
     if not folder:
@@ -83,7 +83,7 @@ async def delete_folder(
     folder_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-):
+) -> dict:
     result = await db.execute(select(Folder).where(Folder.id == folder_id))
     folder = result.scalar_one_or_none()
     if not folder:

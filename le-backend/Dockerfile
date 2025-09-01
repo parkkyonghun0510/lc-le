@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash app && \
-    mkdir -p /app && \
+    mkdir -p /app/static/uploads && \
     chown -R app:app /app
 
 # Install packages globally for non-root user access
@@ -33,10 +33,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
-
-# Create upload directory with proper permissions
-RUN mkdir -p uploads && chown -R app:app uploads
+COPY --chown=app:app . .
 
 # Switch to non-root user
 USER app

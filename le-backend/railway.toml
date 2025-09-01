@@ -13,8 +13,8 @@ restartPolicyMaxRetries = 3
 PYTHON_VERSION = "3.11"
 PIP_NO_CACHE_DIR = "1"
 PIP_DISABLE_PIP_VERSION_CHECK = "1"
-# Allow the frontend origin for CORS (update this to match your actual frontend URL)
-CORS_ORIGINS = "https://lc-workflow-frontend-production.up.railway.app"
+# Allow the frontend origin for CORS (matches actual production frontend URL)
+CORS_ORIGINS = "https://frontend-production-c749.up.railway.app"
 
 # Build configuration
 [build.env]

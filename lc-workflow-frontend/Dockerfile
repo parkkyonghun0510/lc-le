@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 # Install ALL dependencies (including dev) so build stage has TypeScript available
-RUN npm ci && npm cache clean --force
+RUN npm ci --only=production && npm cache clean --force
 
 # Rebuild the source code only when needed
 FROM node:20-alpine AS builder
@@ -33,16 +33,23 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED 1
+# Disable telemetry during runtime for production
+ENV NEXT_TELEMETRY_DISABLED 1
 
+# Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+
+# Set up security headers and optimizations
+RUN apk add --no-cache dumb-init
 
 # Copy the standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+
+# Set proper ownership
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
@@ -50,4 +57,5 @@ EXPOSE 3000
 
 ENV PORT 3000
 
-CMD ["node", "server.js"]
+# Use dumb-init for proper signal handling
+CMD ["dumb-init", "node", "server.js"]

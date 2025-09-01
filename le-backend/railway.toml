@@ -1,5 +1,6 @@
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
+dockerfilePath = "./Dockerfile"
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8090"
@@ -15,7 +16,13 @@ PIP_NO_CACHE_DIR = "1"
 PIP_DISABLE_PIP_VERSION_CHECK = "1"
 # Allow the frontend origin for CORS (matches actual production frontend URL)
 CORS_ORIGINS = "https://frontend-production-c749.up.railway.app"
+# Production optimizations
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+UVICORN_WORKERS = "4"
+UVICORN_RELOAD = "false"
 
 # Build configuration
 [build.env]
 PYTHON_VERSION = "3.11"
+DOCKER_BUILDKIT = "1"

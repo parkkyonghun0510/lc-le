@@ -61,8 +61,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       <Link
         href={item.href}
         className={`group flex items-center gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-all duration-200 ${isActive
-            ? 'bg-blue-600 text-white'
-            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
+            ? 'bg-primary text-white'
+            : 'text-foreground hover:bg-muted hover:text-primary'
           }`}
         onClick={onClose}
       >
@@ -76,14 +76,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Mobile sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background shadow-custom-lg transform transition-transform duration-300 ease-in-out lg:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
         <div className="flex h-16 items-center justify-between px-4">
-          <div className="text-xl font-bold text-gray-900 dark:text-white">LC Workflow</div>
+          <div className="text-xl font-bold text-foreground">LC Workflow</div>
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-700"
+            className="-m-2.5 p-2.5 text-foreground"
             onClick={onClose}
           >
             <XMarkIcon className="h-6 w-6" />
@@ -98,9 +98,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-gray-800 px-6 ring-1 ring-gray-200 dark:ring-gray-700">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-background px-6 border-r border-border">
           <div className="flex h-16 shrink-0 items-center">
-            <div className="text-xl font-bold text-gray-900 dark:text-white">LC Workflow</div>
+            <div className="text-xl font-bold text-foreground">LC Workflow</div>
           </div>
           <nav className="flex flex-1 flex-col gap-y-2">
             {allNavigation.map((item) => (
@@ -111,15 +111,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* User info */}
           {user && (
             <div className="mb-4">
-              <div className="flex items-center gap-x-3 rounded-md p-2 text-sm font-medium text-gray-700 dark:text-gray-200">
-                <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-200">
+              <div className="flex items-center gap-x-3 rounded-md p-2 text-sm font-medium text-foreground">
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                  <span className="text-sm font-medium text-foreground">
                     {user.first_name.charAt(0)}{user.last_name.charAt(0)}
                   </span>
                 </div>
                 <div>
                   <div className="font-medium">{user.first_name} {user.last_name}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{user.role}</div>
+                  <div className="text-xs text-secondary">{user.role}</div>
                 </div>
               </div>
             </div>

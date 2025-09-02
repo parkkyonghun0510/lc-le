@@ -69,14 +69,15 @@ class MinIOService:
     def upload_file(self, file_content: bytes, original_filename: str, content_type: str = "application/octet-stream", prefix: Optional[str] = None) -> str:
         """Upload file to MinIO and return the object name.
         If prefix is provided, the object will be stored under that prefix (folder-like path).
+        It avoids overwriting by appending a unique suffix if the file exists.
         """
         if not self.enabled:
             raise Exception("MinIO service not configured. Please check environment variables.")
         
         try:
-            # Generate unique filename
             file_extension = os.path.splitext(original_filename)[1]
-            unique_filename = f"{uuid.uuid4()}{file_extension}"
+            base_filename = os.path.splitext(original_filename)[0]
+            unique_filename = f"{base_filename}_{uuid.uuid4()}{file_extension}"
 
             # Build object name with optional prefix
             object_name = unique_filename

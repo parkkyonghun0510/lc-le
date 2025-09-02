@@ -221,9 +221,9 @@ export default function FilePreview({
         </p>
         <button
           onClick={handleDownload}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3"
         >
-          <ArrowDownTrayIcon className="h-4 w-4" />
+          <ArrowDownTrayIcon className="h-5 w-5" />
           Download File
         </button>
       </div>
@@ -231,29 +231,29 @@ export default function FilePreview({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
-      <div className="relative max-w-6xl w-full bg-white rounded-lg shadow-xl overflow-hidden max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="relative max-w-6xl w-full bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900/50 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden max-h-[90vh] transform transition-all duration-300 scale-100 hover:scale-[1.01]">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b bg-gray-50">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-900/80 backdrop-blur-sm">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
             {/* Navigation buttons */}
             {onNavigate && files.length > 1 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-xl p-2 border border-gray-300 dark:border-gray-600">
                 <button
                   onClick={() => onNavigate('prev')}
                   disabled={currentIndex === 0}
-                  className="p-2 text-gray-600 hover:text-gray-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                  className="group p-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 disabled:cursor-not-allowed rounded-lg hover:bg-white/50 dark:hover:bg-gray-600/50 transition-all duration-200"
                   title="Previous file (←)"
                 >
                   <ChevronLeftIcon className="h-5 w-5" />
                 </button>
-                <span className="text-sm text-gray-500 px-2">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 px-3 py-1 bg-white/60 dark:bg-gray-600/60 rounded-lg">
                   {currentIndex + 1} of {files.length}
                 </span>
                 <button
                   onClick={() => onNavigate('next')}
                   disabled={currentIndex === files.length - 1}
-                  className="p-2 text-gray-600 hover:text-gray-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                  className="group p-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 disabled:cursor-not-allowed rounded-lg hover:bg-white/50 dark:hover:bg-gray-600/50 transition-all duration-200"
                   title="Next file (→)"
                 >
                   <ChevronRightIcon className="h-5 w-5" />
@@ -262,39 +262,39 @@ export default function FilePreview({
             )}
             
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 truncate">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {file.original_filename}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                 {file.mime_type} • {Math.round(file.file_size / 1024)} KB
               </p>
               {caption && (
-                <p className="text-xs text-gray-500 mt-0.5 truncate" title={caption}>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 truncate bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-2 py-1 rounded-lg border border-blue-200/50 dark:border-blue-700/50" title={caption}>
                   {caption}
                 </p>
               )}
             </div>
           </div>
           
-          <div className="flex items-center gap-2 ml-4">
+          <div className="flex items-center gap-3 ml-4">
             {/* Zoom controls for images */}
             {file.mime_type.startsWith('image/') && !imageError && (
-              <div className="flex items-center gap-1 mr-2">
+              <div className="flex items-center gap-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-xl p-2 border border-gray-300 dark:border-gray-600">
                 <button
                   onClick={handleZoomOut}
                   disabled={imageZoom <= 1}
-                  className="p-2 text-gray-600 hover:text-gray-800 disabled:text-gray-300"
+                  className="group p-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 rounded-lg hover:bg-white/50 dark:hover:bg-gray-600/50 transition-all duration-200"
                   title="Zoom out (-)"
                 >
                   <MagnifyingGlassMinusIcon className="h-4 w-4" />
                 </button>
-                <span className="text-xs text-gray-500 min-w-[3rem] text-center">
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-200 min-w-[3rem] text-center px-2 py-1 bg-white/60 dark:bg-gray-600/60 rounded-lg">
                   {Math.round(imageZoom * 100)}%
                 </span>
                 <button
                   onClick={handleZoomIn}
                   disabled={imageZoom >= 5}
-                  className="p-2 text-gray-600 hover:text-gray-800 disabled:text-gray-300"
+                  className="group p-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 rounded-lg hover:bg-white/50 dark:hover:bg-gray-600/50 transition-all duration-200"
                   title="Zoom in (+)"
                 >
                   <MagnifyingGlassPlusIcon className="h-4 w-4" />
@@ -304,14 +304,14 @@ export default function FilePreview({
             
             <button
               onClick={handleDownload}
-              className="text-gray-600 hover:text-gray-800 p-2"
+              className="group p-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
               title="Download"
             >
               <ArrowDownTrayIcon className="h-5 w-5" />
             </button>
             <button
               onClick={onClose}
-              className="text-gray-600 hover:text-gray-800 p-2"
+              className="group p-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
               title="Close (Esc)"
             >
               <XMarkIcon className="h-5 w-5" />
@@ -320,7 +320,7 @@ export default function FilePreview({
         </div>
 
         {/* Preview Content */}
-        <div className="h-[calc(100%-80px)] overflow-auto bg-gray-100 flex items-center justify-center">
+        <div className="h-[calc(100%-96px)] overflow-auto bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
           {renderPreview()}
           
           {/* Enhanced navigation buttons for better visibility */}
@@ -328,19 +328,19 @@ export default function FilePreview({
             <>
               <button
                 onClick={() => onNavigate('prev')}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white rounded-full shadow-md z-10 hover:bg-gray-100 disabled:opacity-50"
+                className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-gradient-to-r from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-full shadow-xl border border-gray-200 dark:border-gray-600 z-10 hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-600 dark:hover:to-gray-700 disabled:opacity-50 transition-all duration-200 hover:scale-110"
                 disabled={currentIndex === 0}
                 title="Previous file"
               >
-                <ChevronLeftIcon className="h-6 w-6" />
+                <ChevronLeftIcon className="h-6 w-6 text-gray-700 dark:text-gray-200" />
               </button>
               <button
                 onClick={() => onNavigate('next')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white rounded-full shadow-md z-10 hover:bg-gray-100 disabled:opacity-50"
+                className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-gradient-to-r from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-full shadow-xl border border-gray-200 dark:border-gray-600 z-10 hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-600 dark:hover:to-gray-700 disabled:opacity-50 transition-all duration-200 hover:scale-110"
                 disabled={currentIndex === files.length - 1}
                 title="Next file"
               >
-                <ChevronRightIcon className="h-6 w-6" />
+                <ChevronRightIcon className="h-6 w-6 text-gray-700 dark:text-gray-200" />
               </button>
             </>
           )}

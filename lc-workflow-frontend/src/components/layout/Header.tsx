@@ -32,10 +32,10 @@ export function Header({ onMenuClick }: HeaderProps) {
   }, []);
 
   return (
-    <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-custom sm:gap-x-6 sm:px-6 lg:px-8">
       <button
         type="button"
-        className="-m-2.5 p-2.5 text-gray-700 dark:text-gray-300 lg:hidden"
+        className="-m-2.5 p-2.5 text-foreground lg:hidden"
         onClick={onMenuClick}
       >
         <span className="sr-only">Open sidebar</span>
@@ -43,7 +43,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       </button>
 
       {/* Separator */}
-      <div className="h-6 w-px bg-gray-900/10 dark:bg-gray-100/10 lg:hidden" aria-hidden="true" />
+      <div className="h-6 w-px bg-border lg:hidden" aria-hidden="true" />
 
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex flex-1" />
@@ -52,14 +52,14 @@ export function Header({ onMenuClick }: HeaderProps) {
           <ThemeToggle />
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200"
+            className="-m-2.5 p-2.5 text-secondary hover:text-foreground transition-colors"
           >
             <span className="sr-only">View notifications</span>
             <BellIcon className="h-6 w-6" aria-hidden="true" />
           </button>
 
           {/* Separator */}
-          <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10 lg:dark:bg-gray-100/10" aria-hidden="true" />
+          <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-border" aria-hidden="true" />
 
           {/* Profile dropdown */}
           <div className="relative">
@@ -72,16 +72,16 @@ export function Header({ onMenuClick }: HeaderProps) {
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
             >
               <span className="sr-only">Open user menu</span>
-              <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-200">
+              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                <span className="text-sm font-medium text-foreground">
                   {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
                 </span>
               </div>
               <span className="hidden lg:flex lg:items-center">
-                <span className="ml-4 text-sm leading-6 text-gray-900 dark:text-white" aria-hidden="true">
+                <span className="ml-4 text-sm leading-6 text-foreground" aria-hidden="true">
                   <span className="font-semibold">{user?.first_name} {user?.last_name}</span>
                   {(user as any)?.position?.title ? (
-                    <span className="ml-2 text-gray-500 dark:text-gray-400 truncate max-w-[10rem]">
+                    <span className="ml-2 text-secondary truncate max-w-[10rem]">
                       • {(user as any)?.position?.title}
                     </span>
                   ) : null}
@@ -92,46 +92,46 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Dropdown menu */}
             {profileDropdownOpen && (
               <div
-                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-background py-1 shadow-custom-lg border border-border focus:outline-none"
                 role="menu"
                 aria-orientation="vertical"
                 aria-labelledby="user-menu-button"
                 ref={dropdownRef}
               >
                 <div className="px-4 py-3">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as</p>
-                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{user?.email}</p>
+                  <p className="text-sm text-secondary">Signed in as</p>
+                  <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
                 </div>
-                <div className="border-t border-gray-100 dark:border-gray-700"></div>
+                <div className="border-t border-border"></div>
                 <Link
                   href="/profile"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                   role="menuitem"
                   onClick={() => setProfileDropdownOpen(false)}
                 >
-                  <UserCircleIcon className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                  <UserCircleIcon className="mr-3 h-5 w-5 text-secondary" aria-hidden="true" />
                   Your Profile
                 </Link>
                 <Link
                   href="/settings"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                   role="menuitem"
                   onClick={() => setProfileDropdownOpen(false)}
                 >
-                  <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                  <Cog6ToothIcon className="mr-3 h-5 w-5 text-secondary" aria-hidden="true" />
                   Settings
                 </Link>
-                <div className="border-t border-gray-100 dark:border-gray-700"></div>
+                <div className="border-t border-border"></div>
                 <button
                   type="button"
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="flex w-full items-center px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                   role="menuitem"
                   onClick={() => {
                     setProfileDropdownOpen(false);
                     logout.mutate();
                   }}
                 >
-                  <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                  <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-secondary" aria-hidden="true" />
                   Sign out
                 </button>
               </div>

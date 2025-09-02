@@ -20,7 +20,8 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app.models import Base
+from app.database import Base
+from app.models import User, Department, Branch, CustomerApplication, File, Position, Folder, Selfie, AuditLog, Setting
 target_metadata = Base.metadata
 
 # override sqlalchemy.url with environment variable

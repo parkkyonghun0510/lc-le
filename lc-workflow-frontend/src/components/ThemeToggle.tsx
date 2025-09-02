@@ -9,12 +9,12 @@ export function ThemeToggle() {
     <div className="flex items-center space-x-2">
       <button
         onClick={() => setTheme('light')}
-        className={`p-2 rounded-md ${theme === 'light' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-transparent'}`}
+        className={`p-2 rounded-md transition-colors ${theme === 'light' ? 'bg-muted' : 'bg-transparent hover:bg-muted/50'}`}
         aria-label="Light mode"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-yellow-500"
+          className="h-5 w-5 text-warning"
           viewBox="0 0 20 20"
           fill="currentColor"
         >
@@ -27,12 +27,12 @@ export function ThemeToggle() {
       </button>
       <button
         onClick={() => setTheme('dark')}
-        className={`p-2 rounded-md ${theme === 'dark' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-transparent'}`}
+        className={`p-2 rounded-md transition-colors ${theme === 'dark' ? 'bg-muted' : 'bg-transparent hover:bg-muted/50'}`}
         aria-label="Dark mode"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-gray-900 dark:text-gray-100"
+          className="h-5 w-5 text-foreground"
           viewBox="0 0 20 20"
           fill="currentColor"
         >
@@ -41,12 +41,12 @@ export function ThemeToggle() {
       </button>
       <button
         onClick={() => setTheme('system')}
-        className={`p-2 rounded-md ${theme === 'system' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-transparent'}`}
+        className={`p-2 rounded-md transition-colors ${theme === 'system' ? 'bg-muted' : 'bg-transparent hover:bg-muted/50'}`}
         aria-label="System preference"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-gray-900 dark:text-gray-100"
+          className="h-5 w-5 text-foreground"
           viewBox="0 0 20 20"
           fill="currentColor"
         >

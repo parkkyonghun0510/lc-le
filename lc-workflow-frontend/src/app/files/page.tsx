@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useFiles, useDeleteFile, useDownloadFile } from '@/hooks/useFiles';
+import { useFiles, useDeleteFile, useDownloadFile, useApplications } from '@/hooks/useFiles';
 import { useAuth } from '@/hooks/useAuth';
 import { File } from '@/types/models';
 import {
@@ -22,8 +22,9 @@ import CustomerFileExplorer from '@/components/files/CustomerFileExplorer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
-export default function FilesPage() {
+function FilesPageContent() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState<string>('');
@@ -32,15 +33,26 @@ export default function FilesPage() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewFiles, setPreviewFiles] = useState<File[]>([]);
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<File | null>(null);
 
+  // API hooks
   const { data: filesData, isLoading, error } = useFiles({
     application_id: selectedApplicationId || undefined,
+    search: searchTerm || undefined,
     limit: 100,
   });
+  
+  const { data: applicationsData, isLoading: applicationsLoading } = useApplications({
+    page: 1,
+    size: 100,
+  });
+  
+  const deleteFileMutation = useDeleteFile();
+  const { downloadFile } = useDownloadFile();
 
-  const filteredFiles = filesData?.items?.filter(file =>
-    file.original_filename.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  // Use API data directly instead of client-side filtering
+  const filteredFiles = filesData?.items || [];
 
   const handlePreviewNavigation = (direction: 'prev' | 'next') => {
     const newIndex = direction === 'prev' ? currentPreviewIndex - 1 : currentPreviewIndex + 1;
@@ -58,10 +70,42 @@ export default function FilesPage() {
     setPreviewFile(file);
   };
 
+  const handleDeleteFile = (file: File) => {
+    setFileToDelete(file);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteFile = async () => {
+    if (fileToDelete) {
+      try {
+        await deleteFileMutation.mutateAsync(fileToDelete.id);
+        setShowDeleteConfirm(false);
+        setFileToDelete(null);
+        // Show success message
+        console.log('File deleted successfully');
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+        // Keep dialog open to show error state
+      }
+    }
+  };
+
+  const handleDownloadFile = async (file: File) => {
+    try {
+      await downloadFile(file.id, file.original_filename);
+      // Show success message
+      console.log('File download started');
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      // Show error message to user
+    }
+  };
+
 
   return (
-    <ProtectedRoute>
-      <Layout>
+    <ErrorBoundary>
+      <ProtectedRoute>
+        <Layout>
         <div className="space-y-6">
           {/* Header */}
           <div className="mb-8">
@@ -69,6 +113,11 @@ export default function FilesPage() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Files</h1>
                 <p className="text-gray-600">Manage uploaded files and documents</p>
+                {error && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">Error loading files: {error.message}</p>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
@@ -153,17 +202,45 @@ export default function FilesPage() {
                 <select
                   value={selectedApplicationId}
                   onChange={(e) => setSelectedApplicationId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={applicationsLoading}
                 >
-                  <option value="">All Applications</option>
-                  {/* TODO: Add application options */}
+                  <option value="">
+                    {applicationsLoading ? 'Loading applications...' : 'All Applications'}
+                  </option>
+                  {applicationsData?.items?.map((app) => (
+                    <option key={app.id} value={app.id}>
+                      {app.full_name_latin || app.full_name_khmer || `Application ${app.id.slice(0, 8)}`}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
           </div>
 
           {/* Files View */}
-          {viewMode === 'customers' ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-gray-600">Loading files...</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <div className="text-red-500 mb-4">
+                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load files</h3>
+              <p className="text-gray-600 mb-4">{error.message}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Retry
+              </button>
+            </div>
+          ) : viewMode === 'customers' ? (
             <CustomerFileExplorer
               showActions={true}
             />
@@ -185,11 +262,7 @@ export default function FilesPage() {
           ) : (
             /* Table View */
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : filteredFiles.length === 0 ? (
+              {filteredFiles.length === 0 ? (
                 <div className="text-center py-12">
                   <DocumentIcon className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No files found</h3>
@@ -280,7 +353,7 @@ export default function FilesPage() {
                                   <EyeIcon className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => {}}
+                                  onClick={() => handleDownloadFile(file)}
                                   className="text-blue-600 hover:text-blue-900 p-1"
                                   title="Download"
                                 >
@@ -288,7 +361,7 @@ export default function FilesPage() {
                                 </button>
                                 {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
                                   <button
-                                    onClick={() => {}}
+                                    onClick={() => handleDeleteFile(file)}
                                     className="text-red-600 hover:text-red-900 p-1"
                                     title="Delete"
                                   >
@@ -326,8 +399,35 @@ export default function FilesPage() {
               onClose={() => setShowUploadModal(false)}
             />
           )}
+
+          {/* Delete Confirmation Dialog */}
+          <ConfirmDialog
+            isOpen={showDeleteConfirm}
+            onClose={() => {
+              if (!deleteFileMutation.isPending) {
+                setShowDeleteConfirm(false);
+                setFileToDelete(null);
+              }
+            }}
+            onConfirm={confirmDeleteFile}
+            title="Delete File"
+            message={
+              deleteFileMutation.isPending
+                ? 'Deleting file...'
+                : deleteFileMutation.isError
+                ? `Error deleting file: ${deleteFileMutation.error?.message || 'Unknown error'}`
+                : `Are you sure you want to delete "${fileToDelete?.original_filename}"? This action cannot be undone.`
+            }
+            confirmText={deleteFileMutation.isPending ? 'Deleting...' : 'Delete'}
+            confirmButtonClass="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+          />
         </div>
-      </Layout>
-    </ProtectedRoute>
+        </Layout>
+      </ProtectedRoute>
+    </ErrorBoundary>
   );
+}
+
+export default function FilesPage() {
+  return <FilesPageContent />;
 }

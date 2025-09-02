@@ -1,765 +1,732 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { useCreateApplication, useUpdateApplication } from '@/hooks/useApplications';
-import { useCreateFolder } from '@/hooks/useFolders';
-import { useUploadFile } from '@/hooks/useFiles';
-import type { Collateral, ApplicationDocument } from '@/types/models';
 import {
-  ArrowLeftIcon,
+  useCreateApplication,
+  useUpdateApplication,
+} from '@/hooks/useApplications';
+import { useApplicationFiles, useUploadFile } from '@/hooks/useFiles';
+import FileUploadModal from '@/components/files/FileUploadModal';
+import { File as ApiFile, ApplicationStatus } from '@/types/models';
+import {
   UserIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
-  DocumentDuplicateIcon,
-  PlusIcon,
-  CalendarIcon,
+  DocumentTextIcon,
+  CheckIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CloudArrowUpIcon,
+  TrashIcon,
   IdentificationIcon,
   PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  CalendarIcon,
   BanknotesIcon,
-  HomeIcon,
-  TruckIcon,
-  AcademicCapIcon,
-  HeartIcon,
-  EllipsisHorizontalIcon,
-  CheckCircleIcon
+  ClockIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 
-const loanPurposes = [
-  { id: 'business', label: 'អាជីវកម្ម', icon: BanknotesIcon },
-  { id: 'agriculture', label: 'កសិកម្ម', icon: HomeIcon },
-  { id: 'education', label: 'អប់រំ', icon: AcademicCapIcon },
-  { id: 'housing', label: 'លំនៅដ្ឋាន', icon: HomeIcon },
-  { id: 'vehicle', label: 'យានយន្ត', icon: TruckIcon },
-  { id: 'medical', label: 'វេជ្ជសាស្ត្រ', icon: HeartIcon },
-  { id: 'other', label: 'ផ្សេងៗ', icon: EllipsisHorizontalIcon }
+// Define types locally
+type LoanPurpose = 'Business' | 'Personal' | 'Other';
+type ProductType = 'Personal Loan' | 'Business Loan';
+type IDCardType = 'National ID' | 'Passport' | 'Driving License';
+type LoanTerm = '3 Months' | '6 Months' | '12 Months' | '24 Months';
+type DocumentType = 'photos' | 'references' | 'supporting_docs';
+
+const loanPurposes: LoanPurpose[] = ['Business', 'Personal', 'Other'];
+const productTypes: ProductType[] = ['Personal Loan', 'Business Loan'];
+const idCardTypes: IDCardType[] = [
+  'National ID',
+  'Passport',
+  'Driving License',
+];
+const loanTerms: LoanTerm[] = ['3 Months', '6 Months', '12 Months', '24 Months'];
+
+interface DocumentTypeInfo {
+  type: DocumentType;
+  label: string;
+}
+
+const documentTypes: DocumentTypeInfo[] = [
+  { type: 'photos', label: 'Photos' },
+  { type: 'references', label: 'References' },
+  { type: 'supporting_docs', label: 'Supporting Documents' },
 ];
 
-const idCardTypes = [
-  { value: 'national_id', label: 'អត្តសញ្ញាណប័ណ្ណជាតិ' },
-  { value: 'passport', label: 'លិខិតឆ្លងដែន' },
-  { value: 'family_book', label: 'សៀវភៅគ្រួសារ' }
+const steps = [
+  {
+    id: 0,
+    title: 'Customer Information',
+    description: 'Basic customer details',
+    icon: UserIcon,
+  },
+  {
+    id: 1,
+    title: 'Loan Information',
+    description: 'Loan amount and terms',
+    icon: CurrencyDollarIcon,
+  },
+  {
+    id: 2,
+    title: 'Guarantor Information',
+    description: 'Guarantor details',
+    icon: UserGroupIcon,
+  },
+  {
+    id: 3,
+    title: 'Document Attachment',
+    description: 'Upload required documents',
+    icon: DocumentTextIcon,
+  },
 ];
 
-const productTypes = [
-  { value: 'micro_loan', label: 'កម្ចីខ្នាតតូច' },
-  { value: 'sme_loan', label: 'កម្ចីអាជីវកម្មតូច និងមធ្យម' },
-  { value: 'agriculture_loan', label: 'កម្ចីកសិកម្ម' },
-  { value: 'housing_loan', label: 'កម្ចីលំនៅដ្ឋាន' },
-  { value: 'education_loan', label: 'កម្ចីអប់រំ' }
-];
+const NewApplicationPage = () => {
+  const [activeStep, setActiveStep] = useState(0);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDocumentType, setSelectedDocumentType] =
+    useState<DocumentType>('photos');
 
-const loanTerms = [
-  { value: '6_months', label: '៦ ខែ' },
-  { value: '12_months', label: '១២ ខែ' },
-  { value: '18_months', label: '១៨ ខែ' },
-  { value: '24_months', label: '២៤ ខែ' },
-  { value: '36_months', label: '៣៦ ខែ' },
-  { value: '48_months', label: '៤៨ ខែ' },
-  { value: '60_months', label: '៦០ ខែ' }
-];
-
-export default function NewApplicationPage() {
-  const router = useRouter();
-  const createMutation = useCreateApplication();
-  const updateMutation = useUpdateApplication();
-  const uploadMutation = useUploadFile();
-  const createFolderMutation = useCreateFolder();
-
-  type FormFieldValue = string | number | string[];
-  interface ApplicationFormState {
-    // Customer Information
-    account_id: string;
-    id_card_type: string;
-    id_number: string;
-    full_name_khmer: string;
-    full_name_latin: string;
-    phone: string;
-    date_of_birth: string;
-    portfolio_officer_name: string;
-
-    // Loan Details
-    requested_amount: string;
-    loan_purposes: string[];
-    purpose_details: string;
-    product_type: string;
-    desired_loan_term: string;
-    requested_disbursement_date: string;
-
-    // Guarantor Information
-    guarantor_name: string;
-    guarantor_phone: string;
-
-    // Additional data
-    collaterals: Collateral[];
-    documents: ApplicationDocument[];
-  }
-
-  const [formData, setFormData] = useState<ApplicationFormState>({
-    // Customer Information
-    account_id: '',
-    id_card_type: '',
-    id_number: '',
-    full_name_khmer: '',
-    full_name_latin: '',
-    phone: '',
-    date_of_birth: '',
-    portfolio_officer_name: '',
-
-    // Loan Details
+  const [formValues, setFormValues] = useState({
+    customer_name: '',
+    id_card_type: '' as IDCardType,
+    id_card_number: '',
+    phone_number: '',
+    email: '',
+    address: '',
     requested_amount: '',
-    loan_purposes: [] as string[],
-    purpose_details: '',
-    product_type: '',
-    desired_loan_term: '',
-    requested_disbursement_date: '',
-
-    // Guarantor Information
+    loan_term: '' as LoanTerm,
+    product_type: '' as ProductType,
+    disbursement_date: '',
+    loan_purpose: '' as LoanPurpose,
+    loan_purpose_details: '',
     guarantor_name: '',
-    guarantor_phone: '',
-
-    // Additional data
-    collaterals: [] as Collateral[],
-    documents: [] as ApplicationDocument[]
+    guarantor_phone_number: '',
   });
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const docTypes = [
-    { id: 'borrower_photo', label: 'រូបថតអ្នកខ្ចី', role: 'borrower' },
-    { id: 'borrower_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (មុខ)', role: 'borrower' },
-    { id: 'borrower_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (ក្រោយ)', role: 'borrower' },
-    { id: 'guarantor_photo', label: 'រូបថតអ្នកធានា', role: 'guarantor' },
-    { id: 'guarantor_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (មុខ)', role: 'guarantor' },
-    { id: 'guarantor_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (ក្រោយ)', role: 'guarantor' },
-    { id: 'driver_license', label: 'បណ្ណបើកបរ', role: 'borrower' },
-    { id: 'passport', label: 'លិខិតឆ្លងដែន', role: 'borrower' },
-    { id: 'business_license', label: 'អាជ្ញាបណ្ណអាជីវកម្ម', role: 'borrower' },
-    { id: 'land_title', label: 'បណ្ណកម្មសិទ្ធិដី', role: 'collateral' },
-    { id: 'house_photo', label: 'រូបផ្ទះ', role: 'collateral' },
-    { id: 'collateral_other', label: 'បញ្ចាំផ្សេងៗ', role: 'collateral' },
-  ];
-  const [selectedDocs, setSelectedDocs] = useState<Record<string, boolean>>({});
-  const [docFiles, setDocFiles] = useState<Record<string, globalThis.File[]>>({});
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const createApplicationMutation = useCreateApplication();
+  const updateApplicationMutation = useUpdateApplication();
+  const uploadFileMutation = useUploadFile();
 
-  const steps = [
-    { id: 1, title: 'ព័ត៌មានអតិថិជន', icon: UserIcon },
-    { id: 2, title: 'ព័ត៌មានកម្ចី', icon: CurrencyDollarIcon },
-    { id: 3, title: 'អ្នកធានា', icon: UserGroupIcon },
-    { id: 4, title: 'ឯកសារ', icon: DocumentDuplicateIcon }
-  ];
+  const { data: files, isLoading: isLoadingFiles } = useApplicationFiles(
+    applicationId || '',
+    {}
+  );
 
-  const handleInputChange = (field: keyof ApplicationFormState, value: FormFieldValue) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+  const uploadedFiles = useMemo(() => files?.items || [], [files]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormValues({ ...formValues, [name]: value });
   };
 
-  const handlePurposeToggle = (purposeId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      loan_purposes: prev.loan_purposes.includes(purposeId)
-        ? prev.loan_purposes.filter(p => p !== purposeId)
-        : [...prev.loan_purposes, purposeId]
-    }));
-  };
-
-  const validateStep = (step: number) => {
-    const newErrors: Record<string, string> = {};
-
-    switch (step) {
+  const validateStep = () => {
+    switch (activeStep) {
+      case 0:
+        return formValues.customer_name && formValues.id_card_type && formValues.id_card_number && formValues.phone_number;
       case 1:
-        if (!formData.full_name_khmer && !formData.full_name_latin) {
-          newErrors.full_name = 'សូមបញ្ជាក់ឈ្មោះ';
-        }
-        if (!formData.phone) {
-          newErrors.phone = 'សូមបញ្ជាក់លេខទូរស័ព្ទ';
-        }
-        if (!formData.id_number) {
-          newErrors.id_number = 'សូមបញ្ជាក់លេខអត្តសញ្ញាណប័ណ្ណ';
-        }
-        break;
+        return formValues.requested_amount && formValues.loan_term && formValues.product_type && formValues.disbursement_date && formValues.loan_purpose;
       case 2:
-        if (!formData.requested_amount) {
-          newErrors.requested_amount = 'សូមបញ្ជាក់ចំនួនទឹកប្រាក់';
-        }
-        if (formData.loan_purposes.length === 0) {
-          newErrors.loan_purposes = 'សូមជ្រើសរើសគោលបំណងយ៉ាងហោចណាស់មួយ';
-        }
-        if (!formData.product_type) {
-          newErrors.product_type = 'សូមជ្រើសរើសប្រភេទផលិតផល';
-        }
-        break;
+        return true; // Guarantor is optional
+      case 3:
+        return true; // Documents can be uploaded later
+      default:
+        return true;
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(4, prev + 1));
+  const createDraftApplication = async () => {
+    try {
+      const data = await createApplicationMutation.mutateAsync({
+        status: 'draft',
+        customer_name: formValues.customer_name,
+        id_card_type: formValues.id_card_type,
+        id_card_number: formValues.id_card_number,
+        phone_number: formValues.phone_number,
+        email: formValues.email,
+        address: formValues.address,
+      } as any);
+      setApplicationId(data.id);
+      toast.success('Application draft created successfully');
+      return data.id;
+    } catch (error) {
+      console.error('Failed to create draft application', error);
+      toast.error('Failed to create application draft');
+      return null;
     }
+  };
+
+  const handleNext = async () => {
+    if (!validateStep()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    let currentApplicationId = applicationId;
+    if (activeStep === 0 && !currentApplicationId) {
+      currentApplicationId = await createDraftApplication();
+      if (!currentApplicationId) return;
+    }
+
+    if (activeStep === 1 && currentApplicationId) {
+      try {
+        await updateApplicationMutation.mutateAsync({
+          id: currentApplicationId,
+          data: {
+            requested_amount: parseFloat(formValues.requested_amount),
+            loan_term: formValues.loan_term,
+            product_type: formValues.product_type,
+            disbursement_date: formValues.disbursement_date,
+            loan_purpose: formValues.loan_purpose,
+            loan_purpose_details: formValues.loan_purpose_details,
+          } as any,
+        });
+        toast.success('Loan information saved');
+      } catch (error) {
+        console.error('Failed to update application', error);
+        toast.error('Failed to save loan information');
+        return;
+      }
+    }
+
+    if (activeStep === 2 && currentApplicationId) {
+      try {
+        await updateApplicationMutation.mutateAsync({
+          id: currentApplicationId,
+          data: {
+            guarantor_name: formValues.guarantor_name,
+            guarantor_phone: formValues.guarantor_phone_number,
+          },
+        });
+        toast.success('Guarantor information saved');
+      } catch (error) {
+        console.error('Failed to update guarantor information', error);
+        toast.error('Failed to save guarantor information');
+        return;
+      }
+    }
+
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
 
   const handlePrevious = () => {
-    setCurrentStep(prev => Math.max(1, prev - 1));
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return;
-
-    const submitData = {
-      ...formData,
-      requested_amount: formData.requested_amount ? parseFloat(formData.requested_amount) : undefined,
-      date_of_birth: formData.date_of_birth || undefined,
-      requested_disbursement_date: formData.requested_disbursement_date || undefined
-    };
-
+    if (!applicationId) return;
     try {
-      const result = await createMutation.mutateAsync(submitData);
-      const applicationId = result.id as string;
-
-      // Create folders for selected document types under this application
-      const folderIdByDocType: Record<string, string> = {};
-      for (const def of docTypes) {
-        if (!selectedDocs[def.id]) continue;
-        try {
-          const folder = await createFolderMutation.mutateAsync({
-            name: def.label,
-            application_id: applicationId,
-          });
-          // Some fallbacks in the folder hook may return partials; coerce conservatively
-          const newFolder: { id?: string } = folder as unknown as { id?: string };
-          folderIdByDocType[def.id] = newFolder.id ?? '';
-        } catch {
-          // Continue without a folder if creation fails
-        }
-      }
-
-      // After creation, upload selected document files into their folders and update application's documents JSON
-      type UploadedDoc = {
-        type: string;
-        role: string;
-        file_id: string;
-        filename: string;
-        original_filename: string;
-        mime_type: string;
-        size: number;
-        uploaded_at: string;
-      };
-      const uploads: UploadedDoc[] = [];
-      for (const def of docTypes) {
-        if (!selectedDocs[def.id]) continue;
-        const files = docFiles[def.id] || [];
-        const folderId = folderIdByDocType[def.id];
-        for (let i = 0; i < files.length; i++) {
-          const f = files[i];
-          const key = `${def.id}-${i}-${f.name}`;
-          setUploadProgress(prev => ({ ...prev, [key]: 0 }));
-          const uploaded = await uploadMutation.mutateAsync({ 
-            file: f, 
-            applicationId,
-            folderId,
-            onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [key]: p }))
-          });
-          uploads.push({
-            type: def.id,
-            role: def.role,
-            file_id: uploaded.id,
-            filename: uploaded.filename,
-            original_filename: uploaded.original_filename,
-            mime_type: uploaded.mime_type,
-            size: uploaded.file_size,
-            uploaded_at: uploaded.created_at,
-          });
-          setUploadProgress(prev => ({ ...prev, [key]: 100 }));
-        }
-      }
-
-      if (uploads.length > 0) {
-        await updateMutation.mutateAsync({ id: applicationId, data: { documents: uploads } });
-      }
-
-      router.push(`/applications/${applicationId}`);
+      await updateApplicationMutation.mutateAsync({
+        id: applicationId,
+        data: { status: 'submitted' },
+      });
+      toast.success('Application submitted successfully!');
+      // Handle successful submission (e.g., redirect or show success message)
     } catch (error) {
-      console.error('Error creating application:', error);
+      console.error('Failed to submit application', error);
+      toast.error('Failed to submit application');
     }
   };
 
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
+  const handleOpenModal = (docType: DocumentType) => {
+    setSelectedDocumentType(docType);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const renderStepContent = (step: number) => {
+    switch (step) {
+      case 0:
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <UserIcon className="w-6 h-6 mr-2 text-blue-600" />
-              ព័ត៌មានអតិថិជន
-            </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Account ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.account_id}
-                  onChange={(e) => handleInputChange('account_id', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter account/customer id"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ឈ្មោះជាភាសាខ្មែរ *
-                </label>
-                <input
-                  type="text"
-                  value={formData.full_name_khmer}
-                  onChange={(e) => handleInputChange('full_name_khmer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="បញ្ចូលឈ្មោះជាភាសាខ្មែរ"
-                />
-                {errors.full_name && <p className="text-red-600 text-sm mt-1">{errors.full_name}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ឈ្មោះជាអក្សរឡាតាំង
-                </label>
-                <input
-                  type="text"
-                  value={formData.full_name_latin}
-                  onChange={(e) => handleInputChange('full_name_latin', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter name in Latin"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ប្រភេទអត្តសញ្ញាណប័ណ្ណ
-                </label>
-                <select
-                  value={formData.id_card_type}
-                  onChange={(e) => handleInputChange('id_card_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">ជ្រើសរើសប្រភេទ</option>
-                  {idCardTypes.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  លេខអត្តសញ្ញាណប័ណ្ណ *
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Customer Name *
                 </label>
                 <div className="relative">
-                  <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="text"
-                    value={formData.id_number}
-                    onChange={(e) => handleInputChange('id_number', e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="បញ្ចូលលេខអត្តសញ្ញាណប័ណ្ណ"
+                    name="customer_name"
+                    value={formValues.customer_name}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter customer name"
+                    required
                   />
                 </div>
-                {errors.id_number && <p className="text-red-600 text-sm mt-1">{errors.id_number}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  លេខទូរស័ព្ទ *
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  ID Card Type *
                 </label>
                 <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <select
+                    name="id_card_type"
+                    value={formValues.id_card_type}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                    required
+                  >
+                    <option value="">Select ID card type</option>
+                    {idCardTypes.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  ID Card Number *
+                </label>
+                <div className="relative">
+                  <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <input
+                    type="text"
+                    name="id_card_number"
+                    value={formValues.id_card_number}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter ID card number"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Phone Number *
+                </label>
+                <div className="relative">
+                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="បញ្ចូលលេខទូរស័ព្ទ"
+                    name="phone_number"
+                    value={formValues.phone_number}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter phone number"
+                    required
                   />
                 </div>
-                {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ថ្ងៃខែឆ្នាំកំណើត
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email
                 </label>
                 <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
-                    type="date"
-                    value={formData.date_of_birth}
-                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    type="email"
+                    name="email"
+                    value={formValues.email}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter email address"
                   />
                 </div>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ឈ្មោះមន្ត្រីទទួលបន្ទុក
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Address
                 </label>
-                <input
-                  type="text"
-                  value={formData.portfolio_officer_name}
-                  onChange={(e) => handleInputChange('portfolio_officer_name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="បញ្ចូលឈ្មោះមន្ត្រីទទួលបន្ទុក"
-                />
+                <div className="relative">
+                  <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <input
+                    type="text"
+                    name="address"
+                    value={formValues.address}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter address"
+                  />
+                </div>
               </div>
             </div>
           </div>
         );
-
-      case 2:
+      case 1:
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <CurrencyDollarIcon className="w-6 h-6 mr-2 text-green-600" />
-              ព័ត៌មានកម្ចី
-            </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛) *
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Requested Amount *
                 </label>
-                <input
-                  type="number"
-                  value={formData.requested_amount}
-                  onChange={(e) => handleInputChange('requested_amount', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                />
-                {errors.requested_amount && <p className="text-red-600 text-sm mt-1">{errors.requested_amount}</p>}
+                <div className="relative">
+                  <BanknotesIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <input
+                    type="number"
+                    name="requested_amount"
+                    value={formValues.requested_amount}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter requested amount"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  រយៈពេលកម្ចី
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Loan Term *
                 </label>
-                <select
-                  value={formData.desired_loan_term}
-                  onChange={(e) => handleInputChange('desired_loan_term', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">ជ្រើសរើសរយៈពេល</option>
-                  {loanTerms.map(term => (
-                    <option key={term.value} value={term.value}>{term.label}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <ClockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <select
+                    name="loan_term"
+                    value={formValues.loan_term}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                    required
+                  >
+                    <option value="">Select loan term</option>
+                    {loanTerms.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ប្រភេទផលិតផល *
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Product Type *
                 </label>
-                <select
-                  value={formData.product_type}
-                  onChange={(e) => handleInputChange('product_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">ជ្រើសរើសប្រភេទផលិតផល</option>
-                  {productTypes.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-                {errors.product_type && <p className="text-red-600 text-sm mt-1">{errors.product_type}</p>}
+                <div className="relative">
+                  <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <select
+                    name="product_type"
+                    value={formValues.product_type}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                    required
+                  >
+                    <option value="">Select product type</option>
+                    {productTypes.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  កាលបរិច្ឆេទចង់បានប្រាក់
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Disbursement Date *
                 </label>
-                <input
-                  type="date"
-                  value={formData.requested_disbursement_date}
-                  onChange={(e) => handleInputChange('requested_disbursement_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <input
+                    type="date"
+                    name="disbursement_date"
+                    value={formValues.disbursement_date}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Loan Purpose *
+                </label>
+                <div className="relative">
+                  <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <select
+                    name="loan_purpose"
+                    value={formValues.loan_purpose}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                    required
+                  >
+                    <option value="">Select loan purpose</option>
+                    {loanPurposes.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                គោលបំណងប្រើប្រាស់ *
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {loanPurposes.map(purpose => {
-                  const Icon = purpose.icon;
-                  const isSelected = formData.loan_purposes.includes(purpose.id);
-                  return (
-                    <button
-                      key={purpose.id}
-                      type="button"
-                      onClick={() => handlePurposeToggle(purpose.id)}
-                      className={`p-3 rounded-lg border-2 transition-all ${isSelected
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                        }`}
-                    >
-                      <Icon className="w-6 h-6 mx-auto mb-2" />
-                      <span className="text-sm font-medium">{purpose.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {errors.loan_purposes && <p className="text-red-600 text-sm mt-1">{errors.loan_purposes}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                ព័ត៌មានលម្អិតអំពីគោលបំណង
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Loan Purpose Details
               </label>
               <textarea
-                value={formData.purpose_details}
-                onChange={(e) => handleInputChange('purpose_details', e.target.value)}
+                name="loan_purpose_details"
+                value={formValues.loan_purpose_details}
+                onChange={handleInputChange}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="សូមពិពណ៌នាលម្អិតអំពីគោលបំណងប្រើប្រាស់ប្រាក់កម្ចី..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 resize-none hover:border-gray-400 dark:hover:border-gray-500"
+                placeholder="Provide additional details about the loan purpose"
               />
             </div>
           </div>
         );
-
-      case 3:
+      case 2:
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <UserGroupIcon className="w-6 h-6 mr-2 text-purple-600" />
-              ព័ត៌មានអ្នកធានា
-            </h2>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                ព័ត៌មានអ្នកធានាមិនចាំបាច់ទេ ប៉ុន្តែវាអាចជួយបង្កើនឱកាសអនុម័តកម្ចីរបស់អ្នក។
-              </p>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ឈ្មោះអ្នកធានា
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Guarantor Name
                 </label>
-                <input
-                  type="text"
-                  value={formData.guarantor_name}
-                  onChange={(e) => handleInputChange('guarantor_name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="បញ្ចូលឈ្មោះអ្នកធានា"
-                />
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <input
+                    type="text"
+                    name="guarantor_name"
+                    value={formValues.guarantor_name}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter guarantor name"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  លេខទូរស័ព្ទអ្នកធានា
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Guarantor Phone Number
                 </label>
                 <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <input
                     type="tel"
-                    value={formData.guarantor_phone}
-                    onChange={(e) => handleInputChange('guarantor_phone', e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="បញ្ចូលលេខទូរស័ព្ទអ្នកធានា"
+                    name="guarantor_phone_number"
+                    value={formValues.guarantor_phone_number}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                    placeholder="Enter guarantor phone number"
                   />
                 </div>
               </div>
             </div>
-          </div>
-        );
 
-      case 4:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <DocumentDuplicateIcon className="w-6 h-6 mr-2 text-orange-600" />
-              ឯកសារភ្ជាប់
-            </h2>
-
-            <div className="space-y-4">
-              {docTypes.map(def => (
-                <div key={def.id} className="border border-gray-200 rounded-lg p-4">
-                  <label className="inline-flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={!!selectedDocs[def.id]}
-                      onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                    />
-                    <span className="font-medium text-gray-900">{def.label}</span>
-                  </label>
-
-                  {selectedDocs[def.id] && (
-                    <div className="mt-3 space-y-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          setDocFiles(prev => ({ ...prev, [def.id]: files as File[] }));
-                        }}
-                        className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      {Array.isArray(docFiles[def.id]) && docFiles[def.id].length > 0 && (
-                        <>
-                          {(() => {
-                            const completed = docFiles[def.id].filter((file, idx) => {
-                              const key = `${def.id}-${idx}-${file.name}`;
-                              return uploadProgress[key] === 100;
-                            }).length;
-                            return completed > 0 ? (
-                              <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
-                                <CheckCircleIcon className="w-4 h-4" />
-                                <span>{completed} uploaded</span>
-                              </div>
-                            ) : null;
-                          })()}
-                          <div className="space-y-1">
-                            {docFiles[def.id].map((file, idx) => {
-                              const key = `${def.id}-${idx}-${file.name}`;
-                              const progress = uploadProgress[key] ?? 0;
-                              return (
-                                <div key={key} className="text-xs text-gray-600">
-                                  <div className="flex justify-between">
-                                    <span className="truncate max-w-[70%]" title={file.name}>{file.name}</span>
-                                    <span>{progress}%</span>
-                                  </div>
-                                  <div className="w-full h-2 bg-gray-200 rounded">
-                                    <div className="h-2 bg-blue-600 rounded" style={{ width: `${progress}%` }} />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <UserGroupIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Guarantor Information</h4>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    Providing guarantor information is optional but may help with loan approval.
+                  </p>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {documentTypes.map((docType) => (
+                <div key={docType.type} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                  <div className="text-center">
+                    <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">{docType.label}</h3>
+                    <button
+                      onClick={() => handleOpenModal(docType.type)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <CloudArrowUpIcon className="h-4 w-4 mr-2" />
+                      Upload Files
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
 
+            {isLoadingFiles ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Uploaded Files</h3>
+                {uploadedFiles.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No files uploaded yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file: ApiFile) => (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <DocumentTextIcon className="h-5 w-5 text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{file.filename}</p>
+                            <p className="text-xs text-gray-500">
+                              {file.metadata?.documentType || 'Unknown type'}
+                            </p>
+                          </div>
+                        </div>
+                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
       default:
-        return null;
+        return <div>Unknown step</div>;
     }
   };
 
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">បង្កើតពាក្យសុំកម្ចីថ្មី</h1>
-              <p className="text-gray-600">បំពេញព័ត៌មានដើម្បីដាក់ស្នើសុំកម្ចី</p>
-            </div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">New Loan Application</h1>
+            <p className="text-gray-600">Complete the form below to submit your loan application</p>
           </div>
 
-          {/* Progress Steps */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-                const isActive = currentStep === step.id;
-                const isCompleted = currentStep > step.id;
+          {/* Stepper */}
+          <div className="mb-8">
+            <nav aria-label="Progress">
+              <ol className="flex items-center justify-between">
+                {steps.map((step, stepIdx) => {
+                  const isCompleted = stepIdx < activeStep;
+                  const isCurrent = stepIdx === activeStep;
+                  const IconComponent = step.icon;
 
-                return (
-                  <div key={step.id} className="flex items-center">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${isActive
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : isCompleted
-                        ? 'border-green-600 bg-green-600 text-white'
-                        : 'border-gray-300 text-gray-400'
-                      }`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="ml-3">
-                      <p className={`text-sm font-medium ${isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
-                        }`}>
-                        {step.title}
-                      </p>
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div className={`w-16 h-0.5 mx-4 ${isCompleted ? 'bg-green-600' : 'bg-gray-300'
-                        }`} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  return (
+                    <li key={step.id} className={`relative ${stepIdx !== steps.length - 1 ? 'flex-1' : ''}`}>
+                      {stepIdx !== steps.length - 1 && (
+                        <div
+                          className={`absolute top-4 left-8 w-full h-0.5 ${
+                            isCompleted ? 'bg-blue-600' : 'bg-gray-200'
+                          }`}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <div className="relative flex flex-col items-center group">
+                        <span
+                          className={`h-8 w-8 rounded-full flex items-center justify-center border-2 ${
+                            isCompleted
+                              ? 'bg-blue-600 border-blue-600'
+                              : isCurrent
+                              ? 'border-blue-600 bg-white'
+                              : 'border-gray-300 bg-white'
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <CheckIcon className="h-4 w-4 text-white" />
+                          ) : (
+                            <IconComponent
+                              className={`h-4 w-4 ${
+                                isCurrent ? 'text-blue-600' : 'text-gray-400'
+                              }`}
+                            />
+                          )}
+                        </span>
+                        <span
+                          className={`mt-2 text-xs font-medium ${
+                            isCurrent ? 'text-blue-600' : 'text-gray-500'
+                          }`}
+                        >
+                          {step.title}
+                        </span>
+                        <span className="text-xs text-gray-400 text-center max-w-24">
+                          {step.description}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
           </div>
 
           {/* Form Content */}
-          <div className="bg-white rounded-lg shadow p-6">
-            {renderStepContent()}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            {renderStepContent(activeStep)}
           </div>
 
-          {/* Navigation */}
-          <div className="flex justify-between bg-white rounded-lg shadow p-6">
+          {/* Navigation Buttons */}
+          <div className="flex justify-between">
             <button
               onClick={handlePrevious}
-              disabled={currentStep === 1}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={activeStep === 0}
+              className={`inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-xl ${
+                activeStep === 0
+                  ? 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
+                  : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+              } transition-all duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800`}
             >
-              <ArrowLeftIcon className="w-4 h-4 mr-2" />
-              ថយក្រោយ
+              <ArrowLeftIcon className="h-4 w-4 mr-2" />
+              Previous
             </button>
 
-            <div className="flex space-x-3">
-              {currentStep < 4 ? (
-                <button
-                  onClick={handleNext}
-                  className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  បន្ទាប់
-                  <ArrowLeftIcon className="w-4 h-4 ml-2 rotate-180" />
-                </button>
+            <button
+              onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
+              disabled={
+                createApplicationMutation.isPending ||
+                updateApplicationMutation.isPending ||
+                !validateStep()
+              }
+              className="inline-flex items-center px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white text-sm font-medium rounded-xl hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+            >
+              {createApplicationMutation.isPending || updateApplicationMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : activeStep === steps.length - 1 ? (
+                'Submit Application'
               ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={createMutation.isPending}
-                  className="inline-flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      កំពុងបង្កើត...
-                    </>
-                  ) : (
-                    <>
-                      <PlusIcon className="w-4 h-4 mr-2" />
-                      បង្កើតពាក្យសុំ
-                    </>
-                  )}
-                </button>
+                <>
+                  Next
+                  <ArrowRightIcon className="h-4 w-4 ml-2" />
+                </>
               )}
-            </div>
+            </button>
           </div>
         </div>
+
+        {/* File Upload Modal */}
+        {applicationId && (
+          <FileUploadModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            applicationId={applicationId}
+            documentType={selectedDocumentType}
+          />
+        )}
       </Layout>
     </ProtectedRoute>
   );
-}
+};
+
+export default NewApplicationPage;

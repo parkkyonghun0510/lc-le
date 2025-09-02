@@ -10,6 +10,7 @@ interface FileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   applicationId?: string;
+  documentType?: 'photos' | 'references' | 'supporting_docs';
 }
 
 interface FileWithProgress {
@@ -19,7 +20,7 @@ interface FileWithProgress {
   error?: string;
 }
 
-export default function FileUploadModal({ isOpen, onClose, applicationId }: FileUploadModalProps) {
+export default function FileUploadModal({ isOpen, onClose, applicationId, documentType }: FileUploadModalProps) {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const uploadFileMutation = useUploadFile();
 
@@ -60,6 +61,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId }: File
       await uploadFileMutation.mutateAsync({
         file: fileWithProgress.file,
         applicationId,
+        documentType,
         onProgress: (progress) => {
           setFiles(prev => prev.map((f, i) => 
             i === index ? { ...f, progress } : f

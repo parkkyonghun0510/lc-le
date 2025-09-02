@@ -8,7 +8,7 @@ from uuid import UUID
 
 from app.database import get_db
 from app.models import User, CustomerApplication, File
-from app.schemas import PaginatedResponse, UserResponse
+from app.schemas import PaginatedResponse, UserResponse, CustomerApplicationResponse
 from app.routers.auth import get_current_user
 
 router = APIRouter()
@@ -146,7 +146,7 @@ async def get_customer_applications(
     applications_result = await db.execute(applications_query)
     applications = applications_result.scalars().all()
     
-    # Get file counts for each application
+    # Get file counts for each application and serialize properly
     application_responses = []
     for application in applications:
         # Count files for this application
@@ -157,10 +157,9 @@ async def get_customer_applications(
         file_count_result = await db.execute(file_count_query)
         file_count = file_count_result.scalar_one() or 0
         
-        # Create response with file count
-        app_dict = application.__dict__.copy()
-        if "_sa_instance_state" in app_dict:
-            del app_dict["_sa_instance_state"]
+        # Use Pydantic schema for proper serialization
+        app_response = CustomerApplicationResponse.model_validate(application)
+        app_dict = app_response.model_dump()
         app_dict["file_count"] = file_count
         application_responses.append(app_dict)
     

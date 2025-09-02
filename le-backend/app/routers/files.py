@@ -13,6 +13,7 @@ from app.models import File, User, CustomerApplication, Folder
 from app.schemas import FileCreate, FileResponse, PaginatedResponse, FileFinalize
 from app.routers.auth import get_current_user
 from app.services.minio_service import minio_service
+from app.services.folder_service import get_or_create_application_folder_structure
 from app.core.config import settings
 
 router = APIRouter()
@@ -21,7 +22,8 @@ router = APIRouter()
 async def upload_file(
     file: UploadFile = File(),
     application_id: Optional[UUID] = None,
-    folder_id: Optional[UUID] = None,
+    folder_id: Optional[UUID] = None, # This can now be used to specify a sub-folder
+    document_type: Optional[str] = Query(None, enum=["photos", "references", "supporting_docs"]),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
@@ -30,7 +32,26 @@ async def upload_file(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No file provided"
         )
+
+    # Validate file type
+    if file.content_type not in settings.ALLOWED_FILE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file type: {file.content_type}. Supported types are: {', '.join(settings.ALLOWED_FILE_TYPES)}"
+        )
     
+    # If application_id is provided, ensure folder structure exists
+    if application_id:
+        folder_ids = await get_or_create_application_folder_structure(db, application_id)
+        
+        # If a specific document_type is given, use its folder
+        if document_type and document_type in folder_ids:
+            folder_id = folder_ids[document_type]
+        # If no specific type, but a folder_id is passed, use it (optional)
+        elif not folder_id:
+            # Default to parent application folder if no specific folder is chosen
+            folder_id = folder_ids.get("parent_id")
+
     # Authorization: if attaching to application, ensure user can access it
     if application_id is not None:
         app_q = await db.execute(select(CustomerApplication).where(CustomerApplication.id == application_id))

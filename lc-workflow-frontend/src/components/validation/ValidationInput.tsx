@@ -94,11 +94,11 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
 
     switch (state) {
       case 'validating':
-        return <Loader2 className={cn(iconClass, 'animate-spin text-blue-500')} />;
+        return <Loader2 className={cn(iconClass, 'animate-spin text-primary')} />;
       case 'success':
-        return <CheckCircleIcon className={cn(iconClass, 'text-green-500')} />;
+        return <CheckCircleIcon className={cn(iconClass, 'text-success')} />;
       case 'error':
-        return <XCircleIcon className={cn(iconClass, 'text-red-500')} />;
+        return <XCircleIcon className={cn(iconClass, 'text-error')} />;
       default:
         return null;
     }
@@ -108,13 +108,13 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
     const state = getValidationState();
     switch (state) {
       case 'success':
-        return 'border-green-300 focus:border-green-500 focus:ring-green-500';
+        return 'border-success focus:border-success focus:ring-success';
       case 'error':
-        return 'border-red-300 focus:border-red-500 focus:ring-red-500';
+        return 'border-error focus:border-error focus:ring-error';
       case 'validating':
-        return 'border-blue-300 focus:border-blue-500 focus:ring-blue-500';
+        return 'border-primary focus:border-primary focus:ring-primary';
       default:
-        return 'border-gray-300 focus:border-blue-500 focus:ring-blue-500';
+        return 'border-border focus:border-primary focus:ring-primary';
     }
   };
 
@@ -122,13 +122,13 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
     const state = getValidationState();
     switch (state) {
       case 'success':
-        return 'text-green-600';
+        return 'text-success';
       case 'error':
-        return 'text-red-600';
+        return 'text-error';
       case 'validating':
-        return 'text-blue-600';
+        return 'text-primary';
       default:
-        return 'text-gray-600';
+        return 'text-secondary';
     }
   };
 
@@ -136,9 +136,9 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
 
   return (
     <div className={cn('space-y-1', className)}>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="block text-sm font-medium text-foreground">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-error ml-1">*</span>}
       </label>
       
       <div className="relative">
@@ -149,11 +149,7 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            'block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400',
-            'focus:outline-none focus:ring-1 sm:text-sm',
-            'disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed',
-            'dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
-            'dark:disabled:bg-gray-700 dark:disabled:text-gray-400',
+            'input-base',
             getInputBorderClass(),
             showValidationIcon && localValue.trim() ? 'pr-10' : ''
           )}
@@ -179,7 +175,7 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
       
       {/* Loading indicator for validation */}
       {isValidating && (
-        <div className="flex items-center space-x-2 text-sm text-blue-600">
+        <div className="flex items-center space-x-2 text-sm text-primary">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Checking availability...</span>
         </div>

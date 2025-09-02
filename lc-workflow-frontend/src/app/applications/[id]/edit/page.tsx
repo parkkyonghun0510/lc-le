@@ -7,7 +7,18 @@ import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplication, useUpdateApplication } from '@/hooks/useApplications';
 import { useUploadFile } from '@/hooks/useFiles';
-import { ArrowLeftIcon, CalendarIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { 
+  ArrowLeftIcon, 
+  CalendarIcon, 
+  CheckCircleIcon, 
+  UserIcon, 
+  CurrencyDollarIcon, 
+  DocumentTextIcon,
+  ShieldCheckIcon,
+  PhotoIcon,
+  InformationCircleIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 
 export default function EditApplicationPage() {
   const router = useRouter();
@@ -36,6 +47,7 @@ export default function EditApplicationPage() {
     loan_purposes: [] as string[],
     collaterals: [] as any[],
   });
+  
   const docDefs = [
     { id: 'borrower_photo', label: 'រូបថតអ្នកខ្ចី', role: 'borrower' },
     { id: 'borrower_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (មុខ)', role: 'borrower' },
@@ -50,6 +62,7 @@ export default function EditApplicationPage() {
     { id: 'house_photo', label: 'រូបផ្ទះ', role: 'collateral' },
     { id: 'collateral_other', label: 'បញ្ចាំផ្សេងៗ', role: 'collateral' },
   ];
+  
   const [selectedDocs, setSelectedDocs] = useState<Record<string, boolean>>({});
   const [docFiles, setDocFiles] = useState<Record<string, File[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -134,9 +147,23 @@ export default function EditApplicationPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/3" />
-            <div className="h-64 bg-gray-200 rounded" />
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="animate-pulse space-y-8">
+              <div className="flex items-center space-x-4">
+                <div className="h-10 w-10 bg-gray-200 rounded-lg" />
+                <div className="h-8 bg-gray-200 rounded w-1/3" />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="h-96 bg-gray-200 rounded-xl" />
+                  <div className="h-64 bg-gray-200 rounded-xl" />
+                </div>
+                <div className="space-y-6">
+                  <div className="h-48 bg-gray-200 rounded-xl" />
+                  <div className="h-32 bg-gray-200 rounded-xl" />
+                </div>
+              </div>
+            </div>
           </div>
         </Layout>
       </ProtectedRoute>
@@ -147,11 +174,21 @@ export default function EditApplicationPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="text-center py-12">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">រកមិនឃើញពាក្យសុំ</h2>
-            <Link href={`/applications/${applicationId}`} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              <ArrowLeftIcon className="w-4 h-4 mr-2" /> ត្រលប់
-            </Link>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="text-center py-16">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+                <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">រកមិនឃើញពាក្យសុំ</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-8">ពាក្យសុំដែលអ្នកកំពុងស្វែងរកមិនអាចរកឃើញទេ។</p>
+              <Link 
+                href={`/applications/${applicationId}`} 
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-lg hover:shadow-xl"
+              >
+                <ArrowLeftIcon className="w-5 h-5 mr-2" /> 
+                ត្រលប់ទៅកាន់ពាក្យសុំ
+              </Link>
+            </div>
           </div>
         </Layout>
       </ProtectedRoute>
@@ -161,247 +198,416 @@ export default function EditApplicationPage() {
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center space-x-4">
-            <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ArrowLeftIcon className="w-5 h-5" />
-            </button>
-            <h1 className="text-2xl font-bold">កែប្រែពាក្យសុំ</h1>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ឈ្មោះជាភាសាខ្មែរ</label>
-                <input value={formData.full_name_khmer} onChange={(e) => handleChange('full_name_khmer', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <button 
+                  onClick={() => router.back()} 
+                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
+                  <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">កែប្រែពាក្យសុំ</h1>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">កែប្រែព័ត៌មានពាក្យសុំកម្ចី</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ឈ្មោះជាអក្សរឡាតាំង</label>
-                <input value={formData.full_name_latin} onChange={(e) => handleChange('full_name_latin', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">លេខទូរស័ព្ទ</label>
-                <input value={formData.phone} onChange={(e) => handleChange('phone', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</label>
-                <input value={formData.id_card_type} onChange={(e) => handleChange('id_card_type', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">លេខអត្តសញ្ញាណប័ណ្ណ</label>
-                <input value={formData.id_number} onChange={(e) => handleChange('id_number', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ថ្ងៃខែឆ្នាំកំណើត</label>
-                <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input type="date" value={formData.date_of_birth} onChange={(e) => handleChange('date_of_birth', e.target.value)} className="w-full pl-10 pr-3 py-2 border rounded-lg" />
+              <div className="flex items-center space-x-3">
+                <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
+                  ID: {applicationId.slice(0, 8)}...
                 </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛)</label>
-                <input type="number" value={formData.requested_amount} onChange={(e) => handleChange('requested_amount', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ប្រភេទផលិតផល</label>
-                <input value={formData.product_type} onChange={(e) => handleChange('product_type', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">រយៈពេលកម្ចី</label>
-                <input value={formData.desired_loan_term} onChange={(e) => handleChange('desired_loan_term', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">កាលបរិច្ឆេទចង់បានប្រាក់</label>
-                <input type="date" value={formData.requested_disbursement_date} onChange={(e) => handleChange('requested_disbursement_date', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ព័ត៌មានលម្អិតអំពីគោលបំណង</label>
-              <textarea rows={4} value={formData.purpose_details} onChange={(e) => handleChange('purpose_details', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-            </div>
           </div>
 
-          {/* Guarantor Information */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">ព័ត៌មានអ្នកធានា</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ឈ្មោះអ្នកធានា</label>
-                <input value={formData.guarantor_name} onChange={(e) => handleChange('guarantor_name', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">លេខទូរស័ព្ទអ្នកធានា</label>
-                <input value={formData.guarantor_phone} onChange={(e) => handleChange('guarantor_phone', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-            </div>
-          </div>
-
-          {/* Document Upload Section */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">ឯកសារនិងរូបថត</h3>
-            
-            {/* Existing Documents Display */}
-            {application.documents && Array.isArray(application.documents) && application.documents.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-md font-medium mb-3">ឯកសារដែលមានរួចហើយ:</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {application.documents.map((doc: any, index: number) => (
-                    <div key={index} className="border rounded-lg p-3 bg-gray-50">
-                      <div className="text-sm font-medium">{doc.type}</div>
-                      <div className="text-xs text-gray-600">{doc.original_filename}</div>
-                      <div className="text-xs text-gray-500">{doc.role}</div>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Main Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Borrower Information Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                      <UserIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                  ))}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">ព័ត៌មានអ្នកខ្ចី</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">ព័ត៌មានផ្ទាល់ខ្លួនរបស់អ្នកខ្ចី</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ឈ្មោះជាភាសាខ្មែរ</label>
+                      <input 
+                        value={formData.full_name_khmer} 
+                        onChange={(e) => handleChange('full_name_khmer', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="បញ្ចូលឈ្មោះជាភាសាខ្មែរ"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ឈ្មោះជាអក្សរឡាតាំង</label>
+                      <input 
+                        value={formData.full_name_latin} 
+                        onChange={(e) => handleChange('full_name_latin', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="Enter name in Latin"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខទូរស័ព្ទ</label>
+                      <input 
+                        value={formData.phone} 
+                        onChange={(e) => handleChange('phone', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="012 345 678"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</label>
+                      <input 
+                        value={formData.id_card_type} 
+                        onChange={(e) => handleChange('id_card_type', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="អត្តសញ្ញាណប័ណ្ណ"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខអត្តសញ្ញាណប័ណ្ណ</label>
+                      <input 
+                        value={formData.id_number} 
+                        onChange={(e) => handleChange('id_number', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="123456789"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ថ្ងៃខែឆ្នាំកំណើត</label>
+                      <div className="relative">
+                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input 
+                          type="date" 
+                          value={formData.date_of_birth} 
+                          onChange={(e) => handleChange('date_of_birth', e.target.value)} 
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
 
-            {/* New Document Upload */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium">បន្ថែមឯកសារថ្មី:</h4>
-              
-              {/* Borrower Documents */}
-              <div className="border rounded-lg p-4">
-                <h5 className="font-medium mb-3">ឯកសារអ្នកខ្ចី</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {docDefs.filter(d => d.role === 'borrower').map((def) => (
-                    <div key={def.id} className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocs[def.id] || false}
-                          onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{def.label}</span>
-                      </label>
-                      {selectedDocs[def.id] && (
-                        <div className="space-y-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files || []);
-                              setDocFiles(prev => ({ ...prev, [def.id]: files as File[] }));
-                            }}
-                            className="w-full text-sm"
-                          />
-                          {Array.isArray(docFiles[def.id]) && docFiles[def.id].length > 0 && (
-                            <>
-                              {/* Compact summary of completed uploads */}
-                              {(() => {
-                                const completed = docFiles[def.id].filter((file, idx) => {
-                                  const key = `${def.id}-${idx}-${file.name}`;
-                                  return uploadProgress[key] === 100;
-                                }).length;
-                                return completed > 0 ? (
-                                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
-                                    <CheckCircleIcon className="w-4 h-4" />
-                                    <span>{completed} uploaded</span>
-                                  </div>
-                                ) : null;
-                              })()}
-                              <div className="space-y-1">
-                                {docFiles[def.id].map((file, idx) => {
-                                  const key = `${def.id}-${idx}-${file.name}`;
-                                  const progress = uploadProgress[key] ?? 0;
-                                  return (
-                                    <div key={key} className="text-xs text-gray-600">
-                                      <div className="flex justify-between">
-                                        <span className="truncate max-w-[70%]" title={file.name}>{file.name}</span>
-                                        <span>{progress}%</span>
+              {/* Loan Information Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg">
+                      <CurrencyDollarIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">ព័ត៌មានកម្ចី</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">ព័ត៌មានលម្អិតអំពីកម្ចី</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛)</label>
+                      <input 
+                        type="number" 
+                        value={formData.requested_amount} 
+                        onChange={(e) => handleChange('requested_amount', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="1,000,000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទផលិតផល</label>
+                      <input 
+                        value={formData.product_type} 
+                        onChange={(e) => handleChange('product_type', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="កម្ចីអាជីវកម្ម"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">រយៈពេលកម្ចី</label>
+                      <input 
+                        value={formData.desired_loan_term} 
+                        onChange={(e) => handleChange('desired_loan_term', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="12 ខែ"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">កាលបរិច្ឆេទចង់បានប្រាក់</label>
+                      <input 
+                        type="date" 
+                        value={formData.requested_disbursement_date} 
+                        onChange={(e) => handleChange('requested_disbursement_date', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-6 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ព័ត៌មានលម្អិតអំពីគោលបំណង</label>
+                    <textarea 
+                      rows={4} 
+                      value={formData.purpose_details} 
+                      onChange={(e) => handleChange('purpose_details', e.target.value)} 
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      placeholder="បញ្ជាក់ពីគោលបំណងនៃការប្រើប្រាស់ប្រាក់កម្ចី..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Guarantor Information Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                      <ShieldCheckIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">ព័ត៌មានអ្នកធានា</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">ព័ត៌មានអ្នកធានាសម្រាប់កម្ចី</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ឈ្មោះអ្នកធានា</label>
+                      <input 
+                        value={formData.guarantor_name} 
+                        onChange={(e) => handleChange('guarantor_name', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="បញ្ចូលឈ្មោះអ្នកធានា"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខទូរស័ព្ទអ្នកធានា</label>
+                      <input 
+                        value={formData.guarantor_phone} 
+                        onChange={(e) => handleChange('guarantor_phone', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="012 345 678"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Documents & Actions */}
+            <div className="space-y-6">
+              {/* Existing Documents */}
+              {application.documents && Array.isArray(application.documents) && application.documents.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-center w-8 h-8 bg-amber-100 dark:bg-amber-900 rounded-lg">
+                        <DocumentTextIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">ឯកសារដែលមាន</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{application.documents.length} ឯកសារ</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <div className="space-y-3">
+                      {application.documents.map((doc: any, index: number) => (
+                        <div key={index} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <DocumentTextIcon className="w-5 h-5 text-gray-400 mr-3" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{doc.type}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{doc.original_filename}</div>
+                          </div>
+                          <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
+                            {doc.role}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Document Upload Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-6 py-4 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-8 h-8 bg-teal-100 dark:bg-teal-900 rounded-lg">
+                      <PhotoIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">បន្ថែមឯកសារ</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">ជ្រើសរើសឯកសារថ្មី</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-6">
+                  {/* Borrower Documents */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">ឯកសារអ្នកខ្ចី</h4>
+                    <div className="space-y-3">
+                      {docDefs.filter(d => d.role === 'borrower').map((def) => (
+                        <div key={def.id} className="space-y-2">
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
+                            <input
+                              type="checkbox"
+                              checked={selectedDocs[def.id] || false}
+                              onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
+                          </label>
+                          {selectedDocs[def.id] && (
+                            <div className="ml-6 space-y-2">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                  const files = Array.from(e.target.files || []);
+                                  setDocFiles(prev => ({ ...prev, [def.id]: files as File[] }));
+                                }}
+                                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                              />
+                              {Array.isArray(docFiles[def.id]) && docFiles[def.id].length > 0 && (
+                                <div className="space-y-2">
+                                  {docFiles[def.id].map((file, idx) => {
+                                    const key = `${def.id}-${idx}-${file.name}`;
+                                    const progress = uploadProgress[key] ?? 0;
+                                    return (
+                                      <div key={key} className="text-xs">
+                                        <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                                          <span className="truncate max-w-[70%]" title={file.name}>{file.name}</span>
+                                          <span>{progress}%</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded">
+                                          <div className="h-2 bg-blue-600 rounded transition-all duration-300" style={{ width: `${progress}%` }} />
+                                        </div>
                                       </div>
-                                      <div className="w-full h-2 bg-gray-200 rounded">
-                                        <div className="h-2 bg-blue-600 rounded" style={{ width: `${progress}%` }} />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Guarantor Documents */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">ឯកសារអ្នកធានា</h4>
+                    <div className="space-y-3">
+                      {docDefs.filter(d => d.role === 'guarantor').map((def) => (
+                        <div key={def.id} className="space-y-2">
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
+                            <input
+                              type="checkbox"
+                              checked={selectedDocs[def.id] || false}
+                              onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
+                          </label>
+                          {selectedDocs[def.id] && (
+                            <div className="ml-6">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                  const files = Array.from(e.target.files || []);
+                                  setDocFiles(prev => ({ ...prev, [def.id]: files }));
+                                }}
+                                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Collateral Documents */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">ឯកសារបញ្ចាំ</h4>
+                    <div className="space-y-3">
+                      {docDefs.filter(d => d.role === 'collateral').map((def) => (
+                        <div key={def.id} className="space-y-2">
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
+                            <input
+                              type="checkbox"
+                              checked={selectedDocs[def.id] || false}
+                              onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
+                          </label>
+                          {selectedDocs[def.id] && (
+                            <div className="ml-6">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                  const files = Array.from(e.target.files || []);
+                                  setDocFiles(prev => ({ ...prev, [def.id]: files }));
+                                }}
+                                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Guarantor Documents */}
-              <div className="border rounded-lg p-4">
-                <h5 className="font-medium mb-3">ឯកសារអ្នកធានា</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {docDefs.filter(d => d.role === 'guarantor').map((def) => (
-                    <div key={def.id} className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocs[def.id] || false}
-                          onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{def.label}</span>
-                      </label>
-                      {selectedDocs[def.id] && (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            setDocFiles(prev => ({ ...prev, [def.id]: files }));
-                          }}
-                          className="w-full text-sm"
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Collateral Documents */}
-              <div className="border rounded-lg p-4">
-                <h5 className="font-medium mb-3">ឯកសារបញ្ចាំ</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {docDefs.filter(d => d.role === 'collateral').map((def) => (
-                    <div key={def.id} className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocs[def.id] || false}
-                          onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{def.label}</span>
-                      </label>
-                      {selectedDocs[def.id] && (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            setDocFiles(prev => ({ ...prev, [def.id]: files }));
-                          }}
-                          className="w-full text-sm"
-                        />
-                      )}
-                    </div>
-                  ))}
+              {/* Action Buttons */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex flex-col space-y-4">
+                  <button 
+                    onClick={handleSave} 
+                    disabled={updateMutation.isPending || uploadMutation.isPending} 
+                    className="w-full inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                  >
+                    {(updateMutation.isPending || uploadMutation.isPending) ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        កំពុងរក្សាទុក...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="w-5 h-5 mr-2" />
+                        រក្សាទុកការផ្លាស់ប្តូរ
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => router.push(`/applications/${applicationId}`)} 
+                    className="w-full inline-flex items-center justify-center px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 font-medium"
+                  >
+                    <ArrowLeftIcon className="w-5 h-5 mr-2" />
+                    ត្រលប់ដោយមិនរក្សាទុក
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button onClick={handleSave} disabled={updateMutation.isPending || uploadMutation.isPending} className="inline-flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-              {(updateMutation.isPending || uploadMutation.isPending) ? 'កំពុងរក្សាទុក...' : 'រក្សាទុក'}
-            </button>
           </div>
         </div>
       </Layout>

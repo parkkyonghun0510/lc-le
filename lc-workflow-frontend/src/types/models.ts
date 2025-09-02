@@ -127,6 +127,7 @@ export interface File extends BaseModel {
   uploaded_by: string;
   application_id?: string;
   folder_id?: string;
+  metadata?: { [key: string]: any };
 }
 
 export interface UserCreate {

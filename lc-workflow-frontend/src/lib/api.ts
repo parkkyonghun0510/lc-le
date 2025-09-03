@@ -23,11 +23,11 @@ export function getApiOrigin(): string {
 
 const API_ORIGIN = getApiOrigin();
 const API_BASE_URL = `${API_ORIGIN}/api/v1`;
-
 class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
+    console.log('API_BASE_URL', API_BASE_URL);
     this.client = axios.create({ baseURL: API_BASE_URL, timeout: 30000, headers: { 'Content-Type': 'application/json' }, withCredentials: true });
     this.setupInterceptors();
   }

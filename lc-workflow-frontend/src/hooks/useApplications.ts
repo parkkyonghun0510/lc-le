@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import { CustomerApplication, CustomerApplicationCreate } from '@/types/models';
 
 export interface Application {
   id: string;
@@ -21,7 +22,7 @@ export interface Application {
   loan_purposes?: string[];
   purpose_details?: string;
   product_type?: string;
-  desired_loan_term?: string;
+  desired_loan_term?: number;
   requested_disbursement_date?: string;
   
   // Guarantor Information
@@ -94,9 +95,9 @@ export const useApplication = (id: string) => {
 export const useCreateApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Application, Error, Partial<Application>>({  // Added explicit type parameters
-    mutationFn: async (data: Partial<Application>) => {
-      return apiClient.post<Application>('/applications/', data);  // Added generic type parameter
+  return useMutation<CustomerApplication, Error, CustomerApplicationCreate>({
+    mutationFn: async (data: CustomerApplicationCreate) => {
+      return apiClient.post<CustomerApplication>('/applications/', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });

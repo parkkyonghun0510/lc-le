@@ -378,7 +378,7 @@ export default function DashboardPage() {
                     <div className="space-y-3">
                       {recentApplications.map((app) => (
                         <Link key={app.id} href={`/applications/${app.id}`}>
-                          <div className="group relative bg-gradient-to-r from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 p-5 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900 dark:hover:to-indigo-900 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-300 cursor-pointer hover:shadow-md">
+                          <div className="mt-4 group relative bg-gradient-to-r from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 p-5 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900 dark:hover:to-indigo-900 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-300 cursor-pointer hover:shadow-md">
                             {/* Hover indicator line */}
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-l-xl transform scale-y-0 group-hover:scale-y-100 transition-transform duration-300"></div>
                             
@@ -398,7 +398,7 @@ export default function DashboardPage() {
                                       <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">({app.full_name_latin})</span>
                                     )}
                                   </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm mt-4">
                                     <div className="flex items-center text-gray-600 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
                                       <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mr-2">
                                         <CurrencyDollarIcon className="w-3 h-3 text-green-600 dark:text-green-400" />

@@ -7,6 +7,8 @@ import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplication, useUpdateApplication } from '@/hooks/useApplications';
 import { useUploadFile } from '@/hooks/useFiles';
+import { useIDCardTypes, useProductTypes } from '@/hooks/useEnums';
+import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
 import { 
   ArrowLeftIcon, 
   CalendarIcon, 
@@ -26,6 +28,8 @@ export default function EditApplicationPage() {
   const applicationId = params.id as string;
 
   const { data: application, isLoading, error } = useApplication(applicationId);
+  const { data: idCardTypes, isLoading: isLoadingIdCardTypes } = useIDCardTypes();
+  const { data: productTypes, isLoading: isLoadingProductTypes } = useProductTypes();
   const updateMutation = useUpdateApplication();
   const uploadMutation = useUploadFile();
 
@@ -67,6 +71,11 @@ export default function EditApplicationPage() {
   const [docFiles, setDocFiles] = useState<Record<string, File[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
+  // Get dynamic placeholder for ID number based on selected ID card type
+  const idNumberPlaceholder = useMemo(() => {
+    return getIDNumberPlaceholder(formData?.id_card_type || '');
+  }, [formData?.id_card_type]);
+
   useEffect(() => {
     if (!application) return;
     setFormData({
@@ -79,7 +88,7 @@ export default function EditApplicationPage() {
       portfolio_officer_name: application.portfolio_officer_name || '',
       requested_amount: application.requested_amount?.toString() || '',
       product_type: application.product_type || '',
-      desired_loan_term: application.desired_loan_term || '',
+      desired_loan_term: application.desired_loan_term?.toString() || '',
       requested_disbursement_date: application.requested_disbursement_date ? application.requested_disbursement_date.slice(0, 10) : '',
       purpose_details: application.purpose_details || '',
       guarantor_name: application.guarantor_name || '',
@@ -270,12 +279,17 @@ export default function EditApplicationPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</label>
-                      <input 
+                      <select 
                         value={formData.id_card_type} 
                         onChange={(e) => handleChange('id_card_type', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
-                        placeholder="អត្តសញ្ញាណប័ណ្ណ"
-                      />
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                        disabled={isLoadingIdCardTypes}
+                      >
+                        <option value="">Select ID Card Type</option>
+                        {idCardTypes?.map((type) => (
+                           <option key={type.value} value={type.value}>{type.label}</option>
+                         ))}
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខអត្តសញ្ញាណប័ណ្ណ</label>
@@ -283,7 +297,7 @@ export default function EditApplicationPage() {
                         value={formData.id_number} 
                         onChange={(e) => handleChange('id_number', e.target.value)} 
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
-                        placeholder="123456789"
+                        placeholder={idNumberPlaceholder}
                       />
                     </div>
                     <div className="space-y-2">
@@ -329,12 +343,19 @@ export default function EditApplicationPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទផលិតផល</label>
-                      <input 
+                      <select 
                         value={formData.product_type} 
                         onChange={(e) => handleChange('product_type', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
-                        placeholder="កម្ចីអាជីវកម្ម"
-                      />
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                        disabled={isLoadingProductTypes}
+                      >
+                        <option value="">Select product type</option>
+                        {productTypes?.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">រយៈពេលកម្ចី</label>

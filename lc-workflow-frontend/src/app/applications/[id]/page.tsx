@@ -37,6 +37,7 @@ import {
 import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Link from 'next/link';
+import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
 
 const statusConfig = {
   draft: { 
@@ -118,6 +119,8 @@ export default function ApplicationDetailPage() {
   const [previewFile, setPreviewFile] = useState<ApiFile | null>(null);
   const [previewList, setPreviewList] = useState<ApiFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const productTypes = useProductTypes();
+  const idCardTypes = useIDCardTypes();
 
   const isImageFile = (f: ApiFile) => {
     const byMime = typeof f.mime_type === 'string' && f.mime_type.toLowerCase().startsWith('image/');
@@ -364,7 +367,7 @@ export default function ApplicationDetailPage() {
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Customer Information */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+              <div className="bg-white dark:bg-gray-800 mt-4 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
                 <div className="px-8 py-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-600">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
@@ -445,7 +448,7 @@ export default function ApplicationDetailPage() {
                               <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
                             </div>
                             <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{application.id_card_type || 'មិនបានបញ្ជាក់'}</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{idCardTypes.getLabel(application.id_card_type) || 'មិនបានបញ្ជាក់'}</p>
                           </div>
                         </div>
                       </div>
@@ -558,7 +561,7 @@ export default function ApplicationDetailPage() {
                             </div>
                             <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">ប្រភេទផលិតផល</p>
                             <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
-                              {application.product_type || 'មិនបានបញ្ជាក់'}
+                              {productTypes.getLabel(application.product_type) || 'មិនបានបញ្ជាក់'}
                             </p>
                           </div>
                         </div>
@@ -622,15 +625,23 @@ export default function ApplicationDetailPage() {
                       </div>
 
                     {application.purpose_details && (
-                      <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl">
-                        <div className="p-2 bg-teal-100 rounded-lg">
-                          <DocumentTextIcon className="w-4 h-4 text-teal-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-700">ព័ត៌មានលម្អិតអំពីគោលបំណង</p>
-                          <p className="text-gray-900 mt-1 bg-white p-3 rounded-lg border">
-                            {application.purpose_details}
-                          </p>
+                      <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                        <div className="flex items-start space-x-4">
+                          <div className="p-3 bg-indigo-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                            <DocumentTextIcon className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Loan Purpose</p>
+                              <div className="h-1 w-1 bg-indigo-400 rounded-full"></div>
+                            </div>
+                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3 font-medium">ព័ត៌មានលម្អិតអំពីគោលបំណង</p>
+                            <div className="flex flex-wrap gap-2">
+                              <p>
+                                {application.purpose_details}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -700,7 +711,7 @@ export default function ApplicationDetailPage() {
               )}
 
               {/* Files grouped by folder */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200">
+              <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                   <DocumentDuplicateIcon className="w-6 h-6 mr-2 text-orange-600 dark:text-orange-400" />
                   ឯកសារ (តាមថត)

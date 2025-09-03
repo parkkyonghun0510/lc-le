@@ -9,56 +9,39 @@ import {
 } from '@/hooks/useApplications';
 import { useApplicationFiles, useUploadFile } from '@/hooks/useFiles';
 import FileUploadModal from '@/components/files/FileUploadModal';
-import { File as ApiFile, ApplicationStatus } from '@/types/models';
+import { File as ApiFile } from '@/types/models';
 import {
   UserIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
   DocumentTextIcon,
-  CheckIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CloudArrowUpIcon,
-  TrashIcon,
-  IdentificationIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  MapPinIcon,
-  CalendarIcon,
-  BanknotesIcon,
-  ClockIcon,
-  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 
-// Define types locally
-type LoanPurpose = 'Business' | 'Personal' | 'Other';
-type ProductType = 'Personal Loan' | 'Business Loan';
-type IDCardType = 'National ID' | 'Passport' | 'Driving License';
-type LoanTerm = '3 Months' | '6 Months' | '12 Months' | '24 Months';
-type DocumentType = 'photos' | 'references' | 'supporting_docs';
+// Import types and constants
+import {
+  ApplicationFormValues,
+  DocumentType,
+  Step,
+  IDCardType,
+  LOAN_PURPOSES,
+  PRODUCT_TYPES,
+  ID_CARD_TYPES,
+  DOCUMENT_TYPES,
+} from './types';
 
-const loanPurposes: LoanPurpose[] = ['Business', 'Personal', 'Other'];
-const productTypes: ProductType[] = ['Personal Loan', 'Business Loan'];
-const idCardTypes: IDCardType[] = [
-  'National ID',
-  'Passport',
-  'Driving License',
-];
-const loanTerms: LoanTerm[] = ['3 Months', '6 Months', '12 Months', '24 Months'];
+// Import components
+import { CustomerInformationStep } from './components/CustomerInformationStep';
+import { LoanInformationStep } from './components/LoanInformationStep';
+import { GuarantorInformationStep } from './components/GuarantorInformationStep';
+import { DocumentAttachmentStep } from './components/DocumentAttachmentStep';
+import { StepIndicator } from './components/StepIndicator';
+import { StepNavigation } from './components/StepNavigation';
 
-interface DocumentTypeInfo {
-  type: DocumentType;
-  label: string;
-}
+// Import validation utilities
+import { validateStep } from './utils/validation';
 
-const documentTypes: DocumentTypeInfo[] = [
-  { type: 'photos', label: 'Photos' },
-  { type: 'references', label: 'References' },
-  { type: 'supporting_docs', label: 'Supporting Documents' },
-];
-
-const steps = [
+const steps: Step[] = [
   {
     id: 0,
     title: 'Customer Information',
@@ -92,21 +75,48 @@ const NewApplicationPage = () => {
   const [selectedDocumentType, setSelectedDocumentType] =
     useState<DocumentType>('photos');
 
-  const [formValues, setFormValues] = useState({
-    customer_name: '',
+  const [formValues, setFormValues] = useState<ApplicationFormValues>({
+    // Customer Information
+    full_name_latin: '',
+    full_name_khmer: '',
     id_card_type: '' as IDCardType,
-    id_card_number: '',
-    phone_number: '',
-    email: '',
-    address: '',
+    id_number: '',
+    phone: '',
+    current_address: '',
+    date_of_birth: '',
+    portfolio_officer_name: '',
+    
+    // Address Information (optional)
+    province: '',
+    district: '',
+    commune: '',
+    village: '',
+    
+    // Employment Information (optional)
+    occupation: '',
+    employer_name: '',
+    monthly_income: 0,
+    income_source: '',
+    
+    // Loan Information
     requested_amount: '',
-    loan_term: '' as LoanTerm,
-    product_type: '' as ProductType,
-    disbursement_date: '',
-    loan_purpose: '' as LoanPurpose,
-    loan_purpose_details: '',
+    desired_loan_term: 0,
+    product_type: '',
+    requested_disbursement_date: '',
+    loan_purposes: [LOAN_PURPOSES[0]],
+    purpose_details: '',
+    interest_rate: 0,
+    
+    // Guarantor Information
     guarantor_name: '',
-    guarantor_phone_number: '',
+    guarantor_phone: '',
+    guarantor_id_number: '',
+    guarantor_address: '',
+    guarantor_relationship: '',
+    
+    // Financial Information (optional)
+    monthly_expenses: 0,
+    assets_value: 0,
   });
 
   const createApplicationMutation = useCreateApplication();
@@ -122,35 +132,39 @@ const NewApplicationPage = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormValues({ ...formValues, [name]: value });
+    setFormValues(prev => ({
+      ...prev,
+      [name]: name === 'loan_purposes' ? [value] : 
+              name === 'desired_loan_term' ? Number(value) || 0 : 
+              value
+    }));
   };
 
-  const validateStep = () => {
-    switch (activeStep) {
-      case 0:
-        return formValues.customer_name && formValues.id_card_type && formValues.id_card_number && formValues.phone_number;
-      case 1:
-        return formValues.requested_amount && formValues.loan_term && formValues.product_type && formValues.disbursement_date && formValues.loan_purpose;
-      case 2:
-        return true; // Guarantor is optional
-      case 3:
-        return true; // Documents can be uploaded later
-      default:
-        return true;
-    }
-  };
+  const isStepValid = useMemo(() => {
+    const validation = validateStep(activeStep, formValues);
+    return validation.isValid;
+  }, [activeStep, formValues]);
 
   const createDraftApplication = async () => {
     try {
       const data = await createApplicationMutation.mutateAsync({
-        status: 'draft',
-        customer_name: formValues.customer_name,
+        account_id: '1', // Default account ID - should be set based on logged in user
+        full_name_latin: formValues.full_name_latin,
+        full_name_khmer: formValues.full_name_khmer,
         id_card_type: formValues.id_card_type,
-        id_card_number: formValues.id_card_number,
-        phone_number: formValues.phone_number,
-        email: formValues.email,
-        address: formValues.address,
-      } as any);
+        id_number: formValues.id_number,
+        phone: formValues.phone,
+        date_of_birth: formValues.date_of_birth,
+        portfolio_officer_name: formValues.portfolio_officer_name,
+        requested_amount: parseFloat(formValues.requested_amount),
+        desired_loan_term: Number(formValues.desired_loan_term),
+        product_type: formValues.product_type,
+        requested_disbursement_date: formValues.requested_disbursement_date,
+        loan_purposes: formValues.loan_purposes,
+        purpose_details: formValues.purpose_details,
+        guarantor_name: formValues.guarantor_name,
+        guarantor_phone: formValues.guarantor_phone,
+      });
       setApplicationId(data.id);
       toast.success('Application draft created successfully');
       return data.id;
@@ -162,8 +176,9 @@ const NewApplicationPage = () => {
   };
 
   const handleNext = async () => {
-    if (!validateStep()) {
-      toast.error('Please fill in all required fields');
+    const validation = validateStep(activeStep, formValues);
+    if (!validation.isValid) {
+      validation.errors.forEach(error => toast.error(error));
       return;
     }
 
@@ -179,12 +194,12 @@ const NewApplicationPage = () => {
           id: currentApplicationId,
           data: {
             requested_amount: parseFloat(formValues.requested_amount),
-            loan_term: formValues.loan_term,
+            desired_loan_term: formValues.desired_loan_term,
             product_type: formValues.product_type,
-            disbursement_date: formValues.disbursement_date,
-            loan_purpose: formValues.loan_purpose,
-            loan_purpose_details: formValues.loan_purpose_details,
-          } as any,
+            requested_disbursement_date: formValues.requested_disbursement_date,
+            loan_purposes: formValues.loan_purposes,
+            purpose_details: formValues.purpose_details,
+          },
         });
         toast.success('Loan information saved');
       } catch (error) {
@@ -200,7 +215,7 @@ const NewApplicationPage = () => {
           id: currentApplicationId,
           data: {
             guarantor_name: formValues.guarantor_name,
-            guarantor_phone: formValues.guarantor_phone_number,
+            guarantor_phone: formValues.guarantor_phone,
           },
         });
         toast.success('Guarantor information saved');
@@ -223,7 +238,7 @@ const NewApplicationPage = () => {
     try {
       await updateApplicationMutation.mutateAsync({
         id: applicationId,
-        data: { status: 'submitted' },
+        data: {},
       });
       toast.success('Application submitted successfully!');
       // Handle successful submission (e.g., redirect or show success message)
@@ -246,356 +261,34 @@ const NewApplicationPage = () => {
     switch (step) {
       case 0:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Customer Name *
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="text"
-                    name="customer_name"
-                    value={formValues.customer_name}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter customer name"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  ID Card Type *
-                </label>
-                <div className="relative">
-                  <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <select
-                    name="id_card_type"
-                    value={formValues.id_card_type}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
-                    required
-                  >
-                    <option value="">Select ID card type</option>
-                    {idCardTypes.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  ID Card Number *
-                </label>
-                <div className="relative">
-                  <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="text"
-                    name="id_card_number"
-                    value={formValues.id_card_number}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter ID card number"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Phone Number *
-                </label>
-                <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="tel"
-                    name="phone_number"
-                    value={formValues.phone_number}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter phone number"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formValues.email}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter email address"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Address
-                </label>
-                <div className="relative">
-                  <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="text"
-                    name="address"
-                    value={formValues.address}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter address"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <CustomerInformationStep
+            formValues={formValues}
+            onInputChange={handleInputChange}
+          />
         );
       case 1:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Requested Amount *
-                </label>
-                <div className="relative">
-                  <BanknotesIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="number"
-                    name="requested_amount"
-                    value={formValues.requested_amount}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter requested amount"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Term *
-                </label>
-                <div className="relative">
-                  <ClockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <select
-                    name="loan_term"
-                    value={formValues.loan_term}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
-                    required
-                  >
-                    <option value="">Select loan term</option>
-                    {loanTerms.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Product Type *
-                </label>
-                <div className="relative">
-                  <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <select
-                    name="product_type"
-                    value={formValues.product_type}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
-                    required
-                  >
-                    <option value="">Select product type</option>
-                    {productTypes.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Disbursement Date *
-                </label>
-                <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="date"
-                    name="disbursement_date"
-                    value={formValues.disbursement_date}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Purpose *
-                </label>
-                <div className="relative">
-                  <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <select
-                    name="loan_purpose"
-                    value={formValues.loan_purpose}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500"
-                    required
-                  >
-                    <option value="">Select loan purpose</option>
-                    {loanPurposes.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Loan Purpose Details
-              </label>
-              <textarea
-                name="loan_purpose_details"
-                value={formValues.loan_purpose_details}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 resize-none hover:border-gray-400 dark:hover:border-gray-500"
-                placeholder="Provide additional details about the loan purpose"
-              />
-            </div>
-          </div>
+          <LoanInformationStep
+              formValues={formValues}
+              onInputChange={handleInputChange}
+              loanPurposes={LOAN_PURPOSES}
+            />
         );
       case 2:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Guarantor Name
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="text"
-                    name="guarantor_name"
-                    value={formValues.guarantor_name}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter guarantor name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Guarantor Phone Number
-                </label>
-                <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="tel"
-                    name="guarantor_phone_number"
-                    value={formValues.guarantor_phone_number}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                    placeholder="Enter guarantor phone number"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-              <div className="flex items-start space-x-3">
-                <UserGroupIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Guarantor Information</h4>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                    Providing guarantor information is optional but may help with loan approval.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <GuarantorInformationStep
+            formValues={formValues}
+            onInputChange={handleInputChange}
+          />
         );
       case 3:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {documentTypes.map((docType) => (
-                <div key={docType.type} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                  <div className="text-center">
-                    <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{docType.label}</h3>
-                    <button
-                      onClick={() => handleOpenModal(docType.type)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-                      Upload Files
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {isLoadingFiles ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">Uploaded Files</h3>
-                {uploadedFiles.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>No files uploaded yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {uploadedFiles.map((file: ApiFile) => (
-                      <div
-                        key={file.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <DocumentTextIcon className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{file.filename}</p>
-                            <p className="text-xs text-gray-500">
-                              {file.metadata?.documentType || 'Unknown type'}
-                            </p>
-                          </div>
-                        </div>
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <DocumentAttachmentStep
+            documentTypes={DOCUMENT_TYPES}
+            uploadedFiles={uploadedFiles}
+            isLoadingFiles={isLoadingFiles}
+            onOpenModal={handleOpenModal}
+          />
         );
       default:
         return <div>Unknown step</div>;
@@ -605,117 +298,76 @@ const NewApplicationPage = () => {
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">New Loan Application</h1>
-            <p className="text-gray-600">Complete the form below to submit your loan application</p>
-          </div>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Enhanced Header with Visual Elements */}
+            <div className="mb-12 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg mb-6">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-3">
+                New Loan Application
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Complete the form below to submit your loan application. Our streamlined process ensures quick and secure processing.
+              </p>
+            </div>
 
-          {/* Stepper */}
-          <div className="mb-8">
-            <nav aria-label="Progress">
-              <ol className="flex items-center justify-between">
-                {steps.map((step, stepIdx) => {
-                  const isCompleted = stepIdx < activeStep;
-                  const isCurrent = stepIdx === activeStep;
-                  const IconComponent = step.icon;
+            {/* Enhanced Step Indicator Container */}
+            <div className="mb-10">
+              <StepIndicator steps={steps} activeStep={activeStep} />
+            </div>
 
-                  return (
-                    <li key={step.id} className={`relative ${stepIdx !== steps.length - 1 ? 'flex-1' : ''}`}>
-                      {stepIdx !== steps.length - 1 && (
-                        <div
-                          className={`absolute top-4 left-8 w-full h-0.5 ${
-                            isCompleted ? 'bg-blue-600' : 'bg-gray-200'
-                          }`}
-                          aria-hidden="true"
-                        />
-                      )}
-                      <div className="relative flex flex-col items-center group">
-                        <span
-                          className={`h-8 w-8 rounded-full flex items-center justify-center border-2 ${
-                            isCompleted
-                              ? 'bg-blue-600 border-blue-600'
-                              : isCurrent
-                              ? 'border-blue-600 bg-white'
-                              : 'border-gray-300 bg-white'
-                          }`}
-                        >
-                          {isCompleted ? (
-                            <CheckIcon className="h-4 w-4 text-white" />
-                          ) : (
-                            <IconComponent
-                              className={`h-4 w-4 ${
-                                isCurrent ? 'text-blue-600' : 'text-gray-400'
-                              }`}
-                            />
-                          )}
-                        </span>
-                        <span
-                          className={`mt-2 text-xs font-medium ${
-                            isCurrent ? 'text-blue-600' : 'text-gray-500'
-                          }`}
-                        >
-                          {step.title}
-                        </span>
-                        <span className="text-xs text-gray-400 text-center max-w-24">
-                          {step.description}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </nav>
-          </div>
+            {/* Enhanced Form Content Container */}
+            <div className="relative">
+              {/* Background decoration */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-3xl transform rotate-1"></div>
+              <div className="absolute inset-0 bg-gradient-to-l from-purple-600/5 to-pink-600/5 rounded-3xl transform -rotate-1"></div>
+              
+              {/* Main form container */}
+              <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/50 p-8 lg:p-12 mb-10">
+                {/* Step content with enhanced spacing */}
+                <div className="relative z-10">
+                  {renderStepContent(activeStep)}
+                </div>
+                
+                {/* Subtle inner glow effect */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+              </div>
+            </div>
 
-          {/* Form Content */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            {renderStepContent(activeStep)}
-          </div>
+            {/* Enhanced Navigation Container */}
+            <div className="relative">
+              <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-lg rounded-2xl shadow-xl border border-white/30 dark:border-gray-700/30 p-6">
+                <StepNavigation
+                  activeStep={activeStep}
+                  steps={steps}
+                  onNext={handleNext}
+                  onPrevious={handlePrevious}
+                  onSubmit={handleSubmit}
+                  isNextDisabled={!isStepValid}
+                  isLoading={createApplicationMutation.isPending || updateApplicationMutation.isPending}
+                />
+              </div>
+            </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between">
-            <button
-              onClick={handlePrevious}
-              disabled={activeStep === 0}
-              className={`inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-xl ${
-                activeStep === 0
-                  ? 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-                  : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-              } transition-all duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800`}
-            >
-              <ArrowLeftIcon className="h-4 w-4 mr-2" />
-              Previous
-            </button>
-
-            <button
-              onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-              disabled={
-                createApplicationMutation.isPending ||
-                updateApplicationMutation.isPending ||
-                !validateStep()
-              }
-              className="inline-flex items-center px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white text-sm font-medium rounded-xl hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-            >
-              {createApplicationMutation.isPending || updateApplicationMutation.isPending ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processing...
-                </>
-              ) : activeStep === steps.length - 1 ? (
-                'Submit Application'
-              ) : (
-                <>
-                  Next
-                  <ArrowRightIcon className="h-4 w-4 ml-2" />
-                </>
-              )}
-            </button>
+            {/* Floating progress indicator */}
+            <div className="fixed bottom-6 right-6 z-50">
+              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-full shadow-2xl border border-white/30 dark:border-gray-700/30 p-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {activeStep + 1} of {steps.length}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* File Upload Modal */}
+        {/* Enhanced File Upload Modal */}
         {applicationId && (
           <FileUploadModal
             isOpen={isModalOpen}

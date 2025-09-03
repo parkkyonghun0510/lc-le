@@ -84,7 +84,7 @@ export interface CustomerApplication extends BaseModel {
   loan_purposes?: string[];
   purpose_details?: string;
   product_type?: string;
-  desired_loan_term?: string;
+  desired_loan_term?: number;
   requested_disbursement_date?: string;
 
   // Guarantor Information
@@ -194,7 +194,7 @@ export interface CustomerApplicationCreate {
   loan_purposes?: string[];
   purpose_details?: string;
   product_type?: string;
-  desired_loan_term?: string;
+  desired_loan_term?: number;
   requested_disbursement_date?: string;
   guarantor_name?: string;
   guarantor_phone?: string;

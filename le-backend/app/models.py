@@ -106,7 +106,7 @@ class CustomerApplication(Base):
     loan_purposes = Column(JSON)  # business, agriculture, education, housing, vehicle, medical, other
     purpose_details = Column(Text)
     product_type = Column(String(50))  # micro_loan, sme_loan, agriculture_loan, housing_loan, education_loan
-    desired_loan_term = Column(String(50))  # 6_months, 12_months, etc.
+    desired_loan_term = Column(Integer)  # 6_months, 12_months, etc.
     requested_disbursement_date = Column(Date)
     interest_rate = Column(Numeric(5, 2))  # Annual percentage rate
     

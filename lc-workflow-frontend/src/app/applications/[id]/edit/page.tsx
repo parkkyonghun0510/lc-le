@@ -43,7 +43,7 @@ export default function EditApplicationPage() {
     portfolio_officer_name: '',
     requested_amount: '',
     product_type: '',
-    desired_loan_term: '',
+    desired_loan_term: 0,
     requested_disbursement_date: '',
     purpose_details: '',
     guarantor_name: '',
@@ -88,13 +88,13 @@ export default function EditApplicationPage() {
       portfolio_officer_name: application.portfolio_officer_name || '',
       requested_amount: application.requested_amount?.toString() || '',
       product_type: application.product_type || '',
-      desired_loan_term: application.desired_loan_term?.toString() || '',
-      requested_disbursement_date: application.requested_disbursement_date ? application.requested_disbursement_date.slice(0, 10) : '',
-      purpose_details: application.purpose_details || '',
-      guarantor_name: application.guarantor_name || '',
-      guarantor_phone: application.guarantor_phone || '',
-      loan_purposes: Array.isArray(application.loan_purposes) ? application.loan_purposes : [],
-      collaterals: Array.isArray(application.collaterals) ? application.collaterals : [],
+      desired_loan_term: application.desired_loan_term || 1,
+       requested_disbursement_date: application.requested_disbursement_date ? application.requested_disbursement_date.slice(0, 10) : '',
+        purpose_details: application.purpose_details || '',
+        guarantor_name: application.guarantor_name || '',
+        guarantor_phone: application.guarantor_phone || '',
+       loan_purposes: Array.isArray(application.loan_purposes) ? application.loan_purposes : [],
+       collaterals: Array.isArray(application.collaterals) ? application.collaterals : []
     });
   }, [application]);
 
@@ -106,6 +106,7 @@ export default function EditApplicationPage() {
     const payload: any = {
       ...formData,
       requested_amount: formData.requested_amount ? parseFloat(formData.requested_amount) : undefined,
+      desired_loan_term: formData.desired_loan_term ? Number(formData.desired_loan_term) : undefined,
       date_of_birth: formData.date_of_birth || undefined,
       requested_disbursement_date: formData.requested_disbursement_date || undefined,
     };
@@ -331,16 +332,7 @@ export default function EditApplicationPage() {
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛)</label>
-                      <input 
-                        type="number" 
-                        value={formData.requested_amount} 
-                        onChange={(e) => handleChange('requested_amount', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
-                        placeholder="1,000,000"
-                      />
-                    </div>
+                    
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទផលិតផល</label>
                       <select 
@@ -360,10 +352,23 @@ export default function EditApplicationPage() {
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">រយៈពេលកម្ចី</label>
                       <input 
+                        type="number"
+                        min="1"
+                        max="360"
                         value={formData.desired_loan_term} 
-                        onChange={(e) => handleChange('desired_loan_term', e.target.value)} 
+                        onChange={(e) => handleChange('desired_loan_term', Math.max(1, Number(e.target.value) || 1))} 
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
                         placeholder="12 ខែ"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛)</label>
+                      <input 
+                        type="number" 
+                        value={formData.requested_amount} 
+                        onChange={(e) => handleChange('requested_amount', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        placeholder="1,000,000"
                       />
                     </div>
                     <div className="space-y-2">

@@ -1,7 +1,7 @@
 // Form field types based on backend enums and application requirements
-export type LoanPurpose = 'Business' | 'Personal' | 'Other';
-export type ProductType = 'Personal Loan' | 'Business Loan' | '';
-export type IDCardType = 'National ID' | 'Passport' | 'Driving License';
+export type LoanPurpose = 'commerce' | 'agriculture' | 'education' | 'housing' | 'vehicle' | 'medical' | 'other';
+export type ProductType = 'monthly_loan' | 'biweekly_loan' | 'weekly_loan' | 'daily_loan';
+export type IDCardType = 'cambodian_identity' | 'passport' | 'driver-license' | 'gov-card' | 'monk-card' | 'family-book' | 'birth-certificate' | 'other';
 export type LoanTerm = number;
 export type DocumentType = 'photos' | 'references' | 'supporting_docs';
 
@@ -77,9 +77,9 @@ export interface ValidationResult {
 }
 
 // Constants
-export const LOAN_PURPOSES: LoanPurpose[] = ['Business', 'Personal', 'Other'];
-export const PRODUCT_TYPES: ProductType[] = ['Personal Loan', 'Business Loan'];
-export const ID_CARD_TYPES: IDCardType[] = ['National ID', 'Passport', 'Driving License'];
+export const LOAN_PURPOSES: LoanPurpose[] = ['commerce', 'agriculture', 'education', 'housing', 'vehicle', 'medical', 'other'];
+export const PRODUCT_TYPES: ProductType[] = ['monthly_loan', 'biweekly_loan', 'weekly_loan', 'daily_loan'];
+export const ID_CARD_TYPES: IDCardType[] = ['cambodian_identity', 'passport', 'driver-license', 'gov-card', 'monk-card', 'family-book', 'birth-certificate', 'other'];
 // Removed LOAN_TERMS constant as loan term is now a manual numeric input
 
 export const DOCUMENT_TYPES: DocumentTypeInfo[] = [

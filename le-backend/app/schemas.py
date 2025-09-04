@@ -1,8 +1,9 @@
 from __future__ import annotations
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import json
+import re
 from uuid import UUID
 from enum import Enum
 
@@ -162,7 +163,21 @@ class CustomerApplicationBase(BaseSchema):
     loan_purposes: Optional[List[str]] = None
     purpose_details: Optional[str] = None
     product_type: Optional[str] = Field(None, max_length=50)
-    desired_loan_term: Optional[str] = Field(None, max_length=50)
+    desired_loan_term: Optional[int] = None
+    
+    @field_validator('desired_loan_term', mode='before')
+    @classmethod
+    def parse_loan_term(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            # Handle formats like "12_months", "6_months", "3_months"
+            match = re.search(r'(\d+)', v)
+            if match:
+                return int(match.group(1))
+        if isinstance(v, int):
+            return v
+        return None
     requested_disbursement_date: Optional[date] = None
     interest_rate: Optional[float] = None
     
@@ -215,16 +230,111 @@ class CustomerApplicationBase(BaseSchema):
     def _parse_optional_date(cls, value: Any):
         if value in (None, "", "null"):
             return None
-        # Handle DateTime objects from frontend (extract date part)
+        
         if isinstance(value, str):
+            # Try parsing DD/MM/YYYY format first
+            dd_mm_yyyy_pattern = r'^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/\d{4}$'
+            if re.match(dd_mm_yyyy_pattern, value):
+                try:
+                    day, month, year = value.split('/')
+                    parsed_date = date(int(year), int(month), int(day))
+                    # Validate that the date is actually valid (handles cases like 31/02/2023)
+                    if (parsed_date.day == int(day) and 
+                        parsed_date.month == int(month) and 
+                        parsed_date.year == int(year)):
+                        return parsed_date
+                except (ValueError, TypeError):
+                    raise ValueError(f"Invalid date format. Expected DD/MM/YYYY, got: {value}")
+            
+            # Try parsing ISO datetime string and extract date
             try:
-                # Try parsing ISO datetime string and extract date
-                from datetime import datetime
                 dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
                 return dt.date()
             except:
-                pass
+                # Try parsing ISO date format (YYYY-MM-DD)
+                try:
+                    return datetime.strptime(value, '%Y-%m-%d').date()
+                except:
+                    raise ValueError(f"Invalid date format. Expected DD/MM/YYYY or ISO format, got: {value}")
+        
         return value
+
+    @field_validator("date_of_birth", mode="after")
+    @classmethod
+    def _validate_date_of_birth(cls, value: Optional[date]):
+        if value is None:
+            return value
+        
+        today = date.today()
+        
+        # Check if date is in the future
+        if value > today:
+            raise ValueError("Date of birth cannot be in the future")
+        
+        # Calculate age
+        age = today.year - value.year
+        if today.month < value.month or (today.month == value.month and today.day < value.day):
+            age -= 1
+        
+        # Check minimum age (18 years)
+        if age < 18:
+            raise ValueError("Customer must be at least 18 years old")
+        
+        # Check maximum age (100 years)
+        if age > 100:
+            raise ValueError("Please enter a valid date of birth")
+        
+        return value
+    
+    @field_validator("desired_loan_term", mode="before")
+    @classmethod
+    def _normalize_desired_loan_term(cls, value: Any):
+        """Normalize various inputs to a canonical '<n>_months|weeks|years' or None.
+        Accepts numbers (treated as months) and flexible strings like '12', '12 months', '12m', '52_weeks', '1_year'.
+        Provides clear error messages for unsupported formats while remaining user-friendly.
+        """
+        if value in (None, "", "null"):
+            return None
+        # Numeric inputs: interpret as months
+        if isinstance(value, (int, float)):
+            months = int(value)
+            if months <= 0:
+                # Provide clear guidance for invalid non-positive values
+                raise ValueError("desired_loan_term must be a positive number of months or a string like '12_months', '52_weeks', '1_year'")
+            return f"{months}_months"
+        # String inputs: normalize
+        if isinstance(value, str):
+            s = value.strip().lower()
+            if not s:
+                return None
+            s = s.replace(" ", "_")
+            # Already canonical like '12_months', '52_weeks', '1_years'
+            if re.fullmatch(r"\d+_(months|weeks|years)", s):
+                return s
+            # Digits only -> months
+            if s.isdigit():
+                n = int(s)
+                if n <= 0:
+                    raise ValueError("desired_loan_term must be a positive number of months or a string like '12_months', '52_weeks', '1_year'")
+                return f"{n}_months"
+            # Abbreviations and variants
+            m = re.fullmatch(r"(\d+)_?(m|mo|mos|month|months)", s)
+            if m:
+                return f"{int(m.group(1))}_months"
+            m = re.fullmatch(r"(\d+)_?(w|wk|wks|week|weeks)", s)
+            if m:
+                return f"{int(m.group(1))}_weeks"
+            m = re.fullmatch(r"(\d+)_?(y|yr|yrs|year|years)", s)
+            if m:
+                return f"{int(m.group(1))}_years"
+            # Unsupported pattern -> provide clear guidance
+            raise ValueError(
+                "desired_loan_term must be like '12_months', '52_weeks', '1_year', or a positive number representing months"
+            )
+        # Any other type -> error with guidance
+        raise ValueError(
+            "desired_loan_term must be a string or number; accepted examples: 12, '12 months', '12_months', '52_weeks', '1_year'"
+        )
 
     @field_validator("loan_purposes", mode="before")
     @classmethod
@@ -503,3 +613,38 @@ class SelfieListResponse(BaseSchema):
     captured_by: UserResponse
     status: str
     thumbnail_url: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_term_by_product_type(cls, data):
+        """If desired_loan_term is a number, coerce it to the appropriate canonical
+        string based on product_type period units.
+        - monthly_loan: n -> n_months
+        - weekly_loan: n -> n_weeks
+        - biweekly_loan: n -> (n*2)_weeks
+        - daily_loan: n -> n_days
+        - default/unknown: treat as months
+        """
+        try:
+            if isinstance(data, dict):
+                term = data.get("desired_loan_term")
+                product_type = data.get("product_type")
+                if isinstance(term, (int, float)):
+                    n = int(term)
+                    if n <= 0:
+                        raise ValueError("desired_loan_term must be a positive number of periods")
+                    if product_type == "monthly_loan":
+                        data["desired_loan_term"] = f"{n}_months"
+                    elif product_type == "weekly_loan":
+                        data["desired_loan_term"] = f"{n}_weeks"
+                    elif product_type == "biweekly_loan":
+                        data["desired_loan_term"] = f"{n * 2}_weeks"
+                    elif product_type == "daily_loan":
+                        data["desired_loan_term"] = f"{n}_days"
+                    else:
+                        # Fallback to months if product_type is missing or unknown
+                        data["desired_loan_term"] = f"{n}_months"
+        except Exception:
+            # Let field validators raise precise errors later
+            pass
+        return data

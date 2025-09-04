@@ -13,6 +13,7 @@ import { FormField } from './FormField';
 import { SelectField } from './SelectField';
 import { useIDCardTypes } from '@/hooks/useEnums';
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
+import { formatDate, formatDateDOB } from '@/lib/utils';
 
 interface CustomerInformationStepProps {
   formValues: {

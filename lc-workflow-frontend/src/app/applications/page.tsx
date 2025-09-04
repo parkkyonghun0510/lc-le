@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { useApplications } from '@/hooks/useApplications';
+import { useApplications, useDeleteApplication } from '@/hooks/useApplications';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   DocumentTextIcon, 
@@ -24,10 +24,13 @@ import {
   IdentificationIcon,
   Squares2X2Icon,
   ListBulletIcon,
-  AdjustmentsHorizontalIcon
+  AdjustmentsHorizontalIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Link from 'next/link';
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import { useProductTypes } from '@/hooks/useEnums';
 
 const statusConfig = {
   draft: { 
@@ -75,6 +78,9 @@ export default function ApplicationsPage() {
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [applicationToDelete, setApplicationToDelete] = useState<any>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const productTypes = useProductTypes();
 
   const { 
     data: applicationsData, 
@@ -87,8 +93,32 @@ export default function ApplicationsPage() {
     size: 10
   });
 
+  const deleteApplicationMutation = useDeleteApplication();
+
   const applications = applicationsData?.items || [];
   const totalPages = applicationsData?.pages || 1;
+
+  const handleDeleteClick = (application: any) => {
+    setApplicationToDelete(application);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (applicationToDelete) {
+      try {
+        await deleteApplicationMutation.mutateAsync(applicationToDelete.id);
+        setShowDeleteDialog(false);
+        setApplicationToDelete(null);
+      } catch (error) {
+        // Error is handled by the mutation's onError callback
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false);
+    setApplicationToDelete(null);
+  };
 
   const getStatusBadge = (status: string) => {
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
@@ -402,9 +432,9 @@ export default function ApplicationsPage() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">រយៈពេល</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ផលិតផល</p>
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {application.desired_loan_term || 'មិនបានបញ្ជាក់'}
+                            {productTypes.getLabel(application.product_type) || 'មិនបានបញ្ជាក់'}
                           </p>
                         </div>
                       </div>
@@ -464,6 +494,17 @@ export default function ApplicationsPage() {
                             <PencilIcon className="w-4 h-4 mr-2" />
                             កែប្រែ
                           </Link>
+                        )}
+                        {/* Delete button - only for draft applications */}
+                        {application.status === 'draft' && (user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                          <button
+                            onClick={() => handleDeleteClick(application)}
+                            className="inline-flex items-center px-4 py-2.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900 dark:text-red-400 dark:hover:bg-red-800 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                            disabled={deleteApplicationMutation.isPending}
+                          >
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            លុប
+                          </button>
                         )}
                       </div>
                       
@@ -533,6 +574,19 @@ export default function ApplicationsPage() {
             </div>
           )}
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmationDialog
+          isOpen={showDeleteDialog}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          title="លុបពាក្យសុំព្រាង"
+          message={`តើអ្នកពិតជាចង់លុបពាក្យសុំព្រាងរបស់ ${applicationToDelete?.full_name_khmer || applicationToDelete?.full_name_latin || 'អតិថិជននេះ'} មែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។`}
+          confirmText="លុប"
+          cancelText="បោះបង់"
+          type="danger"
+          isLoading={deleteApplicationMutation.isPending}
+        />
       </Layout>
     </ProtectedRoute>
   );

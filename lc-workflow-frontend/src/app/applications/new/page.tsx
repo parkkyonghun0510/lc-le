@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import {
@@ -100,8 +101,8 @@ const NewApplicationPage = () => {
     
     // Loan Information
     requested_amount: '',
-    desired_loan_term: 0,
-    product_type: '',
+    desired_loan_term: 1,
+    product_type: PRODUCT_TYPES[0],
     requested_disbursement_date: '',
     loan_purposes: [LOAN_PURPOSES[0]],
     purpose_details: '',
@@ -122,6 +123,7 @@ const NewApplicationPage = () => {
   const createApplicationMutation = useCreateApplication();
   const updateApplicationMutation = useUpdateApplication();
   const uploadFileMutation = useUploadFile();
+  const router = useRouter();
 
   const { data: files, isLoading: isLoadingFiles } = useApplicationFiles(
     applicationId || '',
@@ -135,7 +137,7 @@ const NewApplicationPage = () => {
     setFormValues(prev => ({
       ...prev,
       [name]: name === 'loan_purposes' ? [value] : 
-              name === 'desired_loan_term' ? Number(value) || 0 : 
+              name === 'desired_loan_term' ? Math.max(1, Number(value) || 1) : 
               value
     }));
   };
@@ -194,7 +196,7 @@ const NewApplicationPage = () => {
           id: currentApplicationId,
           data: {
             requested_amount: parseFloat(formValues.requested_amount),
-            desired_loan_term: formValues.desired_loan_term,
+            desired_loan_term: Number(formValues.desired_loan_term),
             product_type: formValues.product_type,
             requested_disbursement_date: formValues.requested_disbursement_date,
             loan_purposes: formValues.loan_purposes,
@@ -241,7 +243,8 @@ const NewApplicationPage = () => {
         data: {},
       });
       toast.success('Application submitted successfully!');
-      // Handle successful submission (e.g., redirect or show success message)
+      // Redirect to applications listing page after successful submission
+      router.push('/applications');
     } catch (error) {
       console.error('Failed to submit application', error);
       toast.error('Failed to submit application');
@@ -269,10 +272,12 @@ const NewApplicationPage = () => {
       case 1:
         return (
           <LoanInformationStep
-              formValues={formValues}
-              onInputChange={handleInputChange}
-              loanPurposes={LOAN_PURPOSES}
-            />
+            formValues={formValues}
+            onInputChange={handleInputChange}
+            loanPurposes={LOAN_PURPOSES.map(purpose => ({
+              value: purpose,
+              label: purpose,
+            }))} isLoadingProductTypes={false}          />
         );
       case 2:
         return (

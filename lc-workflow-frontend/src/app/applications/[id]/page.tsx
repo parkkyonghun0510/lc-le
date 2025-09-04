@@ -35,7 +35,7 @@ import {
   EllipsisHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDateDOB, formatDate } from '@/lib/utils';
 import Link from 'next/link';
 import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
 
@@ -480,7 +480,7 @@ export default function ApplicationDetailPage() {
                               <div className="h-1 w-1 bg-rose-400 rounded-full"></div>
                             </div>
                             <p className="text-xs text-rose-600 dark:text-rose-400 mb-3 font-medium">ថ្ងៃខែឆ្នាំកំណើត</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">{application.date_of_birth ? formatDate(application.date_of_birth) : 'មិនបានបញ្ជាក់'}</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">{application.date_of_birth ? formatDateDOB(application.date_of_birth) : 'មិនបានបញ្ជាក់'}</p>
                           </div>
                         </div>
                       </div>

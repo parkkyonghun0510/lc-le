@@ -18,13 +18,37 @@ export function formatBytes(bytes: number, decimals = 2): string {
 }
 
 export function formatDate(dateString: string): string {
+  if (!dateString || dateString.trim() === '') {
+    return '';
+  }
+  
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  }).format(date);
+}
+export function formatDateDOB(dateString: string): string {
+  if (!dateString || dateString.trim() === '') {
+    return '';
+  }
+  
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
   }).format(date);
 }
 
@@ -37,23 +61,50 @@ export function formatDate(dateString: string): string {
 //     maximumFractionDigits: isRiel ? 0 : 2,
 //   }).format(amount);
 // }
-export function formatCurrency(amount: number, currency = 'KHR', locale = 'km-KH'): string {
-  const isRiel = currency === 'KHR';
+// export function formatCurrency(amount: number, currency = 'KHR', locale = 'km-KH'): string {
+//   const isRiel = currency === 'KHR';
 
-  // Format normally using Intl
-  let formatted = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: isRiel ? 0 : 2,
-    maximumFractionDigits: isRiel ? 0 : 2,
-  }).format(amount);
+//   // Format normally using Intl
+//   let formatted = new Intl.NumberFormat(locale, {
+//     style: 'currency',
+//     currency,
+//     minimumFractionDigits: isRiel ? 0 : 2,
+//     maximumFractionDigits: isRiel ? 0 : 2,
+//   }).format(amount);
 
-  // Replace KHR with ៛ if needed
-  if (isRiel) {
-    formatted = formatted.replace(/\s?(KHR|៛)/g, '៛');
+//   // Replace KHR with ៛ if needed
+//   if (isRiel) {
+//     formatted = formatted.replace(/\s?(KHR|៛)/g, '៛');
+//   }
+
+//   return formatted;
+// }
+export function formatCurrency(
+  amount: number,
+  currency = 'KHR',
+  locale = 'km-KH'
+): string {
+  if (currency !== 'KHR') {
+    // USD or any other currency → use normal Intl formatting
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
   }
 
-  return formatted;
+  // KHR branch
+  const formatted = new Intl.NumberFormat(locale, {
+    style: 'decimal',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  // remove the trailing “.00” if it’s zero
+  const clean = formatted.endsWith('.00') ? formatted.slice(0, -3) : formatted;
+
+  return `${clean}៛`;
 }
 
 
@@ -126,4 +177,70 @@ export function validateUUID(uuid: string, context?: string): string {
 
 export function sanitizeUUID(uuid: string): string {
   return uuid.replace(/[^a-f0-9-]/gi, '');
+}
+
+export function validateAmount(amount: string): string | null {
+  const numericValue = parseFloat(amount);
+  if (isNaN(numericValue)) {
+    return 'Please enter a valid number.';
+  }
+  if (numericValue <= 0) {
+    return 'Amount must be greater than zero.';
+  }
+  return null;
+}
+
+export function validateCurrencyAmount(
+  amount: string, 
+  options?: {
+    min?: number;
+    max?: number;
+    allowZero?: boolean;
+    currency?: string;
+    locale?: string;
+  }
+): string | null {
+  const { min = 0, max = Infinity, allowZero = false, currency = 'USD', locale = 'en-US' } = options || {};
+  
+  if (!amount || amount.trim() === '') {
+    return 'Amount is required.';
+  }
+  
+  const numericValue = parseFloat(amount);
+  
+  if (isNaN(numericValue)) {
+    return 'Please enter a valid number.';
+  }
+  
+  if (!allowZero && numericValue <= 0) {
+    return 'Amount must be greater than zero.';
+  }
+  
+  if (numericValue < 0) {
+    return 'Amount cannot be negative.';
+  }
+  
+  if (typeof min === 'number' && numericValue < min) {
+    const formattedMin = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+    }).format(min);
+    return `Amount must be at least ${formattedMin}.`;
+  }
+  
+  if (typeof max === 'number' && numericValue > max) {
+    const formattedMax = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+    }).format(max);
+    return `Amount must be no more than ${formattedMax}.`;
+  }
+  
+  // Check for excessive decimal places
+  const decimalPlaces = amount.includes('.') ? amount.split('.')[1].length : 0;
+  if (decimalPlaces > 2) {
+    return 'Amount cannot have more than 2 decimal places.';
+  }
+  
+  return null;
 }

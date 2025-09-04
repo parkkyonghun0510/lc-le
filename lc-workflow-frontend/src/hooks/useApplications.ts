@@ -23,6 +23,8 @@ export interface Application {
   purpose_details?: string;
   product_type?: string;
   desired_loan_term?: number;
+  loan_term_duration?: string;
+  loan_term_frequency?: string;
   requested_disbursement_date?: string;
   
   // Guarantor Information

@@ -269,7 +269,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Processed</p>
                     <p className="text-2xl font-bold text-blue-900">
                       {metricsLoading ? (
-                        <div className="animate-pulse bg-blue-200 h-7 w-16 rounded"></div>
+                        <span className="inline-block animate-pulse bg-blue-200 h-7 w-16 rounded"></span>
                       ) : (
                         performanceMetrics.applications_processed_30d
                       )}
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Processing Time</p>
                     <p className="text-2xl font-bold text-amber-900">
                       {metricsLoading ? (
-                        <div className="animate-pulse bg-amber-200 h-7 w-20 rounded"></div>
+                        <span className="inline-block animate-pulse bg-amber-200 h-7 w-20 rounded"></span>
                       ) : (
                         `${performanceMetrics.average_processing_time_days}d`
                       )}
@@ -326,7 +326,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-medium text-purple-700 uppercase tracking-wide">Storage Used</p>
                     <p className="text-2xl font-bold text-purple-900">
                       {statsLoading ? (
-                        <div className="animate-pulse bg-purple-200 h-7 w-20 rounded"></div>
+                        <span className="inline-block animate-pulse bg-purple-200 h-7 w-20 rounded"></span>
                       ) : (
                         formatBytes(dashboardStats?.files.total_size || 0)
                       )}

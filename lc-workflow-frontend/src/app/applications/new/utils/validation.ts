@@ -91,6 +91,10 @@ export const validateLoanInformation = (
 
   if (!formValues.desired_loan_term) {
     errors.push('Loan term is required');
+  } else if (formValues.desired_loan_term <= 0) {
+    errors.push('Loan term must be a positive number');
+  } else if (formValues.desired_loan_term > 360) {
+    errors.push('Loan term cannot exceed 360 months');
   }
 
   if (!formValues.product_type) {

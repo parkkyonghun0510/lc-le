@@ -353,10 +353,58 @@ async def delete_application(
             detail="Not authorized to delete this application"
         )
     
-    await db.delete(application)
-    await db.commit()
+    # Only allow deletion of draft applications to maintain data integrity
+    if application.status != 'draft':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only draft applications can be deleted"
+        )
     
-    return {"message": "Application deleted successfully"}
+    try:
+        # Delete related entities in the correct order to avoid foreign key violations
+        
+        # 1. Delete selfies first (they reference files)
+        from app.models import Selfie
+        await db.execute(
+            select(Selfie).where(Selfie.application_id == application_id)
+        )
+        selfies_result = await db.execute(
+            select(Selfie).where(Selfie.application_id == application_id)
+        )
+        selfies = selfies_result.scalars().all()
+        for selfie in selfies:
+            await db.delete(selfie)
+        
+        # 2. Delete files (they reference folders and applications)
+        from app.models import File
+        files_result = await db.execute(
+            select(File).where(File.application_id == application_id)
+        )
+        files = files_result.scalars().all()
+        for file in files:
+            await db.delete(file)
+        
+        # 3. Delete folders (they reference applications)
+        from app.models import Folder
+        folders_result = await db.execute(
+            select(Folder).where(Folder.application_id == application_id)
+        )
+        folders = folders_result.scalars().all()
+        for folder in folders:
+            await db.delete(folder)
+        
+        # 4. Finally delete the application
+        await db.delete(application)
+        await db.commit()
+        
+        return {"message": "Draft application deleted successfully"}
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete application: {str(e)}"
+        )
 
 @router.patch("/{application_id}/submit")
 async def submit_application(

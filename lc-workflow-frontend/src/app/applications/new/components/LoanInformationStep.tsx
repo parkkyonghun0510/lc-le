@@ -2,67 +2,45 @@
 
 import React from 'react';
 import {
-  BanknotesIcon,
   ClockIcon,
   BuildingOfficeIcon,
   CalendarIcon,
-  CurrencyDollarIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
-import { LoanPurpose, ProductType } from '../types';
+import { ProductType, PRODUCT_TYPES, LoanPurpose } from '../types';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
-import { TextAreaField } from './TextAreaField';
+import { CurrencyInput } from './CurrencyInput';
 import { useProductTypes } from '@/hooks/useEnums';
 
 interface LoanInformationStepProps {
   formValues: {
     requested_amount: string;
-    desired_loan_term: number;
     product_type: ProductType;
     requested_disbursement_date: string;
-    loan_purposes: LoanPurpose[];
     purpose_details: string;
+    desired_loan_term: number;
   };
-  onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-
-  loanPurposes: LoanPurpose[];
+  onInputChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => void;
+  loanPurposes: Array<{ value: LoanPurpose; label: string }>;
+  isLoadingProductTypes: boolean;
 }
 
 export const LoanInformationStep: React.FC<LoanInformationStepProps> = ({
   formValues,
   onInputChange,
   loanPurposes,
+  isLoadingProductTypes,
 }) => {
-  const { data: productTypes, isLoading: isLoadingProductTypes } = useProductTypes();
+  const { data: productTypes, isLoading } = useProductTypes();
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          label="Requested Amount"
-          name="requested_amount"
-          type="number"
-          value={formValues.requested_amount}
-          onChange={onInputChange}
-          placeholder="Enter requested amount"
-          icon={BanknotesIcon}
-          required
-        />
-
-        <FormField
-          label="Loan Term (months)"
-          name="desired_loan_term"
-          type="number"
-          value={formValues.desired_loan_term.toString()}
-          onChange={onInputChange}
-          placeholder="Enter loan term in months"
-          icon={ClockIcon}
-          min="1"
-          max="60"
-          required
-        />
-
-        <SelectField
-          label="Product Type"
+        <div className="col-span-2">
+          <SelectField
+          label="ប្រភេទ ផលិតផល"
           name="product_type"
           value={formValues.product_type}
           onChange={onInputChange}
@@ -72,37 +50,50 @@ export const LoanInformationStep: React.FC<LoanInformationStepProps> = ({
           disabled={isLoadingProductTypes}
           required
         />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          label="ចំនួន ផលិតផល"
+          name="desired_loan_term"
+          type="number"
+          value={String(formValues.desired_loan_term || 1)}
+          onChange={onInputChange}
+          placeholder="Enter desired loan term in months"
+          required
+          min="1"
+          max="360"
+        />
+        <CurrencyInput
+          label="ទឹកប្រាក់ កម្ចី"
+          name="requested_amount"
+          value={formValues.requested_amount || ''}
+          onChange={onInputChange}
+          placeholder="Enter requested amount"
+          required
+        />
 
         <FormField
-          label="Disbursement Date"
+          label="កាលបរិច្ឆេទ ទទួលប្រាក់"
           name="requested_disbursement_date"
           type="date"
-          value={formValues.requested_disbursement_date}
+          value={formValues.requested_disbursement_date || ''}
           onChange={onInputChange}
           icon={CalendarIcon}
           required
         />
 
-        <SelectField
-          label="Loan Purpose"
-          name="loan_purposes"
-          value={formValues.loan_purposes[0] || ''}
+        <FormField
+          label="គោលបំណង"
+          name="purpose_details"
+          type="text"
+          value={formValues.purpose_details || ''}
           onChange={onInputChange}
-          options={loanPurposes.map(purpose => ({ value: purpose, label: purpose }))}
-          placeholder="Select loan purpose"
-          icon={CurrencyDollarIcon}
+          placeholder="e.g., Business expansion, Home renovation"
+          icon={PencilIcon}
           required
         />
       </div>
-
-      <TextAreaField
-        label="Loan Purpose Details"
-        name="purpose_details"
-        value={formValues.purpose_details}
-        onChange={onInputChange}
-        placeholder="Provide additional details about the loan purpose"
-        rows={4}
-      />
     </div>
   );
 };

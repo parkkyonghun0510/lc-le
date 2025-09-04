@@ -189,12 +189,15 @@ export interface CustomerApplicationCreate {
   full_name_latin?: string;
   phone?: string;
   date_of_birth?: string;
+  current_address?: string;
   portfolio_officer_name?: string;
   requested_amount?: number;
   loan_purposes?: string[];
   purpose_details?: string;
   product_type?: string;
   desired_loan_term?: number;
+  loan_term_duration?: string;
+  loan_term_frequency?: string;
   requested_disbursement_date?: string;
   guarantor_name?: string;
   guarantor_phone?: string;
@@ -204,6 +207,7 @@ export interface CustomerApplicationCreate {
 
 export interface CustomerApplicationUpdate extends Partial<CustomerApplicationCreate> {
   status?: ApplicationStatus;
+  desired_loan_term?: number;
 }
 
 export interface LoginCredentials {

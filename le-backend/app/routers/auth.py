@@ -140,11 +140,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         user=UserResponse.model_validate(user_with_rels)
     )
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db)
-) -> dict:
+) -> TokenResponse:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token",
@@ -179,12 +179,15 @@ async def refresh_token(
     new_access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+    new_refresh_token = create_refresh_token(data={"sub": user.username})
     
-    return {
-        "access_token": new_access_token,
-        "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    }
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        token_type="bearer",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+        user=UserResponse.model_validate(user)
+    )
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):

@@ -150,7 +150,7 @@ const folderApi = {
     if (params.parent_id) searchParams.append('parent_id', params.parent_id);
     if (params.application_id) searchParams.append('application_id', params.application_id);
     
-    return apiClient.get(`/folders?${searchParams.toString()}`);
+    return apiClient.get(`/folders/?${searchParams.toString()}`);
   },
   
   getFolder: async (id: string): Promise<Folder> => {

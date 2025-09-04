@@ -45,7 +45,7 @@ const folderApi = {
     if (params.application_id) searchParams.append('application_id', params.application_id);
 
     try {
-      return await apiClient.get<Folder[]>(`/folders?${searchParams.toString()}`);
+      return await apiClient.get<Folder[]>(`/folders/?${searchParams.toString()}`);
     } catch (error: any) {
       // Fallback to mock if backend endpoint is missing
       return [
@@ -85,7 +85,7 @@ const folderApi = {
 
   createFolder: async (data: FolderCreate): Promise<Folder> => {
     try {
-      return await apiClient.post<Folder>('/folders', data);
+      return await apiClient.post<Folder>('/folders/', data);
     } catch (error: any) {
       return {
         id: `folder_${Date.now()}`,

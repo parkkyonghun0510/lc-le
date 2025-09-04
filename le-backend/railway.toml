@@ -3,7 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "/le-backend/Dockerfile"
 
 [deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8090"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8090 --proxy-headers --forwarded-allow-ips='*'"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

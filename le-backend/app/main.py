@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 import os
 from dotenv import load_dotenv
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.database import engine, Base
 from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
@@ -38,6 +39,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Behind Railway's proxy, trust forwarded headers so redirects and URL generation use HTTPS
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 # Configure CORS
 app.add_middleware(

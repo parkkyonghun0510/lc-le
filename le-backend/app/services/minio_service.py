@@ -26,11 +26,12 @@ class MinIOService:
                 minio_endpoint = parsed_url.hostname
                 if parsed_url.port:
                     minio_endpoint = f"{minio_endpoint}:{parsed_url.port}"
-                secure = parsed_url.scheme == 'https'
+                # Prefer explicit MINIO_SECURE setting in production; otherwise infer from scheme
+                secure = (parsed_url.scheme == 'https') or bool(getattr(settings, 'MINIO_SECURE', False))
             else:
                 # Fallback to original endpoint if parsing fails
                 minio_endpoint = endpoint
-                secure = settings.MINIO_SECURE
+                secure = bool(getattr(settings, 'MINIO_SECURE', False))
             
             print(f"Connecting to MinIO at: {minio_endpoint} (secure: {secure})")
             
@@ -111,11 +112,15 @@ class MinIOService:
         try:
             # Convert seconds to timedelta for MinIO client
             expires_delta = timedelta(seconds=expires)
-            return self.client.presigned_get_object(
+            url = self.client.presigned_get_object(
                 bucket_name=self.bucket_name,
                 object_name=object_name,
                 expires=expires_delta
             )
+            # Hard guard: if production is secure, ensure presigned URL uses https
+            if bool(getattr(settings, 'MINIO_SECURE', False)) and url.startswith('http://'):
+                url = 'https://' + url[len('http://'):]
+            return url
         except S3Error as e:
             raise Exception(f"Failed to generate file URL: {e}")
         except Exception as e:

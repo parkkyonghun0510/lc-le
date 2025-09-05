@@ -271,7 +271,7 @@ async def get_activity_timeline(
                 "type": "application",
                 "action": "created",
                 "title": f"New application from {app.full_name_latin or app.full_name_khmer or 'Unknown'}",
-                "description": f"Loan application for ${requested_amount:,.2f}",
+                "description": f"Loan application for {requested_amount:,.0f} ៛",
                 "status": app.status,
                 "timestamp": app.created_at.isoformat(),
                 "user_id": str(app.user_id),

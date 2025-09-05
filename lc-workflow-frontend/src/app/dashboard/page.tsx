@@ -28,10 +28,13 @@ import {
   PlusIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatBytes, formatDate } from '@/lib/utils';
+import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
+import { CurrencyToggle } from '@/components/ui/CurrencyToggle';
 import Link from 'next/link';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user } = useAuth();
+  const formatCurrencyWithConversion = useFormatCurrency();
   const { data: dashboardStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: recentApplications, isLoading: appsLoading } = useRecentApplications(5);
   const { data: activityTimeline, isLoading: activityLoading } = useActivityTimeline(7);
@@ -169,12 +172,12 @@ export default function DashboardPage() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                 <div className="mb-4 lg:mb-0">
                   <p className="text-sm sm:text-base lg:text-lg text-gray-600 dark:text-gray-400 max-w-2xl leading-relaxed">
-                    Welcome back, <span className="font-semibold text-gray-800 dark:text-gray-200">{user?.first_name}</span>! 
-                    Here's your comprehensive overview of applications and system performance.
+                    សូមស្វាគមន៍ការត្រលប់មកវិញ <span className="font-semibold text-gray-800 dark:text-gray-200">{user?.first_name } {user?.last_name}</span>! 
+                    នេះគឺជាទិដ្ឋភាពទូទៅរបស់អ្នកអំពីកម្មវិធីនិងការអនុវត្តប្រព័ន្ធ។
                   </p>
                   <div className="flex items-center space-x-2 mt-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">Live Data</span>
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">ទិន្នន័យបន្តផ្ទាល់</span>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
@@ -353,13 +356,16 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-600 dark:text-gray-400">Recent loan applications</p>
                       </div>
                     </div>
-                    <Link 
-                      href="/applications" 
-                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      មើលទាំងអស់
-                      <ArrowTrendingUpIcon className="ml-2 h-4 w-4" />
-                    </Link>
+                    <div className="flex items-center space-x-3">
+                      <CurrencyToggle />
+                      <Link 
+                        href="/applications" 
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                      >
+                        មើលទាំងអស់
+                        <ArrowTrendingUpIcon className="ml-2 h-4 w-4" />
+                      </Link>
+                    </div>
                   </div>
                   
                   {appsLoading ? (
@@ -404,7 +410,7 @@ export default function DashboardPage() {
                                         <CurrencyDollarIcon className="w-3 h-3 text-green-600 dark:text-green-400" />
                                       </div>
                                       <span className="font-medium">
-                                        {app.requested_amount ? formatCurrency(app.requested_amount) : 'មិនបានបញ្ជាក់'}
+                                        {app.requested_amount ? formatCurrencyWithConversion(app.requested_amount, 'KHR') : 'មិនបានបញ្ជាក់'}
                                       </span>
                                     </div>
                                     {app.phone && (
@@ -626,5 +632,13 @@ export default function DashboardPage() {
         </div>
       </Layout>
     </ProtectedRoute>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <CurrencyProvider>
+      <DashboardContent />
+    </CurrencyProvider>
   );
 }

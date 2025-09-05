@@ -219,13 +219,13 @@ export default function AdvancedFileExplorer({
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <button
       onClick={() => handleSort(field)}
-      className="flex items-center gap-1 text-left hover:bg-gray-100 px-2 py-1 rounded text-xs font-medium text-gray-700 uppercase tracking-wider w-full"
+      className="flex items-center gap-1 text-left hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-full transition-all duration-200"
     >
       {children}
       {sortField === field && (
         sortDirection === 'asc' ? 
-          <ChevronUpIcon className="h-3 w-3" /> : 
-          <ChevronDownIcon className="h-3 w-3" />
+          <ChevronUpIcon className="h-3 w-3 text-blue-600 dark:text-blue-400" /> : 
+          <ChevronDownIcon className="h-3 w-3 text-blue-600 dark:text-blue-400" />
       )}
     </button>
   );
@@ -233,7 +233,7 @@ export default function AdvancedFileExplorer({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
@@ -241,10 +241,10 @@ export default function AdvancedFileExplorer({
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600 text-sm">Error loading files. Please try again.</p>
+        <p className="text-red-600 dark:text-red-400 text-sm">Error loading files. Please try again.</p>
         <button
           onClick={() => refetch()}
-          className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 mx-auto"
+          className="mt-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm flex items-center gap-1 mx-auto transition-colors duration-200"
         >
           <ArrowPathIcon className="h-4 w-4" />
           Retry
@@ -256,14 +256,14 @@ export default function AdvancedFileExplorer({
   if (processedFiles.length === 0) {
     return (
       <div className="text-center py-12">
-        <FolderIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-500">
+        <FolderIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+        <p className="text-gray-500 dark:text-gray-400">
           {searchTerm ? 'No files match your search' : 'No files found'}
         </p>
         {searchTerm && (
           <button
             onClick={() => setSearchTerm('')}
-            className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+            className="mt-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm transition-colors duration-200"
           >
             Clear search
           </button>
@@ -273,26 +273,31 @@ export default function AdvancedFileExplorer({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Breadcrumb */}
-      <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm">
-        <HomeIcon className="h-4 w-4 text-gray-500 mr-2" />
-        <span className="text-gray-600">Files</span>
-        {applicationId && (
-          <>
-            <span className="mx-2 text-gray-400">/</span>
-            <span className="text-gray-900">Application Files</span>
-          </>
-        )}
+      <div className="flex items-center px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg">
+            <HomeIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Files</h3>
+            {applicationId && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Application Files</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">{processedFiles.length} items</span>
+      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600 dark:text-gray-400">{processedFiles.length} items</span>
             {selectedFiles.size > 0 && (
-              <span className="text-sm text-blue-600">({selectedFiles.size} selected)</span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400">
+                {selectedFiles.size} selected
+              </span>
             )}
           </div>
           
@@ -303,10 +308,10 @@ export default function AdvancedFileExplorer({
               placeholder="Search files..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-4 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+              className="pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 w-64"
             />
-            <div className="absolute left-2 top-1/2 transform -translate-y-1/2">
-              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+              <svg className="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -317,21 +322,33 @@ export default function AdvancedFileExplorer({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`inline-flex items-center justify-center p-2 rounded-xl transition-all duration-200 ${
+              viewMode === 'list' 
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
             title="List view"
           >
             <Bars3Icon className="h-4 w-4" />
           </button>
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`inline-flex items-center justify-center p-2 rounded-xl transition-all duration-200 ${
+              viewMode === 'grid' 
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
             title="Grid view"
           >
             <Squares2X2Icon className="h-4 w-4" />
           </button>
           <button
             onClick={() => setViewMode('details')}
-            className={`p-2 rounded ${viewMode === 'details' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`inline-flex items-center justify-center p-2 rounded-xl transition-all duration-200 ${
+              viewMode === 'details' 
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
             title="Details view"
           >
             <Bars3Icon className="h-4 w-4 rotate-90" />
@@ -345,7 +362,7 @@ export default function AdvancedFileExplorer({
           /* Details View (Windows Explorer style) */
           <div>
             {/* Header */}
-            <div className="flex items-center bg-gray-50 border-b border-gray-200 px-4 py-2 sticky top-0">
+            <div className="flex items-center bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 px-6 py-3 sticky top-0">
               <div className="flex-1 min-w-0">
                 <SortHeader field="name">Name</SortHeader>
               </div>
@@ -366,8 +383,8 @@ export default function AdvancedFileExplorer({
               {processedFiles.map((file) => (
                 <div
                   key={file.id}
-                  className={`flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer select-none border-b border-gray-50 ${
-                    selectedFiles.has(file.id) ? 'bg-blue-100' : ''
+                  className={`group flex items-center px-6 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer select-none border-b border-gray-100 dark:border-gray-600 transition-all duration-200 ${
+                    selectedFiles.has(file.id) ? 'bg-blue-100 dark:bg-blue-900/20' : ''
                   }`}
                   onClick={(e) => handleFileClick(file, e)}
                   onDoubleClick={() => setPreviewFile(file)}
@@ -376,18 +393,18 @@ export default function AdvancedFileExplorer({
                   <div className="flex-1 min-w-0 flex items-center gap-3">
                     {getFileIcon(file.mime_type)}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {file.original_filename}
                       </p>
                     </div>
                   </div>
-                  <div className="w-20 text-right text-sm text-gray-500">
+                  <div className="w-20 text-right text-sm text-gray-500 dark:text-gray-400">
                     {formatBytes(file.file_size)}
                   </div>
-                  <div className="w-24 text-sm text-gray-500">
+                  <div className="w-24 text-sm text-gray-500 dark:text-gray-400">
                     {file.mime_type.split('/')[1]?.toUpperCase() || 'FILE'}
                   </div>
-                  <div className="w-32 text-sm text-gray-500">
+                  <div className="w-32 text-sm text-gray-500 dark:text-gray-400">
                     {new Date(file.created_at).toLocaleDateString()}
                   </div>
                   {showActions && (
@@ -397,7 +414,7 @@ export default function AdvancedFileExplorer({
                           e.stopPropagation();
                           handleContextMenu(e, file);
                         }}
-                        className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-xl transition-colors duration-200 opacity-0 group-hover:opacity-100"
                       >
                         <EllipsisVerticalIcon className="h-4 w-4" />
                       </button>
@@ -409,26 +426,26 @@ export default function AdvancedFileExplorer({
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid View */
-          <div className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+          <div className="p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 sm:gap-6">
               {processedFiles.map((file) => (
                 <div
                   key={file.id}
-                  className={`group flex flex-col items-center p-3 rounded-lg hover:bg-blue-50 cursor-pointer select-none ${
-                    selectedFiles.has(file.id) ? 'bg-blue-100' : ''
+                  className={`group flex flex-col items-center p-4 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer select-none transition-all duration-200 hover:shadow-sm ${
+                    selectedFiles.has(file.id) ? 'bg-blue-100 dark:bg-blue-900/20 shadow-sm' : ''
                   }`}
                   onClick={(e) => handleFileClick(file, e)}
                   onDoubleClick={() => setPreviewFile(file)}
                   onContextMenu={(e) => handleContextMenu(e, file)}
                 >
-                  <div className="mb-2">
+                  <div className="mb-3 group-hover:scale-110 transition-transform duration-200">
                     {getFileIcon(file.mime_type, 'lg')}
                   </div>
-                  <div className="text-center min-w-0 w-full">
-                    <p className="text-xs font-medium text-gray-900 truncate" title={file.original_filename}>
+                  <div className="text-center min-w-0 w-full space-y-1">
+                    <p className="text-xs font-medium text-gray-900 dark:text-white truncate" title={file.original_filename}>
                       {file.original_filename}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatBytes(file.file_size)}
                     </p>
                   </div>
@@ -438,24 +455,26 @@ export default function AdvancedFileExplorer({
           </div>
         ) : (
           /* List View */
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-600">
             {processedFiles.map((file) => (
               <div
                 key={file.id}
-                className={`flex items-center px-4 py-3 hover:bg-blue-50 cursor-pointer select-none ${
-                  selectedFiles.has(file.id) ? 'bg-blue-100' : ''
+                className={`group flex items-center px-6 py-4 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer select-none transition-all duration-200 ${
+                  selectedFiles.has(file.id) ? 'bg-blue-100 dark:bg-blue-900/20' : ''
                 }`}
                 onClick={(e) => handleFileClick(file, e)}
                 onDoubleClick={() => setPreviewFile(file)}
                 onContextMenu={(e) => handleContextMenu(e, file)}
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {getFileIcon(file.mime_type)}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="group-hover:scale-110 transition-transform duration-200">
+                    {getFileIcon(file.mime_type)}
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {file.original_filename}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatBytes(file.file_size)} • {formatDate(file.created_at)}
                     </p>
                   </div>
@@ -470,7 +489,7 @@ export default function AdvancedFileExplorer({
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-48"
+          className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-2 z-50 min-w-48"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
@@ -481,7 +500,7 @@ export default function AdvancedFileExplorer({
               setPreviewFile(contextMenu.file);
               setContextMenu(null);
             }}
-            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
           >
             <EyeIcon className="h-4 w-4 mr-3" />
             Preview
@@ -491,20 +510,20 @@ export default function AdvancedFileExplorer({
               handleDownload(contextMenu.file);
               setContextMenu(null);
             }}
-            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
           >
             <ArrowDownTrayIcon className="h-4 w-4 mr-3" />
             Download
           </button>
           {(user?.role === 'admin' || contextMenu.file.uploaded_by === user?.id) && (
             <>
-              <hr className="my-1" />
+              <hr className="my-2 border-gray-200 dark:border-gray-600" />
               <button
                 onClick={() => {
                   setFileToDelete(contextMenu.file);
                   setContextMenu(null);
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                className="flex items-center w-full px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
               >
                 <TrashIcon className="h-4 w-4 mr-3" />
                 Delete

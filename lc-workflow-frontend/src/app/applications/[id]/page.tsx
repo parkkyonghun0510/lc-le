@@ -36,6 +36,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import { formatCurrency, formatDateDOB, formatDate } from '@/lib/utils';
+import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 import Link from 'next/link';
 import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
 
@@ -98,10 +99,11 @@ const purposeLabels = {
   other: 'ផ្សេងៗ'
 };
 
-export default function ApplicationDetailPage() {
+function ApplicationDetailContent() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const formatCurrencyWithConversion = useFormatCurrency();
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -523,7 +525,7 @@ export default function ApplicationDetailPage() {
                             <p className="text-xs text-green-600 dark:text-green-400 mb-3 font-medium">ចំនួនទឹកប្រាក់ស្នើសុំ</p>
                             <p className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono">
                               {application.requested_amount 
-                                ? formatCurrency(application.requested_amount)
+                                ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
                                 : 'មិនបានបញ្ជាក់'
                               }
                             </p>
@@ -1289,5 +1291,13 @@ export default function ApplicationDetailPage() {
         )}
       </Layout>
     </ProtectedRoute>
+  );
+}
+
+export default function ApplicationDetailPage() {
+  return (
+    <CurrencyProvider>
+      <ApplicationDetailContent />
+    </CurrencyProvider>
   );
 }

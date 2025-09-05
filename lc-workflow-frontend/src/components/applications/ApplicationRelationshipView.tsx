@@ -13,6 +13,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 
 interface ApplicationRelationshipViewProps {
   application: any;
@@ -22,13 +23,14 @@ interface ApplicationRelationshipViewProps {
   branch?: any;
 }
 
-export function ApplicationRelationshipView({
+function ApplicationRelationshipContent({
   application,
   officer,
   manager,
   department,
   branch
 }: ApplicationRelationshipViewProps) {
+  const formatCurrencyWithConversion = useFormatCurrency();
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -188,7 +190,7 @@ export function ApplicationRelationshipView({
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">ប្រាក់ចំណូលខែ:</span>
                 <span className="text-sm font-medium text-green-600">
-                  {formatCurrency(application.monthly_income)}
+                  {formatCurrencyWithConversion(application.monthly_income, 'KHR')}
                 </span>
               </div>
             )}
@@ -207,7 +209,7 @@ export function ApplicationRelationshipView({
               <span className="text-sm text-gray-600">ចំនួនទឹកប្រាក់:</span>
               <span className="text-lg font-bold text-green-600">
                 {application.requested_amount 
-                  ? formatCurrency(application.requested_amount)
+                  ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
                   : 'មិនបានបញ្ជាក់'
                 }
               </span>
@@ -415,5 +417,13 @@ export function ApplicationRelationshipView({
         </div>
       )}
     </div>
+  );
+}
+
+export function ApplicationRelationshipView(props: ApplicationRelationshipViewProps) {
+  return (
+    <CurrencyProvider>
+      <ApplicationRelationshipContent {...props} />
+    </CurrencyProvider>
   );
 }

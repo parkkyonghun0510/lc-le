@@ -145,8 +145,10 @@ export default function FilePreview({
     if (file.mime_type.startsWith('image/') && !imageError) {
       if (!previewUrl) {
         return (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+          <div className="flex items-center justify-center h-full">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+            </div>
           </div>
         );
       }
@@ -176,8 +178,10 @@ export default function FilePreview({
     if (file.mime_type === 'application/pdf') {
       if (!previewUrl) {
         return (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+          <div className="flex items-center justify-center h-full">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+            </div>
           </div>
         );
       }
@@ -195,8 +199,10 @@ export default function FilePreview({
     if (file.mime_type.startsWith('text/')) {
       if (!previewUrl) {
         return (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+          <div className="flex items-center justify-center h-full">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+            </div>
           </div>
         );
       }
@@ -213,15 +219,17 @@ export default function FilePreview({
 
     // Fallback for unsupported file types
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <div className="text-6xl mb-4">📄</div>
-        <p className="text-lg font-medium mb-2">Preview not available</p>
-        <p className="text-sm mb-4">
-          This file type cannot be previewed in the browser
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <div className="p-6 bg-gray-100 dark:bg-gray-700 rounded-full mb-6">
+          <div className="text-4xl">📄</div>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Preview not available</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center max-w-md">
+          This file type cannot be previewed in the browser. Download the file to view its contents.
         </p>
         <button
           onClick={handleDownload}
-          className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3"
+          className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3"
         >
           <ArrowDownTrayIcon className="h-5 w-5" />
           Download File

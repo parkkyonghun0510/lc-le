@@ -323,14 +323,14 @@ export default function CustomerFileExplorer({
 
   const getStatusBadge = (status: string) => {
     const colors = {
-      approved: 'bg-green-100 text-green-800',
-      pending: 'bg-yellow-100 text-yellow-800', 
-      submitted: 'bg-blue-100 text-blue-800',
-      rejected: 'bg-red-100 text-red-800'
+      approved: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700',
+      pending: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700', 
+      submitted: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700',
+      rejected: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700'
     };
     
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors duration-200 ${colors[status as keyof typeof colors] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-600'}`}>
         {status}
       </span>
     );
@@ -422,67 +422,81 @@ export default function CustomerFileExplorer({
     (currentPath.length === 3 && isLoading)
   ) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-32 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm transition-colors duration-200">
       {/* Breadcrumb */}
-      <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm">
+      <div className="flex items-center px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 border-b border-gray-200 dark:border-gray-600 text-sm">
         {getBreadcrumbPath().map((path, index) => (
           <div key={index} className="flex items-center">
-            {index > 0 && <ChevronRightIcon className="h-4 w-4 mx-2 text-gray-400" />}
+            {index > 0 && <ChevronRightIcon className="h-4 w-4 mx-2 text-gray-400 dark:text-gray-500" />}
             <button
               onClick={() => handleBreadcrumbClick(path.index + 1)}
-              className="flex items-center text-gray-600 hover:text-gray-900"
+              className="flex items-center text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 rounded-lg px-2 py-1 hover:bg-white/50 dark:hover:bg-gray-600/50"
             >
-              {index === 0 && <HomeIcon className="h-4 w-4 mr-2" />}
-              {path.name}
+              {index === 0 && (
+                <div className="p-1 bg-blue-100 dark:bg-blue-900/50 rounded-md mr-2">
+                  <HomeIcon className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                </div>
+              )}
+              <span className="font-medium">{path.name}</span>
             </button>
           </div>
         ))}
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">{currentItems.length} items</span>
+          <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">{currentItems.length} items</span>
           {selectedItems.size > 0 && (
-            <span className="text-sm text-blue-600">({selectedItems.size} selected)</span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+              {selectedItems.size} selected
+            </span>
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Search - only show when viewing files */}
           {currentPath.length === 3 && (
             <div className="relative">
-              <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search files..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+                className="pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 w-48"
               />
             </div>
           )}
 
           {/* View mode toggle - only show when viewing files */}
           {currentPath.length === 3 && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-600/50'
+                }`}
                 title="Grid view"
               >
                 <Squares2X2Icon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-600/50'
+                }`}
                 title="List view"
               >
                 <ListBulletIcon className="h-4 w-4" />
@@ -492,7 +506,7 @@ export default function CustomerFileExplorer({
 
           <button
             onClick={() => refetch()}
-            className="p-2 text-gray-500 hover:text-gray-700 rounded"
+            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200"
             title="Refresh"
           >
             <ArrowPathIcon className="h-4 w-4" />
@@ -504,117 +518,129 @@ export default function CustomerFileExplorer({
       <div className="overflow-auto max-h-96">
         {currentItems.length === 0 ? (
           <div className="text-center py-12">
-            <FolderIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">
+            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full w-fit mx-auto mb-4">
+              <FolderIcon className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 font-medium">
               {searchTerm ? 'No items match your search' : 'This folder is empty'}
             </p>
           </div>
         ) : currentPath.length <= 2 ? (
           /* Folder view for customers, applications, and folders */
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {currentItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center px-4 py-3 hover:bg-blue-50 cursor-pointer"
+                className="group flex items-center px-4 py-4 hover:bg-blue-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-200"
                 onClick={() => handleItemClick(item)}
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {item.type === 'customer' ? (
-                    <UserIcon className="h-8 w-8 text-blue-500" />
-                  ) : item.type === 'application' ? (
-                    <ApplicationThumb appId={(item as ApplicationFolder).application_id} name={(item as ApplicationFolder).name} />
-                  ) : (
-                    <FolderIcon className="h-8 w-8 text-yellow-500" />
-                  )}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0">
+                    {item.type === 'customer' ? (
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-xl">
+                        <UserIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    ) : item.type === 'application' ? (
+                      <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-xl">
+                        <ApplicationThumb appId={(item as ApplicationFolder).application_id} name={(item as ApplicationFolder).name} />
+                      </div>
+                    ) : (
+                      <div className="p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-xl">
+                        <FolderIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                    )}
+                  </div>
                   
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
                       {item.type === 'customer' || item.type === 'application' || item.type === 'folder'
                         ? (item as CustomerFolder | ApplicationFolder | DocumentFolder).name
                         : ''}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                       {item.type === 'customer' ? (
                         <>
-                          <span>{(item as CustomerFolder).application_count} applications</span>
-                          <span>•</span>
-                          <span>{item.file_count} files</span>
+                          <span className="font-medium">{(item as CustomerFolder).application_count} applications</span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
+                          <span className="font-medium">{item.file_count} files</span>
                         </>
                       ) : item.type === 'application' ? (
                         <>
                           {(item as ApplicationFolder).account_id && (
                             <>
-                              <span>Acct: {(item as ApplicationFolder).account_id}</span>
-                              <span>•</span>
+                              <span className="font-medium">Acct: {(item as ApplicationFolder).account_id}</span>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
                             </>
                           )}
-                          <span>{item.file_count} files</span>
-                          <span>•</span>
+                          <span className="font-medium">{item.file_count} files</span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
                           {(item as ApplicationFolder).status && getStatusBadge((item as ApplicationFolder).status!)}
                         </>
                       ) : (
                         <>
-                          <span>{(item as DocumentFolder).file_count} files</span>
-                          <span>•</span>
+                          <span className="font-medium">{(item as DocumentFolder).file_count} files</span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
                           <span>{formatDate(item.created_at)}</span>
                         </>
                       )}
                       {item.type !== 'folder' && (
                         <>
-                          <span>•</span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
                           <span>{formatDate(item.created_at)}</span>
                         </>
                       )}
                     </div>
                   </div>
                 </div>
-                <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                <ChevronRightIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors duration-200" />
               </div>
             ))}
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid view for files */
-          <div className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+          <div className="p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
               {currentItems.map((item) => {
                 const file = item as FileItem;
                 return (
                   <div key={file.id} className="group">
+                    <div className="bg-white dark:bg-gray-700 rounded-xl p-3 hover:shadow-lg dark:hover:shadow-gray-900/20 transition-all duration-200 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500">
                       <ImageThumbnail
-                      file={file}
-                      size="lg"
-                      className="hover:shadow-md transition-shadow"
-                      onClick={() => handleItemClick(file)}
+                        file={file}
+                        size="lg"
+                        className="hover:scale-105 transition-transform duration-200"
+                        onClick={() => handleItemClick(file)}
                         showFileName={true}
                         enableHoverPreview={false}
-                    />
-                    
-                    {showActions && (
-                      <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadFile(file.id, file.original_filename);
-                          }}
-                          className="p-1 text-blue-600 hover:text-blue-800 text-xs"
-                          title="Download"
-                        >
-                          <ArrowDownTrayIcon className="h-4 w-4" />
-                        </button>
-                        {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                      />
+                      
+                      {showActions && (
+                        <div className="flex justify-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setFileToDelete(file);
+                              downloadFile(file.id, file.original_filename);
                             }}
-                            className="p-1 text-red-600 hover:text-red-800 text-xs"
-                            title="Delete"
+                            className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/70 rounded-lg transition-colors duration-200"
+                            title="Download"
                           >
-                            <TrashIcon className="h-4 w-4" />
+                            <ArrowDownTrayIcon className="h-4 w-4" />
                           </button>
-                        )}
-                      </div>
-                    )}
+                          {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFileToDelete(file);
+                              }}
+                              className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 rounded-lg transition-colors duration-200"
+                              title="Delete"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -622,39 +648,43 @@ export default function CustomerFileExplorer({
           </div>
         ) : (
           /* List view for files */
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {currentItems.map((item) => {
               const file = item as FileItem;
               return (
                 <div
                   key={file.id}
-                  className="flex items-center px-4 py-3 hover:bg-blue-50 cursor-pointer"
+                  className="group flex items-center px-4 py-4 hover:bg-blue-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors duration-200"
                   onClick={() => handleItemClick(file)}
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <ImageThumbnail
-                      file={file}
-                      size="sm"
-                    />
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="flex-shrink-0">
+                      <ImageThumbnail
+                        file={file}
+                        size="sm"
+                      />
+                    </div>
                     
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
                         {file.original_filename}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {formatBytes(file.file_size)} • {formatDate(file.created_at)}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="font-medium">{formatBytes(file.file_size)}</span>
+                        <span className="text-gray-300 dark:text-gray-600 mx-1">•</span>
+                        <span>{formatDate(file.created_at)}</span>
                       </p>
                     </div>
                   </div>
 
                   {showActions && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           downloadFile(file.id, file.original_filename);
                         }}
-                        className="p-1 text-blue-600 hover:text-blue-800"
+                        className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/70 rounded-lg transition-colors duration-200"
                         title="Download"
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
@@ -665,7 +695,7 @@ export default function CustomerFileExplorer({
                             e.stopPropagation();
                             setFileToDelete(file);
                           }}
-                          className="p-1 text-red-600 hover:text-red-800"
+                          className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 rounded-lg transition-colors duration-200"
                           title="Delete"
                         >
                           <TrashIcon className="h-4 w-4" />

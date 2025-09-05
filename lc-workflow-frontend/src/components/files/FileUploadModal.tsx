@@ -105,14 +105,14 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Upload Files</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Upload Files</h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
@@ -123,22 +123,24 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
           {/* Dropzone */}
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
               isDragActive
-                ? 'border-blue-400 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400'
+                ? 'border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105'
+                : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10'
             }`}
           >
             <input {...getInputProps()} />
-            <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <div className="p-4 bg-blue-100 dark:bg-blue-900/50 rounded-full w-fit mx-auto mb-6">
+              <CloudArrowUpIcon className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+            </div>
             {isDragActive ? (
-              <p className="text-blue-600">Drop the files here...</p>
+              <p className="text-blue-600 dark:text-blue-400 font-semibold text-lg">Drop the files here...</p>
             ) : (
               <div>
-                <p className="text-gray-600 mb-2">
+                <p className="text-gray-700 dark:text-gray-200 mb-3 font-semibold text-lg">
                   Drag & drop files here, or click to select files
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg inline-block">
                   Supports: Images, PDF, Word, Excel, Text files (max 10MB each)
                 </p>
               </div>
@@ -147,60 +149,62 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
 
           {/* File List */}
           {hasFiles && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="mt-8">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6">
                 Selected Files ({files.length})
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {files.map((fileWithProgress, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="group flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     <div className="flex items-center flex-1 min-w-0">
-                      <DocumentIcon className="h-8 w-8 text-gray-400 mr-3 flex-shrink-0" />
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-xl mr-3 flex-shrink-0">
+                        <DocumentIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
                           {fileWithProgress.file.name}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                           {formatBytes(fileWithProgress.file.size)}
                         </p>
                         {fileWithProgress.status === 'uploading' && (
-                          <div className="mt-2">
-                            <div className="bg-gray-200 rounded-full h-2">
+                          <div className="mt-3">
+                            <div className="bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
                               <div
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-300"
                                 style={{ width: `${fileWithProgress.progress}%` }}
                               />
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
                               {fileWithProgress.progress}% uploaded
                             </p>
                           </div>
                         )}
                         {fileWithProgress.status === 'error' && (
-                          <p className="text-sm text-red-600 mt-1">
+                          <p className="text-sm text-red-600 dark:text-red-400 mt-2 font-medium">
                             {fileWithProgress.error}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="flex items-center gap-3 ml-4">
                       {fileWithProgress.status === 'completed' && (
-                        <span className="text-green-600 text-sm font-medium">
+                        <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 text-sm font-semibold rounded-lg">
                           ✓ Uploaded
                         </span>
                       )}
                       {fileWithProgress.status === 'error' && (
-                        <span className="text-red-600 text-sm font-medium">
+                        <span className="px-3 py-1.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 text-sm font-semibold rounded-lg">
                           ✗ Failed
                         </span>
                       )}
                       {fileWithProgress.status === 'pending' && (
                         <button
                           onClick={() => removeFile(index)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="px-3 py-1.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 text-sm font-medium rounded-lg transition-colors duration-200"
                         >
                           Remove
                         </button>
@@ -214,10 +218,10 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+        <div className="flex items-center justify-end gap-4 p-6 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-6 py-2.5 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold transition-colors duration-200"
           >
             {allCompleted ? 'Close' : 'Cancel'}
           </button>
@@ -225,7 +229,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
             <button
               onClick={uploadAllFiles}
               disabled={uploadFileMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none"
             >
               {uploadFileMutation.isPending ? 'Uploading...' : 'Upload All'}
             </button>

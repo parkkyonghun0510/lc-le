@@ -342,57 +342,64 @@ export default function FolderFileExplorer({
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <button
       onClick={() => handleSort(field)}
-      className="flex items-center gap-1 text-left hover:bg-gray-100 px-2 py-1 rounded text-xs font-medium text-gray-700 uppercase tracking-wider w-full"
+      className="flex items-center gap-1 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider w-full transition-all duration-200"
     >
       {children}
       {sortField === field && (
         sortDirection === 'asc' ? 
-          <ChevronUpIcon className="h-3 w-3" /> : 
-          <ChevronDownIcon className="h-3 w-3" />
+          <ChevronUpIcon className="h-3 w-3 text-blue-600 dark:text-blue-400" /> : 
+          <ChevronDownIcon className="h-3 w-3 text-blue-600 dark:text-blue-400" />
       )}
     </button>
   );
 
   if (isLoadingFiles || isLoadingFolders) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-400"></div>
+        </div>
       </div>
     );
   }
 
   if (filesError || foldersError) {
     return (
-      <div className="text-center py-8">
-        <p className="text-red-600 text-sm">Error loading files. Please try again.</p>
-        <button
-          onClick={() => { refetchFiles(); refetchFolders(); }}
-          className="mt-2 text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 mx-auto"
-        >
-          <ArrowPathIcon className="h-4 w-4" />
-          Retry
-        </button>
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+        <div className="text-center py-12">
+          <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ArrowPathIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
+          </div>
+          <p className="text-red-600 dark:text-red-400 text-sm font-medium mb-3">Error loading files. Please try again.</p>
+          <button
+            onClick={() => { refetchFiles(); refetchFolders(); }}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-medium rounded-xl transition-all duration-200 flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
       {/* Breadcrumb */}
-      <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm">
+      <div className="flex items-center px-6 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600 text-sm">
         <button
           onClick={() => setCurrentPath([])}
-          className="flex items-center text-gray-600 hover:text-gray-900"
+          className="flex items-center text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 font-medium"
         >
           <HomeIcon className="h-4 w-4 mr-2" />
           Files
         </button>
         {currentPath.map((folder, index) => (
           <div key={folder} className="flex items-center">
-            <ChevronRightIcon className="h-4 w-4 mx-2 text-gray-400" />
+            <ChevronRightIcon className="h-4 w-4 mx-2 text-gray-400 dark:text-gray-500" />
             <button
               onClick={() => handleBreadcrumbClick(index + 1)}
-              className="text-gray-600 hover:text-gray-900 capitalize"
+              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 capitalize transition-colors duration-200 font-medium"
             >
               {folder}
             </button>
@@ -401,21 +408,21 @@ export default function FolderFileExplorer({
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             {currentPath.length > 0 && (
               <button
                 onClick={handleGoBack}
-                className="p-1 text-gray-500 hover:text-gray-700 rounded"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-200"
                 title="Go back"
               >
                 ←
               </button>
             )}
-            <span className="text-sm text-gray-600">{currentItems.length} items</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{currentItems.length} items</span>
             {selectedItems.size > 0 && (
-              <span className="text-sm text-blue-600">({selectedItems.size} selected)</span>
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg">({selectedItems.size} selected)</span>
             )}
           </div>
           
@@ -426,10 +433,10 @@ export default function FolderFileExplorer({
               placeholder="Search files..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-4 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+              className="pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent w-64 transition-all duration-200 shadow-sm"
             />
-            <div className="absolute left-2 top-1/2 transform -translate-y-1/2">
-              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+              <svg className="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -437,33 +444,45 @@ export default function FolderFileExplorer({
         </div>
 
         {/* Actions and View Controls */}
-        <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowNewFolderDialog(true)}
-            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowNewFolderDialog(true)}
+            className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-xl transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
           >
             <PlusIcon className="h-4 w-4" />
             New Folder
           </button>
           
-          <div className="flex items-center gap-1 ml-2">
+          <div className="flex items-center gap-1 ml-2 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                viewMode === 'list' 
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-600/50'
+              }`}
               title="List view"
             >
               <Bars3Icon className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                viewMode === 'grid' 
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-600/50'
+              }`}
               title="Grid view"
             >
               <Squares2X2Icon className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('details')}
-              className={`p-2 rounded ${viewMode === 'details' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                viewMode === 'details' 
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-600/50'
+              }`}
               title="Details view"
             >
               <Bars3Icon className="h-4 w-4 rotate-90" />
@@ -475,30 +494,35 @@ export default function FolderFileExplorer({
       {/* File Content */}
       <div className="overflow-auto max-h-96">
         {currentItems.length === 0 ? (
-          <div className="text-center py-12">
-            <FolderIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FolderIcon className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 font-medium">
               {searchTerm ? 'No items match your search' : 'This folder is empty'}
+            </p>
+            <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
+              {searchTerm ? 'Try adjusting your search terms' : 'Upload files or create folders to get started'}
             </p>
           </div>
         ) : viewMode === 'details' ? (
           /* Details View */
           <div>
             {/* Header */}
-            <div className="flex items-center bg-gray-50 border-b border-gray-200 px-4 py-2 sticky top-0">
+            <div className="flex items-center bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600 px-6 py-3 sticky top-0">
               <div className="flex-1 min-w-0">
                 <SortHeader field="name">Name</SortHeader>
               </div>
-              <div className="w-20 text-right">
+              <div className="w-24 text-right">
                 <SortHeader field="size">Size</SortHeader>
               </div>
-              <div className="w-24">
+              <div className="w-28">
                 <SortHeader field="type">Type</SortHeader>
               </div>
-              <div className="w-32">
+              <div className="w-36">
                 <SortHeader field="date">Date Modified</SortHeader>
               </div>
-              {showActions && <div className="w-16"></div>}
+              {showActions && <div className="w-20"></div>}
             </div>
 
             {/* Items List */}
@@ -506,47 +530,47 @@ export default function FolderFileExplorer({
               {currentItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer select-none border-b border-gray-50 ${
-                    selectedItems.has(item.id) ? 'bg-blue-100' : ''
+                  className={`group flex items-center px-6 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/10 dark:hover:to-purple-900/10 cursor-pointer select-none border-b border-gray-100 dark:border-gray-700 transition-all duration-200 ${
+                    selectedItems.has(item.id) ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20' : ''
                   }`}
                   onClick={(e) => handleItemClick(item, e)}
                   onDoubleClick={() => handleItemDoubleClick(item)}
                   onContextMenu={(e) => handleContextMenu(e, item)}
                 >
-                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                  <div className="flex-1 min-w-0 flex items-center gap-4">
                     {item.type === 'folder' ? 
                       getFolderIcon() : 
                       getFileIcon((item as FileItem).mime_type)
                     }
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {item.type === 'folder' ? item.name : (item as FileItem).original_filename}
                       </p>
                     </div>
                   </div>
-                  <div className="w-20 text-right text-sm text-gray-500">
+                  <div className="w-24 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
                     {item.type === 'folder' ? 
                       `${item.file_count} items` : 
                       formatBytes((item as FileItem).file_size)
                     }
                   </div>
-                  <div className="w-24 text-sm text-gray-500">
+                  <div className="w-28 text-sm font-medium text-gray-500 dark:text-gray-400">
                     {item.type === 'folder' ? 
                       'Folder' : 
                       (item as FileItem).mime_type.split('/')[1]?.toUpperCase() || 'FILE'
                     }
                   </div>
-                  <div className="w-32 text-sm text-gray-500">
+                  <div className="w-36 text-sm font-medium text-gray-500 dark:text-gray-400">
                     {new Date(item.created_at).toLocaleDateString()}
                   </div>
                   {showActions && (
-                    <div className="w-16 flex items-center justify-end">
+                    <div className="w-20 flex items-center justify-end">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleContextMenu(e, item);
                         }}
-                        className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100"
                       >
                         <EllipsisVerticalIcon className="h-4 w-4" />
                       </button>
@@ -558,31 +582,31 @@ export default function FolderFileExplorer({
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid View */
-          <div className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+          <div className="p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
               {currentItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`group flex flex-col items-center p-3 rounded-lg hover:bg-blue-50 cursor-pointer select-none ${
-                    selectedItems.has(item.id) ? 'bg-blue-100' : ''
+                  className={`group flex flex-col items-center p-4 rounded-xl hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/10 dark:hover:to-purple-900/10 cursor-pointer select-none transition-all duration-200 hover:shadow-lg hover:scale-105 border border-transparent hover:border-blue-200 dark:hover:border-blue-700 ${
+                    selectedItems.has(item.id) ? 'bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-300 dark:border-blue-600 shadow-md' : ''
                   }`}
                   onClick={(e) => handleItemClick(item, e)}
                   onDoubleClick={() => handleItemDoubleClick(item)}
                   onContextMenu={(e) => handleContextMenu(e, item)}
                 >
-                  <div className="mb-2">
+                  <div className="mb-3 p-2 rounded-xl bg-white dark:bg-gray-800 shadow-sm group-hover:shadow-md transition-all duration-200">
                     {item.type === 'folder' ? 
                       getFolderIcon('lg') : 
                       getFileIcon((item as FileItem).mime_type, 'lg')
                     }
                   </div>
                   <div className="text-center min-w-0 w-full">
-                    <p className="text-xs font-medium text-gray-900 truncate" title={
+                    <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate mb-1" title={
                       item.type === 'folder' ? item.name : (item as FileItem).original_filename
                     }>
                       {item.type === 'folder' ? item.name : (item as FileItem).original_filename}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                       {item.type === 'folder' ? 
                         `${item.file_count} items` : 
                         formatBytes((item as FileItem).file_size)
@@ -595,27 +619,29 @@ export default function FolderFileExplorer({
           </div>
         ) : (
           /* List View */
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {currentItems.map((item) => (
               <div
                 key={item.id}
-                className={`flex items-center px-4 py-3 hover:bg-blue-50 cursor-pointer select-none ${
-                  selectedItems.has(item.id) ? 'bg-blue-100' : ''
+                className={`group flex items-center px-6 py-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/10 dark:hover:to-purple-900/10 cursor-pointer select-none transition-all duration-200 ${
+                  selectedItems.has(item.id) ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20' : ''
                 }`}
                 onClick={(e) => handleItemClick(item, e)}
                 onDoubleClick={() => handleItemDoubleClick(item)}
                 onContextMenu={(e) => handleContextMenu(e, item)}
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {item.type === 'folder' ? 
-                    getFolderIcon() : 
-                    getFileIcon((item as FileItem).mime_type)
-                  }
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="p-1 rounded-lg bg-white dark:bg-gray-800 shadow-sm group-hover:shadow-md transition-all duration-200">
+                    {item.type === 'folder' ? 
+                      getFolderIcon() : 
+                      getFileIcon((item as FileItem).mime_type)
+                    }
+                  </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                       {item.type === 'folder' ? item.name : (item as FileItem).original_filename}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                       {item.type === 'folder' ? 
                         `${item.file_count} items • ${formatDate(item.created_at)}` : 
                         `${formatBytes((item as FileItem).file_size)} • ${formatDate(item.created_at)}`
@@ -633,7 +659,7 @@ export default function FolderFileExplorer({
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-48"
+          className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl py-2 z-50 min-w-48 backdrop-blur-sm"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
@@ -646,9 +672,9 @@ export default function FolderFileExplorer({
                   setPreviewFile(contextMenu.item as FileItem);
                   setContextMenu(null);
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all duration-200"
               >
-                <EyeIcon className="h-4 w-4 mr-3" />
+                <EyeIcon className="h-4 w-4 mr-3 text-blue-600 dark:text-blue-400" />
                 Preview
               </button>
               <button
@@ -656,20 +682,20 @@ export default function FolderFileExplorer({
                   handleDownload(contextMenu.item as FileItem);
                   setContextMenu(null);
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all duration-200"
               >
-                <ArrowDownTrayIcon className="h-4 w-4 mr-3" />
+                <ArrowDownTrayIcon className="h-4 w-4 mr-3 text-green-600 dark:text-green-400" />
                 Download
               </button>
               {(user?.role === 'admin' || (contextMenu.item as FileItem).uploaded_by === user?.id) && (
                 <>
-                  <hr className="my-1" />
+                  <hr className="my-2 border-gray-200 dark:border-gray-600" />
                   <button
                     onClick={() => {
                       setFileToDelete(contextMenu.item as FileItem);
                       setContextMenu(null);
                     }}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
                   >
                     <TrashIcon className="h-4 w-4 mr-3" />
                     Delete
@@ -684,12 +710,12 @@ export default function FolderFileExplorer({
                   handleItemClick(contextMenu.item, {} as React.MouseEvent);
                   setContextMenu(null);
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all duration-200"
               >
-                <FolderIcon className="h-4 w-4 mr-3" />
+                <FolderIcon className="h-4 w-4 mr-3 text-blue-600 dark:text-blue-400" />
                 Open
               </button>
-              <hr className="my-1" />
+              <hr className="my-2 border-gray-200 dark:border-gray-600" />
               <button
                 onClick={async () => {
                   if (contextMenu?.item.type === 'folder') {
@@ -698,7 +724,7 @@ export default function FolderFileExplorer({
                   }
                   setContextMenu(null);
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                className="flex items-center w-full px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
               >
                 <TrashIcon className="h-4 w-4 mr-3" />
                 Delete Folder
@@ -710,32 +736,32 @@ export default function FolderFileExplorer({
 
       {/* New Folder Dialog */}
       {showNewFolderDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Folder</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Create New Folder</h3>
             <input
               type="text"
               placeholder="Folder name"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent mb-6 transition-all duration-200 shadow-sm"
               onKeyPress={(e) => e.key === 'Enter' && handleCreateFolder()}
               autoFocus
             />
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-3">
               <button
                 onClick={() => {
                   setShowNewFolderDialog(false);
                   setNewFolderName('');
                 }}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateFolder}
                 disabled={!newFolderName.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
               >
                 Create
               </button>
@@ -755,15 +781,33 @@ export default function FolderFileExplorer({
 
       {/* Delete Confirmation */}
       {fileToDelete && (
-        <ConfirmDialog
-          isOpen={!!fileToDelete}
-          onClose={() => setFileToDelete(null)}
-          onConfirm={handleDelete}
-          title="Delete File"
-          message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
-          confirmText="Delete"
-          confirmButtonClass="bg-red-600 hover:bg-red-700"
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mr-4">
+                <TrashIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete File</h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+              Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">"{fileToDelete.original_filename}"</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setFileToDelete(null)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

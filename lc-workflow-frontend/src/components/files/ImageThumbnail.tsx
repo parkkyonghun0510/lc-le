@@ -45,16 +45,16 @@ export default function ImageThumbnail({
   const getFileIcon = () => {
     const mimeType = file.mime_type.toLowerCase();
     
-    if (mimeType.includes('image')) return <PhotoIcon className="h-8 w-8 text-blue-400" />;
-    if (mimeType.includes('pdf')) return <DocumentIcon className="h-8 w-8 text-red-400" />;
-    if (mimeType.includes('video')) return <FilmIcon className="h-8 w-8 text-purple-400" />;
-    if (mimeType.includes('audio')) return <MusicalNoteIcon className="h-8 w-8 text-green-400" />;
+    if (mimeType.includes('image')) return <PhotoIcon className="h-8 w-8 text-blue-500 dark:text-blue-400" />;
+    if (mimeType.includes('pdf')) return <DocumentIcon className="h-8 w-8 text-red-500 dark:text-red-400" />;
+    if (mimeType.includes('video')) return <FilmIcon className="h-8 w-8 text-purple-500 dark:text-purple-400" />;
+    if (mimeType.includes('audio')) return <MusicalNoteIcon className="h-8 w-8 text-green-500 dark:text-green-400" />;
     if (mimeType.includes('excel') || mimeType.includes('spreadsheet') || mimeType.includes('csv')) 
-      return <TableCellsIcon className="h-8 w-8 text-green-600" />;
+      return <TableCellsIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />;
     if (mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('html') || mimeType.includes('css')) 
-      return <CodeBracketIcon className="h-8 w-8 text-gray-600" />;
+      return <CodeBracketIcon className="h-8 w-8 text-gray-600 dark:text-gray-400" />;
     
-    return <DocumentIcon className="h-8 w-8 text-gray-400" />;
+    return <DocumentIcon className="h-8 w-8 text-gray-500 dark:text-gray-400" />;
   };
 
   const handleImageLoad = () => {
@@ -71,7 +71,7 @@ export default function ImageThumbnail({
 
   return (
     <div 
-      className={`relative ${sizeClasses[size]} ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      className={`relative ${sizeClasses[size]} ${className} ${onClick ? 'cursor-pointer group' : ''} transition-all duration-200 hover:scale-105`}
       onClick={onClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -80,8 +80,8 @@ export default function ImageThumbnail({
         <div className="relative w-full h-full">
           {/* Loading skeleton */}
           {isLoading && (
-            <div className="absolute inset-0 bg-gray-200 animate-pulse rounded-lg flex items-center justify-center">
-              <PhotoIcon className="h-6 w-6 text-gray-400" />
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded-xl flex items-center justify-center shadow-sm">
+              <PhotoIcon className="h-6 w-6 text-gray-400 dark:text-gray-500" />
             </div>
           )}
           
@@ -90,7 +90,7 @@ export default function ImageThumbnail({
             <img
               src={thumbnailUrl}
               alt={file.original_filename}
-              className={`w-full h-full object-cover rounded-lg shadow-sm border border-gray-200 transition-opacity duration-200 ${
+              className={`w-full h-full object-cover rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 transition-all duration-200 group-hover:shadow-xl ${
                 isLoading ? 'opacity-0' : 'opacity-100'
               }`}
               onLoad={handleImageLoad}
@@ -102,11 +102,11 @@ export default function ImageThumbnail({
 
           {/* Hover large preview */}
           {enableHoverPreview && isHovering && thumbnailUrl && (
-            <div className="absolute z-20 left-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-1">
+            <div className="absolute z-20 left-0 top-full mt-2 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 p-2 backdrop-blur-sm">
               <img
                 src={thumbnailUrl}
                 alt={file.original_filename}
-                className="object-contain rounded-md"
+                className="object-contain rounded-lg shadow-sm"
                 style={{ width: size === 'lg' ? 256 : 192, height: size === 'lg' ? 256 : 192 }}
                 loading="lazy"
                 decoding="async"
@@ -117,15 +117,17 @@ export default function ImageThumbnail({
         </div>
       ) : (
         /* Non-image file icon */
-        <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-          {getFileIcon()}
+        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-xl flex items-center justify-center border border-gray-200 dark:border-gray-600 shadow-sm group-hover:shadow-lg transition-all duration-200">
+          <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
+            {getFileIcon()}
+          </div>
         </div>
       )}
 
       {/* File name overlay */}
       {showFileName && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg">
-          <p className="truncate" title={file.original_filename}>
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-xl backdrop-blur-sm">
+          <p className="truncate font-medium" title={file.original_filename}>
             {file.original_filename}
           </p>
         </div>
@@ -133,7 +135,7 @@ export default function ImageThumbnail({
 
       {/* Image type indicator */}
       {isImage && (
-        <div className="absolute top-1 right-1 bg-purple-500 text-white text-xs px-1 py-0.5 rounded">
+        <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg backdrop-blur-sm font-medium">
           IMG
         </div>
       )}

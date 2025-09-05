@@ -28,6 +28,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 import Link from 'next/link';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { useProductTypes } from '@/hooks/useEnums';
@@ -71,9 +72,10 @@ const statusConfig = {
   }
 }
 
-export default function ApplicationsPage() {
+function ApplicationsContent() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const formatCurrencyWithConversion = useFormatCurrency();
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -426,7 +428,7 @@ export default function ApplicationsPage() {
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ចំនួនទឹកប្រាក់</p>
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">
                             {application.requested_amount 
-                              ? formatCurrency(application.requested_amount)
+                              ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
                               : 'មិនបានបញ្ជាក់'
                             }
                           </p>
@@ -589,5 +591,13 @@ export default function ApplicationsPage() {
         />
       </Layout>
     </ProtectedRoute>
+  );
+}
+
+export default function ApplicationsPage() {
+  return (
+    <CurrencyProvider>
+      <ApplicationsContent />
+    </CurrencyProvider>
   );
 }

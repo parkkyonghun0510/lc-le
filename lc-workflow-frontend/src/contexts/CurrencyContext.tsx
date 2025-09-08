@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { formatCurrency } from '@/lib/utils';
 
 type Currency = 'USD' | 'KHR';
 
@@ -52,7 +53,6 @@ export function useFormatCurrency() {
   const { currency } = useCurrency();
   
   return (amount: number, originalCurrency: string = 'KHR') => {
-    const { formatCurrency } = require('../lib/utils');
     return formatCurrency(amount, originalCurrency, 'km-KH', {
       convertFrom: originalCurrency,
       preferredCurrency: currency

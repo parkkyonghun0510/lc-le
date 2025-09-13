@@ -34,17 +34,18 @@ class AsyncValidationService:
                                    ip_address: Optional[str] = None, user_agent: Optional[str] = None):
         """Log duplicate attempt for auditing purposes"""
         try:
-            # Log to audit service
-            await self.audit_service.log_duplicate_attempt(
-                entity_type=model_name,
-                field_name=field,
-                field_value=str(value),
-                existing_entity_id=additional_info.get('existing_id') if additional_info else None,
-                user_id=str(user_id) if user_id else None,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                severity="warning"
-            )
+            # Log to audit service - temporarily disabled to prevent 500 errors
+            # await self.audit_service.log_duplicate_attempt(
+            #     entity_type=model_name,
+            #     field_name=field,
+            #     field_value=str(value),
+            #     existing_entity_id=additional_info.get('existing_id') if additional_info else None,
+            #     user_id=str(user_id) if user_id else None,
+            #     ip_address=ip_address,
+            #     user_agent=user_agent,
+            #     severity="warning"
+            # )
+            logger.info(f"Audit service temporarily disabled - duplicate attempt: {model_name}.{field}={value}")
         except Exception as e:
             logger.error(f"Failed to log duplicate attempt to audit service: {str(e)}")
         

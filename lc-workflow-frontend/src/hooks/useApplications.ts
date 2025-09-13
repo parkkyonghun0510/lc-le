@@ -1,53 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { CustomerApplication, CustomerApplicationCreate } from '@/types/models';
-
-export interface Application {
-  id: string;
-  user_id: string;
-  status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected';
-  
-  // Borrower Information
-  id_card_type?: string;
-  id_number?: string;
-  full_name_khmer?: string;
-  full_name_latin?: string;
-  phone?: string;
-  date_of_birth?: string;
-  portfolio_officer_name?: string;
-  
-  // Loan Details
-  requested_amount?: number;
-  loan_purposes?: string[];
-  purpose_details?: string;
-  product_type?: string;
-  desired_loan_term?: number;
-  loan_term_duration?: string;
-  loan_term_frequency?: string;
-  requested_disbursement_date?: string;
-  
-  // Guarantor Information
-  guarantor_name?: string;
-  guarantor_phone?: string;
-  
-  // Additional data
-  collaterals?: any[];
-  documents?: any[];
-  
-  // Metadata
-  created_at: string;
-  updated_at: string;
-  submitted_at?: string;
-  approved_at?: string;
-  approved_by?: string;
-  rejected_at?: string;
-  rejected_by?: string;
-  rejection_reason?: string;
-}
+import { 
+  CustomerApplication, 
+  CustomerApplicationCreate, 
+  CustomerApplicationUpdate,
+  WorkflowStatusInfo,
+  WorkflowHistoryEntry,
+  WorkflowTransitionRequest,
+  ApprovalData,
+  WorkflowStatus
+} from '@/types/models';
 
 export interface ApplicationsResponse {
-  items: Application[];
+  items: CustomerApplication[];
   total: number;
   page: number;
   size: number;
@@ -57,6 +23,7 @@ export interface ApplicationsResponse {
 export interface ApplicationFilters {
   search?: string;
   status?: string;
+  workflow_status?: WorkflowStatus;
   page?: number;
   size?: number;
   amount_min?: number;
@@ -75,21 +42,32 @@ export const useApplications = (filters: ApplicationFilters = {}) => {
       
       if (filters.search) params.append('search', filters.search);
       if (filters.status) params.append('status', filters.status);
+      if (filters.workflow_status) params.append('workflow_status', filters.workflow_status);
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.size) params.append('size', filters.size.toString());
+      if (filters.amount_min) params.append('amount_min', filters.amount_min.toString());
+      if (filters.amount_max) params.append('amount_max', filters.amount_max.toString());
+      if (filters.date_from) params.append('date_from', filters.date_from);
+      if (filters.date_to) params.append('date_to', filters.date_to);
+      if (filters.officer_id) params.append('officer_id', filters.officer_id);
       
       return apiClient.get<ApplicationsResponse>(`/applications/?${params.toString()}`);  // Added generic type parameter
     },
-    staleTime: 30000, // 30 seconds
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 };
 
 // Get single application
 export const useApplication = (id: string) => {
-  return useQuery<Application>({  // Explicit type parameter
+  return useQuery<CustomerApplication>({
     queryKey: ['application', id],
-    queryFn: () => apiClient.get<Application>(`/applications/${id}`),  // Added generic type parameter
+    queryFn: () => apiClient.get<CustomerApplication>(`/applications/${id}`),
     enabled: !!id,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -115,9 +93,9 @@ export const useCreateApplication = () => {
 export const useUpdateApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Application, Error, { id: string; data: Partial<Application> }>({  // Added explicit type parameters
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Application> }) => {
-      return apiClient.put<Application>(`/applications/${id}`, data);  // Added generic type parameter
+  return useMutation<CustomerApplication, Error, { id: string; data: CustomerApplicationUpdate }>({
+    mutationFn: async ({ id, data }: { id: string; data: CustomerApplicationUpdate }) => {
+      return apiClient.put<CustomerApplication>(`/applications/${id}`, data);
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -134,9 +112,9 @@ export const useUpdateApplication = () => {
 export const useSubmitApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Application, Error, string>({  // Added explicit type parameters
+  return useMutation<CustomerApplication, Error, string>({
     mutationFn: async (id: string) => {
-      return apiClient.patch<Application>(`/applications/${id}/submit`, {});  // Added generic type parameter
+      return apiClient.patch<CustomerApplication>(`/applications/${id}/submit`, {});
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -153,9 +131,9 @@ export const useSubmitApplication = () => {
 export const useApproveApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Application, Error, string>({  // Added explicit type parameters
-    mutationFn: async (id: string) => {
-      return apiClient.patch<Application>(`/applications/${id}/approve`, {});  // Added generic type parameter
+  return useMutation<CustomerApplication, Error, { id: string; data: ApprovalData }>({
+    mutationFn: async ({ id, data }: { id: string; data: ApprovalData }) => {
+      return apiClient.patch<CustomerApplication>(`/applications/${id}/approve`, data);
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -172,9 +150,9 @@ export const useApproveApplication = () => {
 export const useRejectApplication = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Application, Error, { id: string; reason: string }>({  // Added explicit type parameters
+  return useMutation<CustomerApplication, Error, { id: string; reason: string }>({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      return apiClient.patch<Application>(`/applications/${id}/reject`, { rejection_reason: reason });  // Added generic type parameter
+      return apiClient.patch<CustomerApplication>(`/applications/${id}/reject`, { rejection_reason: reason });
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -207,9 +185,56 @@ export const useDeleteApplication = () => {
 
 // Get application statistics
 export const useApplicationStats = () => {
-  return useQuery<any>({  // Added explicit type parameter, using 'any' as we don't know the exact type
+  return useQuery<any>({
     queryKey: ['application-stats'],
-    queryFn: () => apiClient.get<any>('/applications/stats'),  // Added generic type parameter
-    staleTime: 60000, // 1 minute
+    queryFn: () => apiClient.get<any>('/applications/stats'),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Get workflow status for an application
+export const useWorkflowStatus = (id: string) => {
+  return useQuery<WorkflowStatusInfo>({
+    queryKey: ['workflow-status', id],
+    queryFn: () => apiClient.get<WorkflowStatusInfo>(`/applications/${id}/workflow/status`),
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Get workflow history for an application
+export const useWorkflowHistory = (id: string) => {
+  return useQuery<WorkflowHistoryEntry[]>({
+    queryKey: ['workflow-history', id],
+    queryFn: () => apiClient.get<WorkflowHistoryEntry[]>(`/applications/${id}/workflow/history`),
+    enabled: !!id,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Perform workflow transition
+export const useWorkflowTransition = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<CustomerApplication, Error, { id: string; data: WorkflowTransitionRequest }>({
+    mutationFn: async ({ id, data }: { id: string; data: WorkflowTransitionRequest }) => {
+      return apiClient.post<CustomerApplication>(`/applications/${id}/workflow/transition`, data);
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-status', id] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-history', id] });
+      toast.success('បានធ្វើការផ្លាស់ប្តូរស្ថានភាពដោយជោគជ័យ');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'មានបញ្ហាក្នុងការផ្លាស់ប្តូរស្ថានភាព');
+    },
   });
 };

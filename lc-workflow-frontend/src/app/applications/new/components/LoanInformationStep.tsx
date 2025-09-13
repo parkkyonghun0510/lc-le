@@ -45,7 +45,7 @@ export const LoanInformationStep: React.FC<LoanInformationStepProps> = ({
           value={formValues.product_type}
           onChange={onInputChange}
           options={productTypes?.map(type => ({ value: type.value, label: type.label })) || []}
-          placeholder="Select product type"
+          placeholder="ជ្រើសរើសប្រភេទ ផលិតផល"
           icon={BuildingOfficeIcon}
           disabled={isLoadingProductTypes}
           required

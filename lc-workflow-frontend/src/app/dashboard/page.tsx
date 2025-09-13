@@ -25,11 +25,15 @@ import {
   CurrencyDollarIcon,
   PhoneIcon,
   UserIcon,
-  PlusIcon
+  PlusIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatBytes, formatDate } from '@/lib/utils';
 import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 import { CurrencyToggle } from '@/components/ui/CurrencyToggle';
+import { useProductTypes } from '@/hooks/useEnums'; 
+
+
 import Link from 'next/link';
 
 function DashboardContent() {
@@ -39,6 +43,8 @@ function DashboardContent() {
   const { data: recentApplications, isLoading: appsLoading } = useRecentApplications(5);
   const { data: activityTimeline, isLoading: activityLoading } = useActivityTimeline(7);
   const { data: performanceMetrics, isLoading: metricsLoading } = usePerformanceMetrics();
+
+   const productTypes = useProductTypes();
 
   const stats = [
     {
@@ -198,6 +204,8 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+
+
 
           {/* Main Stats Grid */}
           <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -419,6 +427,22 @@ function DashboardContent() {
                                           <PhoneIcon className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                                         </div>
                                         <span>{app.phone}</span>
+                                      </div>
+                                    )}
+                                    {app.account_id && (
+                                      <div className="flex items-center text-gray-600 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
+                                        <div className="w-5 h-5 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-2">
+                                          <UserIcon className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <span>{app.account_id}</span>
+                                      </div>
+                                    )}
+                                    {app.product_type && (
+                                      <div className="flex items-center text-gray-600 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
+                                        <div className="w-5 h-5 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center mr-2">
+                                          <TagIcon className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                                        </div>
+                                        <span>{productTypes.getLabel(app.product_type) || 'មិនបានបញ្ជាក់'}</span>
                                       </div>
                                     )}
                                     {app.portfolio_officer_name && (

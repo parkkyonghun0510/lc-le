@@ -38,7 +38,7 @@ import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import { formatCurrency, formatDateDOB, formatDate } from '@/lib/utils';
 import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 import Link from 'next/link';
-import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
+
 
 const statusConfig = {
   draft: { 
@@ -121,8 +121,19 @@ function ApplicationDetailContent() {
   const [previewFile, setPreviewFile] = useState<ApiFile | null>(null);
   const [previewList, setPreviewList] = useState<ApiFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
-  const productTypes = useProductTypes();
-  const idCardTypes = useIDCardTypes();
+  // TODO: Replace with static options or new data source
+  const productTypes = { 
+    data: [], 
+    isLoading: false, 
+    error: null,
+    getLabel: (value: string | null | undefined) => value || null
+  };
+  const idCardTypes = { 
+    data: [], 
+    isLoading: false, 
+    error: null,
+    getLabel: (value: string | null | undefined) => value || null
+  };
 
   const isImageFile = (f: ApiFile) => {
     const byMime = typeof f.mime_type === 'string' && f.mime_type.toLowerCase().startsWith('image/');
@@ -241,7 +252,14 @@ function ApplicationDetailContent() {
   };
 
   const handleApprove = () => {
-    approveMutation.mutate(applicationId);
+    approveMutation.mutate({ 
+      id: applicationId, 
+      data: {
+        approved_amount: application?.requested_amount || 0,
+        approved_term: application?.desired_loan_term || 12,
+        interest_rate: 1.5 // Default interest rate
+      }
+    });
   };
 
   const handleReject = () => {
@@ -543,7 +561,7 @@ function ApplicationDetailContent() {
                               <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Loan Term</p>
                               <div className="h-1 w-1 bg-blue-400 rounded-full"></div>
                             </div>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-3 font-medium">រយៈពេលកម្ចី</p>
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-3 font-medium">ចំនួនបង់(ដង)</p>
                             <p className="text-lg font-bold text-gray-900 dark:text-white">
                               {application.desired_loan_term || 'មិនបានបញ្ជាក់'}
                             </p>

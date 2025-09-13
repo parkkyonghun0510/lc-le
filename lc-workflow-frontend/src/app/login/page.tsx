@@ -35,14 +35,14 @@ export default function LoginPage() {
           <div className="flex justify-end mb-4">
             <ThemeToggle />
           </div>
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight ">
           Sign in to your account
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-center text-sm ">
           LC Workflow Management System
         </p>
         {login.isError && (
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-md">
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-600 dark:text-red-300">
               {typeof login.error?.response?.data?.detail === 'string' 
                 ? login.error.response.data.detail 

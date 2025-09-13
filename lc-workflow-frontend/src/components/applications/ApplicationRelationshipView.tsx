@@ -14,13 +14,19 @@ import {
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
+import { WorkflowStatusTracker } from './WorkflowStatusTracker';
+import { WorkflowActions } from './WorkflowActions';
+import { WorkflowHistory } from './WorkflowHistory';
+import { CustomerApplication } from '@/types/models';
+import { useProductTypes } from '@/hooks/useEnums';
 
 interface ApplicationRelationshipViewProps {
-  application: any;
+  application: CustomerApplication;
   officer?: any;
   manager?: any;
   department?: any;
   branch?: any;
+  userRole?: string;
 }
 
 function ApplicationRelationshipContent({
@@ -28,18 +34,20 @@ function ApplicationRelationshipContent({
   officer,
   manager,
   department,
-  branch
+  branch,
+  userRole
 }: ApplicationRelationshipViewProps) {
   const formatCurrencyWithConversion = useFormatCurrency();
+  const productTypes = useProductTypes();
   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'text-green-600 bg-green-50 border-green-200';
-      case 'rejected': return 'text-red-600 bg-red-50 border-red-200';
-      case 'submitted': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'pending': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'under_review': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'draft': return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'APPROVED': return 'text-green-600 bg-green-50 border-green-200';
+      case 'REJECTED': return 'text-red-600 bg-red-50 border-red-200';
+      case 'USER_COMPLETED': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'TELLER_PROCESSING': return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'MANAGER_REVIEW': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'PO_CREATED': return 'text-gray-600 bg-gray-50 border-gray-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
@@ -177,23 +185,7 @@ function ApplicationRelationshipContent({
               </div>
             )}
             
-            {application.occupation && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">មុខរបរ:</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {application.occupation}
-                </span>
-              </div>
-            )}
-            
-            {application.monthly_income && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">ប្រាក់ចំណូលខែ:</span>
-                <span className="text-sm font-medium text-green-600">
-                  {formatCurrencyWithConversion(application.monthly_income, 'KHR')}
-                </span>
-              </div>
-            )}
+            {/* Occupation and monthly income fields removed as they're not in CustomerApplication interface */}
           </div>
         </div>
 
@@ -219,28 +211,21 @@ function ApplicationRelationshipContent({
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">ប្រភេទផលិតផល:</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {application.product_type}
+                  {productTypes?.data?.find(type => type.value === application.product_type)?.label || application.product_type}
                 </span>
               </div>
             )}
             
             {application.desired_loan_term && (
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">រយៈពេល:</span>
+                <span className="text-sm text-gray-600">ចំនួនបង់(ដង)</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {application.desired_loan_term}
+                  {application.desired_loan_term || 1}
                 </span>
               </div>
             )}
             
-            {application.interest_rate && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">អត្រាការប្រាក់:</span>
-                <span className="text-sm font-medium text-blue-600">
-                  {application.interest_rate}% ក្នុងមួយឆ្នាំ
-                </span>
-              </div>
-            )}
+            {/* Interest rate field removed as it's not in CustomerApplication interface */}
             
             {application.loan_purposes && application.loan_purposes.length > 0 && (
               <div>
@@ -261,38 +246,31 @@ function ApplicationRelationshipContent({
         </div>
       </div>
 
-      {/* Status and Risk Assessment */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Current Status */}
-        <div className="text-center">
-          <div className={`inline-flex items-center px-4 py-2 rounded-full border ${getStatusColor(application.status)}`}>
-            <ClockIcon className="w-4 h-4 mr-2" />
-            {application.status?.toUpperCase()}
-          </div>
-          <p className="text-sm text-gray-600 mt-2">ស្ថានភាពបច្ចុប្បន្ន</p>
-        </div>
-
-        {/* Risk Assessment */}
-        {application.risk_category && (
-          <div className="text-center">
-            <div className={`inline-flex items-center px-4 py-2 rounded-full ${getRiskColor(application.risk_category)}`}>
-              <ShieldCheckIcon className="w-4 h-4 mr-2" />
-              {application.risk_category?.toUpperCase()} RISK
-            </div>
-            <p className="text-sm text-gray-600 mt-2">កម្រិតហានិភ័យ</p>
-          </div>
-        )}
-
-        {/* Credit Score */}
-        {application.credit_score && (
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {application.credit_score}
-            </div>
-            <p className="text-sm text-gray-600">ពិន្ទុឥណទាន</p>
-          </div>
-        )}
+      {/* Workflow Status Tracker */}
+      <div className="mb-8">
+        <WorkflowStatusTracker 
+          currentStatus={application.workflow_status}
+          userCompletedAt={application.user_completed_at}
+          tellerProcessingAt={application.teller_processing_at}
+          managerApprovedAt={application.approved_at}
+          rejectedAt={application.rejected_at}
+          rejectedBy={application.rejected_by}
+          rejectionReason={application.rejection_reason}
+          className="bg-white rounded-lg shadow-sm border"
+        />
       </div>
+
+      {/* Workflow Actions */}
+      {userRole && (
+        <div className="mb-8">
+          <WorkflowActions 
+            applicationId={application.id}
+            currentStatus={application.workflow_status}
+            userRole={userRole}
+            className="bg-white rounded-lg shadow-sm border p-6"
+          />
+        </div>
+      )}
 
       {/* Guarantor Information */}
       {(application.guarantor_name || application.guarantor_phone) && (
@@ -321,78 +299,17 @@ function ApplicationRelationshipContent({
               </div>
             )}
             
-            {application.guarantor_relationship && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">ទំនាក់ទំនង:</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {application.guarantor_relationship}
-                </span>
-              </div>
-            )}
-            
-            {application.guarantor_id_number && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">អត្តសញ្ញាណប័ណ្ណ:</span>
-                <span className="text-sm font-medium text-gray-900 font-mono">
-                  {application.guarantor_id_number}
-                </span>
-              </div>
-            )}
+            {/* Guarantor relationship and ID fields removed as they're not in CustomerApplication interface */}
           </div>
         </div>
       )}
 
-      {/* Timeline */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <ClockIcon className="w-5 h-5 mr-2 text-gray-600" />
-          ប្រវត្តិការណ៍
-        </h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-3 h-3 bg-blue-600 rounded-full mt-1"></div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">បង្កើតពាក្យសុំ</p>
-              <p className="text-xs text-gray-500">{formatDate(application.created_at)}</p>
-            </div>
-          </div>
-
-          {application.submitted_at && (
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-3 h-3 bg-yellow-600 rounded-full mt-1"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">ដាក់ស្នើ</p>
-                <p className="text-xs text-gray-500">{formatDate(application.submitted_at)}</p>
-              </div>
-            </div>
-          )}
-
-          {application.approved_at && (
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-3 h-3 bg-green-600 rounded-full mt-1"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">អនុម័ត</p>
-                <p className="text-xs text-gray-500">{formatDate(application.approved_at)}</p>
-              </div>
-            </div>
-          )}
-
-          {application.rejected_at && (
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-3 h-3 bg-red-600 rounded-full mt-1"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">បដិសេធ</p>
-                <p className="text-xs text-gray-500">{formatDate(application.rejected_at)}</p>
-                {application.rejection_reason && (
-                  <p className="text-xs text-red-600 mt-1 bg-red-50 p-2 rounded">
-                    មូលហេតុ: {application.rejection_reason}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Workflow History */}
+      <div className="mb-8">
+        <WorkflowHistory 
+          applicationId={application.id}
+          className="bg-white rounded-lg shadow-sm border"
+        />
       </div>
 
       {/* Documents Summary */}

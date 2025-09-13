@@ -8,6 +8,9 @@ interface GuarantorInformationStepProps {
   formValues: {
     guarantor_name: string;
     guarantor_phone: string;
+    guarantor_id_number?: string;
+    guarantor_address?: string;
+    guarantor_relationship?: string;
   };
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -38,6 +41,36 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
           placeholder="Enter guarantor phone number"
           icon={PhoneIcon}
           required
+        />
+
+        <FormField
+          label="Guarantor ID Number"
+          name="guarantor_id_number"
+          type="text"
+          value={formValues.guarantor_id_number || ''}
+          onChange={onInputChange}
+          placeholder="Enter guarantor ID number"
+          icon={UserIcon}
+        />
+
+        <FormField
+          label="Guarantor Address"
+          name="guarantor_address"
+          type="text"
+          value={formValues.guarantor_address || ''}
+          onChange={onInputChange}
+          placeholder="Enter guarantor address"
+          icon={UserGroupIcon}
+        />
+
+        <FormField
+          label="Relationship to Applicant"
+          name="guarantor_relationship"
+          type="text"
+          value={formValues.guarantor_relationship || ''}
+          onChange={onInputChange}
+          placeholder="e.g., Spouse, Parent, Friend"
+          icon={UserGroupIcon}
         />
       </div>
 

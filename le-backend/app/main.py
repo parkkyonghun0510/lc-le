@@ -9,7 +9,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.database import engine, Base
 from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
-from app.routers import folders, customers, enums, selfies, validation
+from app.routers import folders, customers, enums, selfies, validation, account_validation
 from app.routers import settings as settings_router
 from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
@@ -70,6 +70,7 @@ app.include_router(positions.router, prefix="/api/v1/positions", tags=["position
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
+app.include_router(account_validation.router, prefix="/api/v1", tags=["account-validation"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")

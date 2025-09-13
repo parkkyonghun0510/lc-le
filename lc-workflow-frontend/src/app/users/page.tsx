@@ -45,7 +45,13 @@ export default function UsersPage() {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      deleteUser.mutate(id);
+      try {
+        await deleteUser.mutateAsync(id);
+        // Force refresh the users list
+        window.location.reload();
+      } catch (error) {
+        console.error('Delete failed:', error);
+      }
     }
   };
 
@@ -303,7 +309,8 @@ export default function UsersPage() {
                             </button>
                             <button
                               onClick={() => handleDelete(user.id)}
-                              className="text-red-600 hover:text-red-900 p-1"
+                              disabled={deleteUser.isPending}
+                              className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Delete User"
                             >
                               <Trash2 className="h-4 w-4" />

@@ -7,14 +7,14 @@ import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplication, useUpdateApplication } from '@/hooks/useApplications';
 import { useUploadFile } from '@/hooks/useFiles';
-import { useIDCardTypes, useProductTypes } from '@/hooks/useEnums';
+
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
-import { 
-  ArrowLeftIcon, 
-  CalendarIcon, 
-  CheckCircleIcon, 
-  UserIcon, 
-  CurrencyDollarIcon, 
+import {
+  ArrowLeftIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  UserIcon,
+  CurrencyDollarIcon,
   DocumentTextIcon,
   ShieldCheckIcon,
   PhotoIcon,
@@ -28,8 +28,11 @@ export default function EditApplicationPage() {
   const applicationId = params.id as string;
 
   const { data: application, isLoading, error } = useApplication(applicationId);
-  const { data: idCardTypes, isLoading: isLoadingIdCardTypes } = useIDCardTypes();
-  const { data: productTypes, isLoading: isLoadingProductTypes } = useProductTypes();
+  // TODO: Replace with static options or new data source
+  const idCardTypes: Array<{key: string; value: string; value_khmer?: string}> = [];
+  const isLoadingIdCardTypes = false;
+  const productTypes: Array<{key: string; value: string; value_khmer?: string}> = [];
+  const isLoadingProductTypes = false;
   const updateMutation = useUpdateApplication();
   const uploadMutation = useUploadFile();
 
@@ -44,6 +47,7 @@ export default function EditApplicationPage() {
     requested_amount: '',
     product_type: '',
     desired_loan_term: 0,
+    accountId: '',
     requested_disbursement_date: '',
     purpose_details: '',
     guarantor_name: '',
@@ -51,14 +55,14 @@ export default function EditApplicationPage() {
     loan_purposes: [] as string[],
     collaterals: [] as any[],
   });
-  
+
   const docDefs = [
     { id: 'borrower_photo', label: 'រូបថតអ្នកខ្ចី', role: 'borrower' },
     { id: 'borrower_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (មុខ)', role: 'borrower' },
-    { id: 'borrower_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (ក្រោយ)', role: 'borrower' },
+    // { id: 'borrower_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (ក្រោយ)', role: 'borrower' },
     { id: 'guarantor_photo', label: 'រូបថតអ្នកធានា', role: 'guarantor' },
     { id: 'guarantor_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (មុខ)', role: 'guarantor' },
-    { id: 'guarantor_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (ក្រោយ)', role: 'guarantor' },
+    // { id: 'guarantor_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (ក្រោយ)', role: 'guarantor' },
     { id: 'driver_license', label: 'បណ្ណបើកបរ', role: 'borrower' },
     { id: 'passport', label: 'លិខិតឆ្លងដែន', role: 'borrower' },
     { id: 'business_license', label: 'អាជ្ញាបណ្ណអាជីវកម្ម', role: 'borrower' },
@@ -66,7 +70,7 @@ export default function EditApplicationPage() {
     { id: 'house_photo', label: 'រូបផ្ទះ', role: 'collateral' },
     { id: 'collateral_other', label: 'បញ្ចាំផ្សេងៗ', role: 'collateral' },
   ];
-  
+
   const [selectedDocs, setSelectedDocs] = useState<Record<string, boolean>>({});
   const [docFiles, setDocFiles] = useState<Record<string, File[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -89,12 +93,13 @@ export default function EditApplicationPage() {
       requested_amount: application.requested_amount?.toString() || '',
       product_type: application.product_type || '',
       desired_loan_term: application.desired_loan_term || 1,
-       requested_disbursement_date: application.requested_disbursement_date ? application.requested_disbursement_date.slice(0, 10) : '',
-        purpose_details: application.purpose_details || '',
-        guarantor_name: application.guarantor_name || '',
-        guarantor_phone: application.guarantor_phone || '',
-       loan_purposes: Array.isArray(application.loan_purposes) ? application.loan_purposes : [],
-       collaterals: Array.isArray(application.collaterals) ? application.collaterals : []
+      requested_disbursement_date: application.requested_disbursement_date ? application.requested_disbursement_date.slice(0, 10) : '',
+      purpose_details: application.purpose_details || '',
+      guarantor_name: application.guarantor_name || '',
+      guarantor_phone: application.guarantor_phone || '',
+      accountId: application.account_id || '',
+      loan_purposes: Array.isArray(application.loan_purposes) ? application.loan_purposes : [],
+      collaterals: Array.isArray(application.collaterals) ? application.collaterals : []
     });
   }, [application]);
 
@@ -108,6 +113,7 @@ export default function EditApplicationPage() {
       requested_amount: formData.requested_amount ? parseFloat(formData.requested_amount) : undefined,
       desired_loan_term: formData.desired_loan_term ? Number(formData.desired_loan_term) : undefined,
       date_of_birth: formData.date_of_birth || undefined,
+      account_id: formData.accountId || undefined,
       requested_disbursement_date: formData.requested_disbursement_date || undefined,
     };
     // Remove empty strings to avoid overwriting with blanks
@@ -125,10 +131,10 @@ export default function EditApplicationPage() {
           const f = files[i];
           const key = `${def.id}-${i}-${f.name}`;
           setUploadProgress(prev => ({ ...prev, [key]: 0 }));
-          const uploaded = await uploadMutation.mutateAsync({ 
-            file: f, 
+          const uploaded = await uploadMutation.mutateAsync({
+            file: f,
             applicationId,
-            onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [key]: p })) 
+            onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [key]: p }))
           });
           uploads.push({
             type: def.id,
@@ -191,11 +197,11 @@ export default function EditApplicationPage() {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">រកមិនឃើញពាក្យសុំ</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-8">ពាក្យសុំដែលអ្នកកំពុងស្វែងរកមិនអាចរកឃើញទេ។</p>
-              <Link 
-                href={`/applications/${applicationId}`} 
+              <Link
+                href={`/applications/${applicationId}`}
                 className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-lg hover:shadow-xl"
               >
-                <ArrowLeftIcon className="w-5 h-5 mr-2" /> 
+                <ArrowLeftIcon className="w-5 h-5 mr-2" />
                 ត្រលប់ទៅកាន់ពាក្យសុំ
               </Link>
             </div>
@@ -213,8 +219,8 @@ export default function EditApplicationPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-4">
-                <button 
-                  onClick={() => router.back()} 
+                <button
+                  onClick={() => router.back()}
                   className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
                 >
                   <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -253,51 +259,53 @@ export default function EditApplicationPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ឈ្មោះជាភាសាខ្មែរ</label>
-                      <input 
-                        value={formData.full_name_khmer} 
-                        onChange={(e) => handleChange('full_name_khmer', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        value={formData.full_name_khmer}
+                        onChange={(e) => handleChange('full_name_khmer', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="បញ្ចូលឈ្មោះជាភាសាខ្មែរ"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ឈ្មោះជាអក្សរឡាតាំង</label>
-                      <input 
-                        value={formData.full_name_latin} 
-                        onChange={(e) => handleChange('full_name_latin', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        value={formData.full_name_latin}
+                        onChange={(e) => handleChange('full_name_latin', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="Enter name in Latin"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខទូរស័ព្ទ</label>
-                      <input 
-                        value={formData.phone} 
-                        onChange={(e) => handleChange('phone', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        value={formData.phone}
+                        onChange={(e) => handleChange('phone', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="012 345 678"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</label>
-                      <select 
-                        value={formData.id_card_type} 
-                        onChange={(e) => handleChange('id_card_type', e.target.value)} 
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទប័ណ្ណ</label>
+                      <select
+                        value={formData.id_card_type}
+                        onChange={(e) => handleChange('id_card_type', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         disabled={isLoadingIdCardTypes}
                       >
-                        <option value="">Select ID Card Type</option>
+                        <option value="">ជ្រើសរើសប្រភេទប័ណ្ណ</option>
                         {idCardTypes?.map((type) => (
-                           <option key={type.value} value={type.value}>{type.label}</option>
-                         ))}
+                          <option key={type.value} value={type.value}>{type.value_khmer || type.value}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខអត្តសញ្ញាណប័ណ្ណ</label>
-                      <input 
-                        value={formData.id_number} 
-                        onChange={(e) => handleChange('id_number', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{idCardTypes?.find(type => type.value === formData.id_card_type)?.value_khmer || idCardTypes?.find(type => type.value === formData.id_card_type)?.value}</label>
+                    
+                      <input
+                        value={formData.id_number}
+                        onChange={(e) => handleChange('id_number', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder={idNumberPlaceholder}
                       />
                     </div>
@@ -305,11 +313,11 @@ export default function EditApplicationPage() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ថ្ងៃខែឆ្នាំកំណើត</label>
                       <div className="relative">
                         <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <input 
-                          type="date" 
-                          value={formData.date_of_birth} 
-                          onChange={(e) => handleChange('date_of_birth', e.target.value)} 
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        <input
+                          type="date"
+                          value={formData.date_of_birth}
+                          onChange={(e) => handleChange('date_of_birth', e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         />
                       </div>
                     </div>
@@ -332,62 +340,73 @@ export default function EditApplicationPage() {
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
+
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ប្រភេទផលិតផល</label>
-                      <select 
-                        value={formData.product_type} 
-                        onChange={(e) => handleChange('product_type', e.target.value)} 
+                      <select
+                        value={formData.product_type}
+                        onChange={(e) => handleChange('product_type', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         disabled={isLoadingProductTypes}
                       >
-                        <option value="">Select product type</option>
+                        <option value="">ជ្រើសរើសប្រភេទផលិតផល</option>
                         {productTypes?.map((type) => (
                           <option key={type.value} value={type.value}>
-                            {type.label}
+                            {type.value_khmer || type.value}
                           </option>
                         ))}
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">រយៈពេលកម្ចី</label>
-                      <input 
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ចំនួនបង់(ដង)</label>
+                      <input
                         type="number"
                         min="1"
                         max="360"
-                        value={formData.desired_loan_term} 
-                        onChange={(e) => handleChange('desired_loan_term', Math.max(1, Number(e.target.value) || 1))} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                        value={formData.desired_loan_term}
+                        onChange={(e) => handleChange('desired_loan_term', Math.max(1, Number(e.target.value) || 1))}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="12 ខែ"
                       />
                     </div>
                     <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខគណនីកម្ចី (PMS Account Id)</label>
+                      <input
+                        type="number"
+                        maxLength={8}
+                        value={formData.accountId}
+                        onChange={(e) => handleChange('accountId', e.target.value)} 
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                        placeholder="0XXXXXXX"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛)</label>
-                      <input 
-                        type="number" 
-                        value={formData.requested_amount} 
-                        onChange={(e) => handleChange('requested_amount', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        type="number"
+                        value={formData.requested_amount}
+                        onChange={(e) => handleChange('requested_amount', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="1,000,000"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">កាលបរិច្ឆេទចង់បានប្រាក់</label>
-                      <input 
-                        type="date" 
-                        value={formData.requested_disbursement_date} 
-                        onChange={(e) => handleChange('requested_disbursement_date', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        type="date"
+                        value={formData.requested_disbursement_date}
+                        onChange={(e) => handleChange('requested_disbursement_date', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                       />
                     </div>
                   </div>
                   <div className="mt-6 space-y-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ព័ត៌មានលម្អិតអំពីគោលបំណង</label>
-                    <textarea 
-                      rows={4} 
-                      value={formData.purpose_details} 
-                      onChange={(e) => handleChange('purpose_details', e.target.value)} 
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                    <textarea
+                      rows={4}
+                      value={formData.purpose_details}
+                      onChange={(e) => handleChange('purpose_details', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                       placeholder="បញ្ជាក់ពីគោលបំណងនៃការប្រើប្រាស់ប្រាក់កម្ចី..."
                     />
                   </div>
@@ -411,19 +430,19 @@ export default function EditApplicationPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ឈ្មោះអ្នកធានា</label>
-                      <input 
-                        value={formData.guarantor_name} 
-                        onChange={(e) => handleChange('guarantor_name', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        value={formData.guarantor_name}
+                        onChange={(e) => handleChange('guarantor_name', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="បញ្ចូលឈ្មោះអ្នកធានា"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខទូរស័ព្ទអ្នកធានា</label>
-                      <input 
-                        value={formData.guarantor_phone} 
-                        onChange={(e) => handleChange('guarantor_phone', e.target.value)} 
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200" 
+                      <input
+                        value={formData.guarantor_phone}
+                        onChange={(e) => handleChange('guarantor_phone', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                         placeholder="012 345 678"
                       />
                     </div>
@@ -607,9 +626,9 @@ export default function EditApplicationPage() {
               {/* Action Buttons */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex flex-col space-y-4">
-                  <button 
-                    onClick={handleSave} 
-                    disabled={updateMutation.isPending || uploadMutation.isPending} 
+                  <button
+                    onClick={handleSave}
+                    disabled={updateMutation.isPending || uploadMutation.isPending}
                     className="w-full inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
                   >
                     {(updateMutation.isPending || uploadMutation.isPending) ? (
@@ -624,8 +643,8 @@ export default function EditApplicationPage() {
                       </>
                     )}
                   </button>
-                  <button 
-                    onClick={() => router.push(`/applications/${applicationId}`)} 
+                  <button
+                    onClick={() => router.push(`/applications/${applicationId}`)}
                     className="w-full inline-flex items-center justify-center px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 font-medium"
                   >
                     <ArrowLeftIcon className="w-5 h-5 mr-2" />

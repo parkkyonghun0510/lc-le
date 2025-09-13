@@ -16,7 +16,11 @@ from app.schemas import (
     PaginatedResponse,
     RejectionRequest,
     BaseSchema,
+    WorkflowTransitionRequest,
+    WorkflowStatusInfo,
+    ApplicationWorkflowResponse,
 )
+from app.workflow import WorkflowValidator, WorkflowStatus
 from app.routers.auth import get_current_user
 
 router = APIRouter()
@@ -29,7 +33,10 @@ async def create_application(
 ) -> CustomerApplicationResponse:
     db_application = CustomerApplication(
         **application.model_dump(exclude_unset=True),
-        user_id=current_user.id
+        user_id=current_user.id,
+        workflow_status=WorkflowStatus.PO_CREATED,
+        po_created_at=datetime.utcnow(),
+        po_created_by=current_user.id
     )
     db.add(db_application)
     await db.commit()
@@ -62,17 +69,19 @@ async def list_applications(
         selectinload(CustomerApplication.reviewer)
     )
     
-    # Apply filters based on user role
+    # Apply filters based on user role - optimized to avoid subqueries
     if current_user.role == "officer":
         query = query.where(CustomerApplication.user_id == current_user.id)
     elif current_user.role == "manager":
-        # Managers can see applications from their department/branch
+        # Managers can see applications from their department/branch - use joins instead of subqueries
         if current_user.department_id:
-            dept_users = select(User.id).where(User.department_id == current_user.department_id)
-            query = query.where(CustomerApplication.user_id.in_(dept_users))
+            query = query.join(User, CustomerApplication.user_id == User.id).where(
+                User.department_id == current_user.department_id
+            )
         elif current_user.branch_id:
-            branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
-            query = query.where(CustomerApplication.user_id.in_(branch_users))
+            query = query.join(User, CustomerApplication.user_id == User.id).where(
+                User.branch_id == current_user.branch_id
+            )
     # Admins can see all applications
     
     # Apply filters
@@ -117,8 +126,8 @@ async def list_applications(
             )
         )
     
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
+    # Count total - optimized to avoid subquery
+    count_query = query.with_only_columns(func.count(CustomerApplication.id))
     total_result = await db.execute(count_query)
     total = total_result.scalar()
     
@@ -159,16 +168,18 @@ async def get_customer_cards(
         selectinload(CustomerApplication.user)
     )
     
-    # Apply role-based filtering (same as list_applications)
+    # Apply role-based filtering - optimized to avoid subqueries
     if current_user.role == "officer":
         query = query.where(CustomerApplication.user_id == current_user.id)
     elif current_user.role == "manager":
         if current_user.department_id:
-            dept_users = select(User.id).where(User.department_id == current_user.department_id)
-            query = query.where(CustomerApplication.user_id.in_(dept_users))
+            query = query.join(User, CustomerApplication.user_id == User.id).where(
+                User.department_id == current_user.department_id
+            )
         elif current_user.branch_id:
-            branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
-            query = query.where(CustomerApplication.user_id.in_(branch_users))
+            query = query.join(User, CustomerApplication.user_id == User.id).where(
+                User.branch_id == current_user.branch_id
+            )
     
     # Apply filters
     if status:
@@ -189,8 +200,8 @@ async def get_customer_cards(
             )
         )
     
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
+    # Count total - optimized to avoid subquery
+    count_query = query.with_only_columns(func.count(CustomerApplication.id))
     total_result = await db.execute(count_query)
     total = total_result.scalar()
     
@@ -325,6 +336,78 @@ async def update_application(
     for field, value in update_data.items():
         setattr(application, field, value)
     
+    # Handle workflow transitions based on user role and current status
+    if current_user.role == "user" and application.workflow_status == WorkflowStatus.PO_CREATED:
+        # User completing the form details
+        application.workflow_status = WorkflowStatus.USER_COMPLETED
+        application.user_completed_at = datetime.utcnow()
+        application.user_completed_by = current_user.id
+    elif current_user.role == "teller" and application.workflow_status == WorkflowStatus.USER_COMPLETED:
+        # Teller processing and adding account_id
+        if "account_id" in update_data:
+            account_id = update_data["account_id"]
+            
+            # Validate account_id format - support 6-digit, 8-digit, UUID, and 8-20 alphanumeric
+            if not account_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Account ID is required"
+                )
+            
+            account_id = account_id.strip()
+            
+            # Use AccountIDService for validation
+            from app.services.account_id_service import AccountIDService
+            account_service = AccountIDService(db)
+            
+            try:
+                # Validate and standardize the account ID
+                validation_result = account_service.validate_and_standardize(account_id, "teller_input")
+                
+                if not validation_result['is_valid']:
+                    error_details = "; ".join(validation_result['validation_notes'])
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid account ID: {error_details}"
+                    )
+                
+                # Check uniqueness
+                is_unique, existing_id = await account_service.check_account_id_uniqueness(
+                    validation_result['standardized'], 
+                    application.id
+                )
+                
+                if not is_unique:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Account ID already exists in application {existing_id}"
+                    )
+                
+                # Update the account_id with standardized format
+                update_data["account_id"] = validation_result['standardized']
+                
+                # Create validation notes
+                validation_notes = f"Validated by teller {current_user.username} on {datetime.utcnow().isoformat()}"
+                validation_notes += f" - Format: {validation_result['format']}"
+                if validation_result.get('generated_uuid'):
+                    validation_notes += f" - Generated UUID: {validation_result['generated_uuid']}"
+                validation_notes += f" - Notes: {'; '.join(validation_result['validation_notes'])}"
+                
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Account ID validation failed: {str(e)}"
+                )
+            
+            # Update workflow status and validation flags
+            application.workflow_status = WorkflowStatus.TELLER_PROCESSED
+            application.teller_processed_at = datetime.utcnow()
+            application.teller_processed_by = current_user.id
+            application.account_id_validated = True
+            application.account_id_validation_notes = validation_notes
+    
     await db.commit()
     await db.refresh(application)
     return CustomerApplicationResponse.from_orm(application)
@@ -430,12 +513,14 @@ async def submit_application(
             detail="Not authorized to submit this application"
         )
     
-    if application.status != "draft":
+    if application.workflow_status != WorkflowStatus.PO_CREATED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Application is not in draft status"
+            detail="Application is not in the correct status for submission"
         )
     
+    application.workflow_status = WorkflowStatus.USER_COMPLETED
+    application.user_completed_at = datetime.utcnow()
     application.status = "submitted"
     application.submitted_at = datetime.utcnow()
     
@@ -473,12 +558,18 @@ async def approve_application(
             detail="Application not found"
         )
     
-    if application.status != "submitted":
+    if application.workflow_status != WorkflowStatus.TELLER_PROCESSED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Application is not in submitted status"
+            detail="Application must be processed by teller before manager approval"
         )
     
+    # Update workflow status to manager reviewed
+    application.workflow_status = WorkflowStatus.MANAGER_REVIEWED
+    application.manager_reviewed_at = datetime.utcnow()
+    application.manager_reviewed_by = current_user.id
+    
+    # Update legacy status fields for compatibility
     application.status = "approved"
     application.approved_at = datetime.utcnow()
     application.approved_by = current_user.id
@@ -524,12 +615,18 @@ async def reject_application(
             detail="Application not found"
         )
     
-    if application.status != "submitted":
+    if application.workflow_status not in [WorkflowStatus.TELLER_PROCESSING, WorkflowStatus.MANAGER_REVIEW]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Application is not in submitted status"
+            detail="Application is not in a status that can be rejected"
         )
     
+    # Update workflow status to rejected
+    application.workflow_status = WorkflowStatus.REJECTED
+    application.manager_reviewed_at = datetime.utcnow()
+    application.manager_reviewed_by = current_user.id
+    
+    # Update legacy status fields for compatibility
     application.status = "rejected"
     application.rejected_at = datetime.utcnow()
     application.rejected_by = current_user.id
@@ -944,77 +1041,7 @@ async def update_workflow_stage(
     
     return CustomerApplicationResponse.from_orm(application)
 
-@router.get("/enums/options")
-async def get_application_options():
-    """Get all enum options for frontend dropdowns"""
-    return {
-        "id_card_types": [
-            {"value": "cambodian_identity", "label": "អត្តសញ្ញាណប័ណ្ណសញ្ជាតិខ្មែរ"},
-            {"value": "passport", "label": "លិខិតឆ្លងដែន"},
-            {"value": "driver-license", "label": "ប័ណ្ណបើកបរ"},
-            {"value": "gov-card", "label": "ប័ណ្ណមន្ត្រីរាជការ"},
-            {"value": "monk-card", "label": "ប័ណ្ណព្រះសង្ឃ"},
-            {"value": "family-book", "label": " សៀវភៅគ្រួសារ"},
-            {"value": "birth-certificate", "label": " សំបុត្រកំណើត"},
-            {"value": "other", "label": " ផ្សេងៗ"}
-        ],
-        "loan_statuses": [
-            {"value": "draft", "label": "Draft"},
-            {"value": "active", "label": "Active"},
-            {"value": "disbursed", "label": "Disbursed"},
-            {"value": "completed", "label": "Completed"},
-            {"value": "defaulted", "label": "Defaulted"}
-        ],
-        "loan_purposes": [
-            {"value": "commerce", "label": "Commerce/Business"},
-            {"value": "agriculture", "label": "Agriculture"},
-            {"value": "education", "label": "Education"},
-            {"value": "housing", "label": "Housing"},
-            {"value": "vehicle", "label": "Vehicle"},
-            {"value": "medical", "label": "Medical"},
-            {"value": "other", "label": "Other"}
-        ],
-        "product_types": [
-            {"value": "monthly_loan", "label": "បង់​ប្រចាំ ខែ"},
-            {"value": "biweekly_loan", "label": "បង់​ប្រចាំ ២សប្តាហ៍"},
-            {"value": "weekly_loan", "label": "បង់​ប្រចាំ សប្តាហ៍"},
-            {"value": "daily_loan", "label": "បង់​ប្រចាំ ថ្ងៃ"}
-        ],
-        "loan_terms": [
-            {"value": "3_months", "label": "3 Months"},
-            {"value": "6_months", "label": "6 Months"},
-            {"value": "12_months", "label": "12 Months"},
-            {"value": "18_months", "label": "18 Months"},
-            {"value": "24_months", "label": "24 Months"},
-            {"value": "36_months", "label": "36 Months"}
-        ],
-        "risk_categories": [
-            {"value": "low", "label": "Low Risk"},
-            {"value": "medium", "label": "Medium Risk"},
-            {"value": "high", "label": "High Risk"}
-        ],
-        "priority_levels": [
-            {"value": "low", "label": "Low Priority"},
-            {"value": "normal", "label": "Normal Priority"},
-            {"value": "high", "label": "High Priority"},
-            {"value": "urgent", "label": "Urgent"}
-        ],
-        "application_statuses": [
-            {"value": "draft", "label": "Draft"},
-            {"value": "submitted", "label": "Submitted"},
-            {"value": "approved", "label": "Approved"},
-            {"value": "rejected", "label": "Rejected"}
-        ],
-        "workflow_stages": [
-            {"value": "initial_review", "label": "Initial Review"},
-            {"value": "document_verification", "label": "Document Verification"},
-            {"value": "credit_check", "label": "Credit Check"},
-            {"value": "risk_assessment", "label": "Risk Assessment"},
-            {"value": "approval_pending", "label": "Approval Pending"},
-            {"value": "final_review", "label": "Final Review"},
-            {"value": "under_review", "label": "Under Review"}
-        ]
-    }
+
 
 @router.patch("/{application_id}/loan-status")
 async def update_loan_status(
@@ -1065,6 +1092,208 @@ async def update_loan_status(
     await db.refresh(application)
     
     return CustomerApplicationResponse.from_orm(application)
+
+
+# Workflow Management Endpoints
+
+@router.post("/{application_id}/workflow/transition", response_model=ApplicationWorkflowResponse)
+async def transition_workflow(
+    application_id: UUID,
+    transition_request: WorkflowTransitionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> ApplicationWorkflowResponse:
+    """Transition application to next workflow stage"""
+    # Get application with all relationships
+    result = await db.execute(
+        select(CustomerApplication)
+        .options(
+            selectinload(CustomerApplication.user),
+            selectinload(CustomerApplication.po_creator),
+            selectinload(CustomerApplication.user_completer),
+            selectinload(CustomerApplication.teller_processor),
+            selectinload(CustomerApplication.manager_reviewer)
+        )
+        .where(CustomerApplication.id == application_id)
+    )
+    application = result.scalar_one_or_none()
+    
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+    
+    # Validate transition using WorkflowValidator
+    validator = WorkflowValidator()
+    
+    try:
+        # Validate the transition
+        validator.validate_transition(
+            current_status=application.workflow_status,
+            new_status=transition_request.new_status,
+            user_role=current_user.role,
+            account_id=transition_request.account_id
+        )
+        
+        # Apply the transition
+        updated_application = validator.apply_transition(
+            application=application,
+            new_status=transition_request.new_status,
+            user=current_user,
+            account_id=transition_request.account_id,
+            notes=transition_request.notes
+        )
+        
+        # Save changes
+        await db.commit()
+        await db.refresh(updated_application)
+        
+        # Build workflow info
+        workflow_info = _build_workflow_info(updated_application, current_user)
+        
+        # Return extended response
+        response_data = CustomerApplicationResponse.model_validate(updated_application)
+        return ApplicationWorkflowResponse(
+            **response_data.model_dump(),
+            workflow_info=workflow_info,
+            po_creator=updated_application.po_creator,
+            user_completer=updated_application.user_completer,
+            teller_processor=updated_application.teller_processor,
+            manager_reviewer=updated_application.manager_reviewer
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@router.get("/{application_id}/workflow/status", response_model=WorkflowStatusInfo)
+async def get_workflow_status(
+    application_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> WorkflowStatusInfo:
+    """Get current workflow status and available actions"""
+    result = await db.execute(
+        select(CustomerApplication)
+        .where(CustomerApplication.id == application_id)
+    )
+    application = result.scalar_one_or_none()
+    
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+    
+    return _build_workflow_info(application, current_user)
+
+@router.get("/{application_id}/workflow/history")
+async def get_workflow_history(
+    application_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """Get workflow transition history"""
+    result = await db.execute(
+        select(CustomerApplication)
+        .options(
+            selectinload(CustomerApplication.po_creator),
+            selectinload(CustomerApplication.user_completer),
+            selectinload(CustomerApplication.teller_processor),
+            selectinload(CustomerApplication.manager_reviewer)
+        )
+        .where(CustomerApplication.id == application_id)
+    )
+    application = result.scalar_one_or_none()
+    
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+    
+    history = []
+    
+    # Build history from workflow fields
+    if application.po_created_at:
+        history.append({
+            "status": WorkflowStatus.PO_CREATED.value,
+            "timestamp": application.po_created_at,
+            "user": application.po_creator.first_name + " " + application.po_creator.last_name if application.po_creator else "Unknown",
+            "user_role": "PO",
+            "description": "Application created by PO"
+        })
+    
+    if application.user_completed_at:
+        history.append({
+            "status": WorkflowStatus.USER_COMPLETED.value,
+            "timestamp": application.user_completed_at,
+            "user": application.user_completer.first_name + " " + application.user_completer.last_name if application.user_completer else "Unknown",
+            "user_role": "User",
+            "description": "Form completed by user"
+        })
+    
+    if application.teller_processing_at:
+        history.append({
+            "status": WorkflowStatus.TELLER_PROCESSING.value,
+            "timestamp": application.teller_processing_at,
+            "user": application.teller_processor.first_name + " " + application.teller_processor.last_name if application.teller_processor else "Unknown",
+            "user_role": "Teller",
+            "description": f"Account ID processed: {application.account_id or 'N/A'}",
+            "account_id": application.account_id,
+            "validation_notes": application.account_id_validation_notes
+        })
+    
+    if application.manager_review_at:
+        history.append({
+            "status": WorkflowStatus.MANAGER_REVIEW.value,
+            "timestamp": application.manager_review_at,
+            "user": application.manager_reviewer.first_name + " " + application.manager_reviewer.last_name if application.manager_reviewer else "Unknown",
+            "user_role": "Manager",
+            "description": "Final review completed by manager"
+        })
+    
+    # Sort by timestamp
+    history.sort(key=lambda x: x["timestamp"])
+    
+    return history
+
+def _build_workflow_info(application: CustomerApplication, current_user: User) -> WorkflowStatusInfo:
+    """Build workflow status information"""
+    validator = WorkflowValidator()
+    current_status = application.workflow_status or WorkflowStatus.PO_CREATED
+    
+    # Determine permissions
+    can_edit_form = validator.can_edit_form(current_status, current_user.role)
+    can_transition = len(validator.get_next_stages(current_status, current_user.role)) > 0
+    next_possible_stages = validator.get_next_stages(current_status, current_user.role)
+    requires_account_id = any(
+        validator.requires_account_id(current_status, stage) 
+        for stage in next_possible_stages
+    )
+    
+    # Get stage description
+    stage_descriptions = {
+        WorkflowStatus.PO_CREATED: "Application created by PO - awaiting user completion",
+        WorkflowStatus.USER_COMPLETED: "Form completed by user - awaiting teller processing",
+        WorkflowStatus.TELLER_PROCESSING: "Account ID processed by teller - awaiting manager review",
+        WorkflowStatus.MANAGER_REVIEW: "Final review by manager - process complete",
+        WorkflowStatus.APPROVED: "Application approved",
+        WorkflowStatus.REJECTED: "Application rejected"
+    }
+    
+    return WorkflowStatusInfo(
+        current_status=current_status,
+        can_edit_form=can_edit_form,
+        can_transition=can_transition,
+        next_possible_stages=next_possible_stages,
+        requires_account_id=requires_account_id,
+        stage_description=stage_descriptions.get(current_status, "Unknown stage")
+    )
+
 
 def _calculate_loan_end_date(start_date: date, loan_term: str) -> date:
     """Calculate loan end date based on start date and term"""

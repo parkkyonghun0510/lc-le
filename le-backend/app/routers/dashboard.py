@@ -194,9 +194,13 @@ async def get_recent_applications(
                 "full_name_latin": app.full_name_latin,
                 "full_name_khmer": app.full_name_khmer,
                 "requested_amount": float(str(app.requested_amount)) if app.requested_amount is not None else None,
+                "phone": app.phone,
+                "portfolio_officer_name": app.portfolio_officer_name,
+                "product_type": app.product_type,
                 "status": app.status,
                 "created_at": app.created_at.isoformat(),
                 "user_id": str(app.user_id),
+                "account_id": str(app.account_id),
             }
             for app in applications
         ]

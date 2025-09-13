@@ -115,10 +115,13 @@ export const useDeleteUser = () => {
       return apiClient.delete(`/users/${id}`);
     },
     onSuccess: () => {
+      // Invalidate and refetch users list
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      queryClient.refetchQueries({ queryKey: userKeys.lists() });
       toast.success('User deleted successfully!');
     },
     onError: (error: any) => {
+      console.error('Delete user error:', error);
       const message = error.response?.data?.detail || 'Failed to delete user';
       toast.error(message);
     },

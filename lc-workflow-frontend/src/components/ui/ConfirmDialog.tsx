@@ -12,6 +12,7 @@ interface ConfirmDialogProps {
   cancelText?: string;
   confirmButtonClass?: string;
   icon?: React.ReactNode;
+  isLoading?: boolean;
 }
 
 export default function ConfirmDialog({
@@ -24,6 +25,7 @@ export default function ConfirmDialog({
   cancelText = 'Cancel',
   confirmButtonClass = 'bg-red-600 hover:bg-red-700',
   icon,
+  isLoading = false,
 }: ConfirmDialogProps) {
   if (!isOpen) return null;
 
@@ -50,14 +52,23 @@ export default function ConfirmDialog({
           <div className="flex items-center justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              disabled={isLoading}
+              className={`px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+              }`}
             >
               {cancelText}
             </button>
             <button
               onClick={handleConfirm}
-              className={`px-4 py-2 text-white rounded-lg ${confirmButtonClass}`}
+              disabled={isLoading}
+              className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : confirmButtonClass
+              }`}
             >
+              {isLoading && (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
               {confirmText}
             </button>
           </div>

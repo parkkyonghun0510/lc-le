@@ -1,1 +1,0 @@
-// placeholder to allow macOS build; you should run `flutter create .` locally to generate platform files if missing.

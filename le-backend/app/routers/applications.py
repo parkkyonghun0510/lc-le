@@ -402,8 +402,8 @@ async def update_application(
                 )
             
             # Update workflow status and validation flags
-            application.workflow_status = WorkflowStatus.TELLER_PROCESSED
-            application.teller_processed_at = datetime.utcnow()
+            application.workflow_status = WorkflowStatus.TELLER_PROCESSING
+            application.teller_processing_at = datetime.utcnow()
             application.teller_processed_by = current_user.id
             application.account_id_validated = True
             application.account_id_validation_notes = validation_notes
@@ -558,7 +558,7 @@ async def approve_application(
             detail="Application not found"
         )
     
-    if application.workflow_status != WorkflowStatus.TELLER_PROCESSED:
+    if application.workflow_status != WorkflowStatus.TELLER_PROCESSING:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Application must be processed by teller before manager approval"

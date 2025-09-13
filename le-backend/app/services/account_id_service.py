@@ -37,6 +37,7 @@ class AccountIDService:
     # Regex patterns for different account ID formats
     PATTERNS = {
         'eight_digit': r'^\d{8}$',
+        'six_digit': r'^\d{6}$',
         'uuid': r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
         'alphanumeric_8_20': r'^[A-Za-z0-9]{8,20}$',
         'single_digit': r'^[0-9]$'
@@ -47,39 +48,39 @@ class AccountIDService:
     
     def validate_six_digit_account_id(self, account_id: str) -> bool:
         """
-        Validate 8-digit account ID from external system
-        
+        Validate 6-digit account ID from external system
+
         Args:
             account_id: The account ID to validate
-            
+
         Returns:
-            bool: True if valid 8-digit account ID
-            
+            bool: True if valid 6-digit account ID
+
         Raises:
             AccountIDValidationError: If validation fails
         """
         if not account_id:
             raise AccountIDValidationError(
-                "Account ID cannot be empty", 
-                account_id or "", 
+                "Account ID cannot be empty",
+                account_id or "",
                 "EMPTY_ACCOUNT_ID"
             )
-        
+
         # Remove any whitespace
         account_id = account_id.strip()
-        
-        # Check if it's exactly 8 digits
-        if not re.match(self.PATTERNS['eight_digit'], account_id):
+
+        # Check if it's exactly 6 digits
+        if not re.match(self.PATTERNS['six_digit'], account_id):
             raise AccountIDValidationError(
-                f"Account ID must be exactly 8 digits, got: {account_id}",
+                f"Account ID must be exactly 6 digits, got: {account_id}",
                 account_id,
                 "INVALID_FORMAT"
             )
-        
+
         # Additional business logic validation
-        if account_id == '00000000':
+        if account_id == '000000':
             return False
-        
+
         logger.info(f"Successfully validated 6-digit account ID: {account_id}")
         return True
     
@@ -242,22 +243,41 @@ class AccountIDService:
             if format_type == 'eight_digit':
                 # Validate 8-digit format
                 is_valid_eight_digit = self.validate_eight_digit_account_id(account_id)
-                
+
                 if is_valid_eight_digit:
                     # Standardize
                     standardized = self.standardize_account_id(account_id, source_system)
                     result['standardized'] = standardized
-                    
+
                     # Generate UUID for compatibility
                     generated_uuid = self.generate_uuid_from_account_id(standardized)
                     result['generated_uuid'] = generated_uuid
-                    
+
                     result['is_valid'] = True
                     result['validation_notes'].append(f"Valid 8-digit account ID from {source_system}")
                 else:
                     result['is_valid'] = False
                     result['validation_notes'].append("Invalid 8-digit account ID: cannot be all zeros")
-                
+
+            elif format_type == 'six_digit':
+                # Validate 6-digit format
+                is_valid_six_digit = self.validate_six_digit_account_id(account_id)
+
+                if is_valid_six_digit:
+                    # Standardize
+                    standardized = self.standardize_account_id(account_id, source_system)
+                    result['standardized'] = standardized
+
+                    # Generate UUID for compatibility
+                    generated_uuid = self.generate_uuid_from_account_id(standardized)
+                    result['generated_uuid'] = generated_uuid
+
+                    result['is_valid'] = True
+                    result['validation_notes'].append(f"Valid 6-digit account ID from {source_system}")
+                else:
+                    result['is_valid'] = False
+                    result['validation_notes'].append("Invalid 6-digit account ID: cannot be all zeros")
+
             elif format_type in ['uuid', 'alphanumeric_8_20', 'single_digit']:
                 # Already supported formats
                 result['standardized'] = account_id.strip()

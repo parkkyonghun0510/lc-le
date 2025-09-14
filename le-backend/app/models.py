@@ -86,6 +86,8 @@ class CustomerApplication(Base):
     full_name_latin = Column(String(255))
     phone = Column(String(20))
     date_of_birth = Column(Date)
+    sex = Column(String(20))  # male, female, other
+    marital_status = Column(String(20))  # single, married, divorced, widowed, separated
     portfolio_officer_name = Column(String(255))
     
     # Address Information

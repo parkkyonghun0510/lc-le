@@ -16,6 +16,8 @@ export interface ApplicationFormValues {
   current_address: string;
   date_of_birth: string;
   portfolio_officer_name: string;
+  sex: string;
+  marital_status: string;
   
   // Address Information (optional)
   province?: string;
@@ -54,7 +56,7 @@ export interface ApplicationFormValues {
 export interface Step {
   id: number;
   title: string;
-  description: string;
+  // description: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 

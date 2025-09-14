@@ -48,26 +48,26 @@ import { validateStep } from './utils/validation';
 const steps: Step[] = [
   {
     id: 0,
-    title: 'Customer Information',
-    description: 'Basic customer details',
+    title: 'ក.ព័ត៌មានរបស់អតិថិជន ',
+    // description: 'Basic customer details',
     icon: UserIcon,
   },
   {
     id: 1,
-    title: 'Loan Information',
-    description: 'Loan amount and terms',
+    title: 'ខ.ព័ត៌មានបញ្ចាំ',
+    // description: 'Loan amount and terms',
     icon: CurrencyDollarIcon,
   },
   {
     id: 2,
-    title: 'Guarantor Information',
-    description: 'Guarantor details',
+    title: 'គ.ការធានារបស់អតិថិជន',
+    // description: 'Guarantor details',
     icon: UserGroupIcon,
   },
   {
     id: 3,
-    title: 'Document Attachment',
-    description: 'Upload required documents',
+    title: 'ឃ.ទ្រព្យសម្បត្តិដែលមានស្រាប់របស់អតិថិជន ',
+    // description: 'Upload required documents',
     icon: DocumentTextIcon,
   },
 ];
@@ -91,6 +91,8 @@ const NewApplicationPage = () => {
     current_address: '',
     date_of_birth: '',
     portfolio_officer_name: '',
+    sex: '',
+    marital_status: '',
     
     // Address Information (optional)
     province: '',
@@ -179,6 +181,9 @@ const NewApplicationPage = () => {
         purpose_details: formValues.purpose_details,
         guarantor_name: formValues.guarantor_name,
         guarantor_phone: formValues.guarantor_phone,
+        sex: '',
+        marital_status: '',
+
       });
       setApplicationId(data.id);
       toast.success('Application draft created successfully');
@@ -339,14 +344,14 @@ const NewApplicationPage = () => {
 
   const renderStepContent = (step: number) => {
     switch (step) {
-      // case 0:
-      //   return (
-      //     <CustomerInformationStep
-      //       formValues={formValues}
-      //       onInputChange={handleInputChange}
-      //     />
-      //   );
       case 0:
+        return (
+          <CustomerInformationStep
+            formValues={formValues}
+            onInputChange={handleInputChange}
+          />
+        );
+      case 1:
         return (
           <LoanInformationStep
             formValues={formValues}
@@ -354,7 +359,8 @@ const NewApplicationPage = () => {
             loanPurposes={LOAN_PURPOSES.map(purpose => ({
               value: purpose,
               label: purpose,
-            }))} isLoadingProductTypes={false}          />
+            }))} isLoadingProductTypes={false}          
+            />
         );
       case 2:
         return (
@@ -377,7 +383,7 @@ const NewApplicationPage = () => {
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <div className="min-h-screen  dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Enhanced Header with Visual Elements */}
             <div className="mb-12 text-center">
@@ -386,12 +392,9 @@ const NewApplicationPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-3">
-                New Loan Application
+              <h1 className="text-4xl font-bold dark:from-white dark:to-gray-300 bg-clip-text mb-3">
+              ពាក្យស្នើសុំដាក់បញ្ចាំ និងប្រាកិភោគដោយអនុប្បទាន
               </h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                Complete the form below to submit your loan application. Our streamlined process ensures quick and secure processing.
-              </p>
             </div>
 
             {/* Enhanced Step Indicator Container */}

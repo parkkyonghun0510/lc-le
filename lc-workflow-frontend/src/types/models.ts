@@ -130,6 +130,7 @@ export interface ApplicationDocument {
 export interface File extends BaseModel {
   filename: string;
   original_filename: string;
+  display_name?: string;
   file_path: string;
   file_size: number;
   mime_type: string;

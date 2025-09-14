@@ -50,7 +50,7 @@ export default function FileManager({
   };
 
   const handleDownload = (file: File) => {
-    downloadFile(file.id, file.original_filename);
+    downloadFile(file.id, file.display_name || file.original_filename);
   };
 
   const files = filesData?.items || [];
@@ -114,7 +114,7 @@ export default function FileManager({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                      {file.original_filename}
+                      {file.display_name || file.original_filename}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       <span className="font-medium">{formatBytes(file.file_size)}</span>
@@ -176,7 +176,7 @@ export default function FileManager({
             onClose={() => setFileToDelete(null)}
             onConfirm={handleDelete}
             title="Delete File"
-            message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
+            message={`Are you sure you want to delete "${fileToDelete.display_name || fileToDelete.original_filename}"?`}
             confirmText="Delete"
             confirmButtonClass="bg-red-600 hover:bg-red-700"
           />
@@ -261,7 +261,7 @@ export default function FileManager({
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-2">
-                  {file.original_filename}
+                  {file.display_name || file.original_filename}
                 </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">
                   {formatBytes(file.file_size)}
@@ -298,7 +298,7 @@ export default function FileManager({
           onClose={() => setFileToDelete(null)}
           onConfirm={handleDelete}
           title="Delete File"
-          message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
+          message={`Are you sure you want to delete "${fileToDelete.display_name || fileToDelete.original_filename}"?`}
           confirmText="Delete"
           confirmButtonClass="bg-red-600 hover:bg-red-700"
         />

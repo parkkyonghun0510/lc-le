@@ -211,6 +211,7 @@ class File(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
     file_path = Column(Text, nullable=False)
     file_size = Column(BigInteger, nullable=False)
     mime_type = Column(String(100), nullable=False)

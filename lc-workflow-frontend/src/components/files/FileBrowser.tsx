@@ -46,7 +46,7 @@ export default function FileBrowser({
   };
 
   const handleDownload = async (file: File) => {
-    await downloadFile(file.id, file.original_filename);
+    await downloadFile(file.id, file.display_name || file.original_filename);
   };
 
   const handleFileClick = (file: File) => {
@@ -105,7 +105,7 @@ export default function FileBrowser({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                {file.original_filename}
+                {file.display_name || file.original_filename}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 <span className="font-medium">{formatBytes(file.file_size)}</span>
@@ -168,7 +168,7 @@ export default function FileBrowser({
           onClose={() => setFileToDelete(null)}
           onConfirm={handleDelete}
           title="Delete File"
-          message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
+          message={`Are you sure you want to delete "${fileToDelete.display_name || fileToDelete.original_filename}"?`}
           confirmText="Delete"
           confirmButtonClass="bg-red-600 hover:bg-red-700"
         />

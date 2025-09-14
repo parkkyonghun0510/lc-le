@@ -89,7 +89,7 @@ export default function ImageThumbnail({
           {thumbnailUrl && (
             <img
               src={thumbnailUrl}
-              alt={file.original_filename}
+              alt={file.display_name || file.original_filename}
               className={`w-full h-full object-cover rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 transition-all duration-200 group-hover:shadow-xl ${
                 isLoading ? 'opacity-0' : 'opacity-100'
               }`}
@@ -105,7 +105,7 @@ export default function ImageThumbnail({
             <div className="absolute z-20 left-0 top-full mt-2 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 p-2 backdrop-blur-sm">
               <img
                 src={thumbnailUrl}
-                alt={file.original_filename}
+                alt={file.display_name || file.original_filename}
                 className="object-contain rounded-lg shadow-sm"
                 style={{ width: size === 'lg' ? 256 : 192, height: size === 'lg' ? 256 : 192 }}
                 loading="lazy"
@@ -127,8 +127,8 @@ export default function ImageThumbnail({
       {/* File name overlay */}
       {showFileName && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-xl backdrop-blur-sm">
-          <p className="truncate font-medium" title={file.original_filename}>
-            {file.original_filename}
+          <p className="truncate font-medium" title={file.display_name || file.original_filename}>
+              {file.display_name || file.original_filename}
           </p>
         </div>
       )}

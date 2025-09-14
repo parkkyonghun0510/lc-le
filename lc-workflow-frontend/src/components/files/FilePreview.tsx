@@ -66,7 +66,7 @@ export default function FilePreview({
   if (!isOpen) return null;
 
   const handleDownload = () => {
-    downloadFile(file.id, file.original_filename);
+    downloadFile(file.id, file.display_name || file.original_filename);
   };
 
   const getPreviewUrl = () => previewUrl || '';
@@ -162,7 +162,7 @@ export default function FilePreview({
         >
           <img
             src={getPreviewUrl()}
-            alt={file.original_filename}
+            alt={file.display_name || file.original_filename}
             className="object-contain transition-transform duration-200 select-none"
             style={{
               transform: `scale(${imageZoom}) translate(${imagePosition.x / imageZoom}px, ${imagePosition.y / imageZoom}px)`,
@@ -190,7 +190,7 @@ export default function FilePreview({
           <iframe
             src={`${getPreviewUrl()}#toolbar=0`}
             className="w-full h-full border-0"
-            title={file.original_filename}
+            title={file.display_name || file.original_filename}
           />
         </div>
       );
@@ -211,7 +211,7 @@ export default function FilePreview({
           <iframe
             src={getPreviewUrl()}
             className="w-full h-full border-0"
-            title={file.original_filename}
+            title={file.display_name || file.original_filename}
           />
         </div>
       );
@@ -271,7 +271,7 @@ export default function FilePreview({
             
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                {file.original_filename}
+                {file.display_name || file.original_filename}
               </h2>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                 {file.mime_type} • {Math.round(file.file_size / 1024)} KB

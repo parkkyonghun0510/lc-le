@@ -543,6 +543,7 @@ class CustomerCardResponse(BaseSchema):
 class FileBase(BaseSchema):
     filename: str
     original_filename: str
+    display_name: Optional[str] = None
     file_size: int
     mime_type: str
 

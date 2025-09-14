@@ -137,7 +137,7 @@ function ApplicationDetailContent() {
 
   const isImageFile = (f: ApiFile) => {
     const byMime = typeof f.mime_type === 'string' && f.mime_type.toLowerCase().startsWith('image/');
-    const byExt = typeof f.original_filename === 'string' && /\.(jpg|jpeg|png|gif|webp|bmp|tiff|heic)$/i.test(f.original_filename);
+    const byExt = typeof (f.display_name || f.original_filename) === 'string' && /\.(jpg|jpeg|png|gif|webp|bmp|tiff|heic)$/i.test(f.display_name || f.original_filename);
     return byMime || byExt;
   };
 
@@ -790,8 +790,8 @@ function ApplicationDetailContent() {
                                                   </div>
                                                 </div>
                                               </div>
-                                              <div className="mt-3 text-xs font-medium text-gray-700 dark:text-gray-300 truncate" title={file.original_filename}>
-                                                {file.original_filename}
+                                              <div className="mt-3 text-xs font-medium text-gray-700 dark:text-gray-300 truncate" title={file.display_name || file.original_filename}>
+                  {file.display_name || file.original_filename}
                                               </div>
                                             </div>
                                           ))}
@@ -809,8 +809,8 @@ function ApplicationDetailContent() {
                                                   <DocumentTextIcon className="w-5 h-5 text-white" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                  <span className="text-sm font-semibold text-gray-900 dark:text-white truncate block" title={file.original_filename}>
-                                                    {file.original_filename}
+                                                  <span className="text-sm font-semibold text-gray-900 dark:text-white truncate block" title={file.display_name || file.original_filename}>
+                  {file.display_name || file.original_filename}
                                                   </span>
                                                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">{(file.file_size / 1024).toFixed(0)} KB</p>
                                                 </div>
@@ -824,7 +824,7 @@ function ApplicationDetailContent() {
                                                 </button>
                                                 <button
                                                   className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 hover:scale-[1.02] transition-all duration-200"
-                                                  onClick={() => downloadFile(file.id, file.original_filename)}
+                                                  onClick={() => downloadFile(file.id, file.display_name || file.original_filename)}
                                                 >
                                                   <ArrowDownTrayIcon className="w-4 h-4 mr-1.5" /> ទាញយក
                                                 </button>
@@ -874,8 +874,8 @@ function ApplicationDetailContent() {
                                                 onClick={() => openPreview(file, folderFiles)}
                                               >
                                                 <ImageThumbnail file={file} size="lg" className="w-full h-40" />
-                                                <div className="mt-2 text-xs text-gray-700 truncate" title={file.original_filename}>
-                                                  {file.original_filename}
+                                                <div className="mt-2 text-xs text-gray-700 truncate" title={file.display_name || file.original_filename}>
+                  {file.display_name || file.original_filename}
                                                 </div>
                                               </div>
                                             ))}
@@ -890,8 +890,8 @@ function ApplicationDetailContent() {
                                               <div key={file.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
                                                 <div className="flex items-center mb-1">
                                                   <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
-                                                  <span className="text-sm font-medium text-gray-900 truncate" title={file.original_filename}>
-                                                    {file.original_filename}
+                                                  <span className="text-sm font-medium text-gray-900 truncate" title={file.display_name || file.original_filename}>
+                  {file.display_name || file.original_filename}
                                                   </span>
                                                 </div>
                                                 <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
@@ -904,7 +904,7 @@ function ApplicationDetailContent() {
                                                   </button>
                                                   <button
                                                     className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
-                                                    onClick={() => downloadFile(file.id, file.original_filename)}
+                                                    onClick={() => downloadFile(file.id, file.display_name || file.original_filename)}
                                                   >
                                                     <ArrowDownTrayIcon className="w-4 h-4 mr-1" /> ទាញយក
                                                   </button>
@@ -947,8 +947,8 @@ function ApplicationDetailContent() {
                                       onClick={() => openPreview(file, orphanFiles)}
                                     >
                                       <ImageThumbnail file={file} size="lg" className="w-full h-40" />
-                                      <div className="mt-2 text-xs text-gray-700 truncate" title={file.original_filename}>
-                                        {file.original_filename}
+                                      <div className="mt-2 text-xs text-gray-700 truncate" title={file.display_name || file.original_filename}>
+                  {file.display_name || file.original_filename}
                                       </div>
                                     </div>
                                   ))}
@@ -963,8 +963,8 @@ function ApplicationDetailContent() {
                                     <div key={file.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
                                       <div className="flex items-center mb-1">
                                         <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
-                                        <span className="text-sm font-medium text-gray-900 truncate" title={file.original_filename}>
-                                          {file.original_filename}
+                                        <span className="text-sm font-medium text-gray-900 truncate" title={file.display_name || file.original_filename}>
+                  {file.display_name || file.original_filename}
                                         </span>
                                       </div>
                                       <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
@@ -977,7 +977,7 @@ function ApplicationDetailContent() {
                                         </button>
                                         <button
                                           className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
-                                          onClick={() => downloadFile(file.id, file.original_filename)}
+                                          onClick={() => downloadFile(file.id, file.display_name || file.original_filename)}
                                         >
                                           <ArrowDownTrayIcon className="w-4 h-4 mr-1" /> ទាញយក
                                         </button>

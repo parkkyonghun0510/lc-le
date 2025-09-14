@@ -142,6 +142,7 @@ export default function EditApplicationPage() {
             file_id: uploaded.id,
             filename: uploaded.filename,
             original_filename: uploaded.original_filename,
+                    display_name: uploaded.display_name,
             mime_type: uploaded.mime_type,
             size: uploaded.file_size,
             uploaded_at: uploaded.created_at,
@@ -474,7 +475,7 @@ export default function EditApplicationPage() {
                           <DocumentTextIcon className="w-5 h-5 text-gray-400 mr-3" />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{doc.type}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{doc.original_filename}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{doc.display_name || doc.original_filename}</div>
                           </div>
                           <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
                             {doc.role}

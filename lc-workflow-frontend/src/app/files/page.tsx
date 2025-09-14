@@ -92,7 +92,7 @@ function FilesPageContent() {
 
   const handleDownloadFile = async (file: File) => {
     try {
-      await downloadFile(file.id, file.original_filename);
+      await downloadFile(file.id, file.display_name || file.original_filename);
       // Show success message
       console.log('File download started');
     } catch (error) {
@@ -315,7 +315,7 @@ function FilesPageContent() {
                                 <DocumentIcon className="h-8 w-8 text-gray-400 mr-3" />
                                 <div>
                                   <div className="text-sm font-medium text-gray-900">
-                                    {file.original_filename}
+                                    {file.display_name || file.original_filename}
                                   </div>
                                   <div className="text-sm text-gray-500">
                                     {file.filename}
@@ -416,7 +416,7 @@ function FilesPageContent() {
                 ? 'Deleting file...'
                 : deleteFileMutation.isError
                 ? `Error deleting file: ${deleteFileMutation.error?.message || 'Unknown error'}`
-                : `Are you sure you want to delete "${fileToDelete?.original_filename}"? This action cannot be undone.`
+                : `Are you sure you want to delete "${fileToDelete?.display_name || fileToDelete?.original_filename}"? This action cannot be undone.`
             }
             confirmText={deleteFileMutation.isPending ? 'Deleting...' : 'Delete'}
             confirmButtonClass="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"

@@ -190,6 +190,7 @@ async def upload_file(
         db_file = File(
             filename=os.path.basename(object_name),
             original_filename=file.filename,  # Keep original for display
+            display_name=file.filename,  # Set display name from original filename
             file_path=object_name,  # Store MinIO object name with prefix
             file_size=len(content),
             mime_type=file.content_type or "application/octet-stream",

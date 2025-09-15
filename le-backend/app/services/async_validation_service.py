@@ -12,7 +12,7 @@ from app.core.exceptions import (
     ErrorCode,
     ErrorSeverity
 )
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 logger = get_logger(__name__)
@@ -51,7 +51,7 @@ class AsyncValidationService:
         
         # Keep existing application logging as fallback
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "model": model_name,
             "field": field,
             "attempted_value": str(value),

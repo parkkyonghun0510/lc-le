@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, and_, desc
 from typing import Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models import User, CustomerApplication, Department, Branch, File
@@ -222,7 +222,7 @@ async def get_activity_timeline(
     """
     try:
         # Get date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Get applications created in the date range
@@ -314,7 +314,7 @@ async def get_performance_metrics(
     """
     try:
         # Calculate metrics for the last 30 days
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=30)
         
         # Applications processed in last 30 days

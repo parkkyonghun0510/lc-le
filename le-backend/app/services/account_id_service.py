@@ -13,7 +13,7 @@ import re
 import uuid
 import hashlib
 from typing import Optional, Dict, Any, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_
@@ -232,7 +232,7 @@ class AccountIDService:
             'is_valid': False,
             'generated_uuid': None,
             'validation_notes': [],
-            'processed_at': datetime.utcnow().isoformat()
+            'processed_at': datetime.now(timezone.utc).isoformat()
         }
         
         try:

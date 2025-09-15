@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import Dict, Any
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.exceptions import (
     BaseApplicationError,
@@ -32,7 +32,7 @@ def create_error_response(
         "error": {
             "code": error_code,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": details or {},
             "suggestions": suggestions or []
         }
@@ -137,7 +137,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                 "success": False,
                 "error": {
                     **exc.detail,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             }
         )

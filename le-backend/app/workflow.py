@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel, validator
-from datetime import datetime
+from datetime import datetime, timezone
 
 class WorkflowStatus(str, Enum):
     """Enum for role-based workflow stages"""
@@ -130,7 +130,7 @@ class WorkflowValidator:
         application.workflow_status = new_status
         
         # Update role-specific fields based on transition
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         
         if new_status == WorkflowStatus.USER_COMPLETED:
             application.user_completed_at = current_time

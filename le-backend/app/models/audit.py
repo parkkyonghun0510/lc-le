@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from enum import Enum
 from app.database import Base
+from sqlalchemy.sql import func
 
 class AuditEventType(str, Enum):
     """Types of audit events"""
@@ -41,7 +42,7 @@ class AuditLog(Base):
     details = Column(JSON, nullable=True)                        # Additional event data
     
     # Timestamps
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     
     def __repr__(self):
         return f"<AuditLog(id={self.id}, event_type={self.event_type}, action={self.action}, timestamp={self.timestamp})>"

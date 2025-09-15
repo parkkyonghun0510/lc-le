@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_, desc, func, case
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from app.database import get_db
 from app.models import CustomerApplication, User, Department, Branch
@@ -22,6 +22,7 @@ from app.schemas import (
 )
 from app.workflow import WorkflowValidator, WorkflowStatus
 from app.routers.auth import get_current_user
+from datetime import timezone
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ async def create_application(
         **application.model_dump(exclude_unset=True),
         user_id=current_user.id,
         workflow_status=WorkflowStatus.PO_CREATED,
-        po_created_at=datetime.utcnow(),
+        po_created_at=datetime.now(timezone.utc),
         po_created_by=current_user.id
     )
     db.add(db_application)
@@ -340,7 +341,7 @@ async def update_application(
     if current_user.role == "user" and application.workflow_status == WorkflowStatus.PO_CREATED:
         # User completing the form details
         application.workflow_status = WorkflowStatus.USER_COMPLETED
-        application.user_completed_at = datetime.utcnow()
+        application.user_completed_at = datetime.now(timezone.utc)
         application.user_completed_by = current_user.id
     elif current_user.role == "teller" and application.workflow_status == WorkflowStatus.USER_COMPLETED:
         # Teller processing and adding account_id
@@ -387,7 +388,7 @@ async def update_application(
                 update_data["account_id"] = validation_result['standardized']
                 
                 # Create validation notes
-                validation_notes = f"Validated by teller {current_user.username} on {datetime.utcnow().isoformat()}"
+                validation_notes = f"Validated by teller {current_user.username} on {datetime.now(timezone.utc).isoformat()}"
                 validation_notes += f" - Format: {validation_result['format']}"
                 if validation_result.get('generated_uuid'):
                     validation_notes += f" - Generated UUID: {validation_result['generated_uuid']}"
@@ -403,7 +404,7 @@ async def update_application(
             
             # Update workflow status and validation flags
             application.workflow_status = WorkflowStatus.TELLER_PROCESSING
-            application.teller_processed_at = datetime.utcnow()
+            application.teller_processed_at = datetime.now(timezone.utc)
             application.teller_processed_by = current_user.id
             application.account_id_validated = True
             application.account_id_validation_notes = validation_notes
@@ -520,9 +521,9 @@ async def submit_application(
         )
     
     application.workflow_status = WorkflowStatus.USER_COMPLETED
-    application.user_completed_at = datetime.utcnow()
+    application.user_completed_at = datetime.now(timezone.utc)
     application.status = "submitted"
-    application.submitted_at = datetime.utcnow()
+    application.submitted_at = datetime.now(timezone.utc)
     
     await db.commit()
     await db.refresh(application)
@@ -534,7 +535,7 @@ class ApprovalRequest(BaseSchema):
     approved_interest_rate: Optional[float] = None
     approved_loan_term: Optional[str] = None
 
-@router.patch("/{application_id}/approve")
+@router.patch("/{application_id}/approve", response_model=CustomerApplicationResponse)
 async def approve_application(
     application_id: UUID,
     approval_data: Optional[ApprovalRequest] = None,
@@ -566,12 +567,12 @@ async def approve_application(
     
     # Update workflow status to approved
     application.workflow_status = WorkflowStatus.APPROVED
-    application.manager_reviewed_at = datetime.utcnow()
+    application.manager_reviewed_at = datetime.now(timezone.utc)
     application.manager_reviewed_by = current_user.id
     
     # Update legacy status fields for compatibility
     application.status = "approved"
-    application.approved_at = datetime.utcnow()
+    application.approved_at = datetime.now(timezone.utc)
     application.approved_by = current_user.id
     application.loan_status = "active"  # Set to active when approved
     
@@ -591,7 +592,7 @@ async def approve_application(
     
     return CustomerApplicationResponse.from_orm(application)
 
-@router.patch("/{application_id}/reject")
+@router.patch("/{application_id}/reject", response_model=CustomerApplicationResponse)
 async def reject_application(
     application_id: UUID,
     payload: RejectionRequest,
@@ -623,12 +624,12 @@ async def reject_application(
     
     # Update workflow status to rejected
     application.workflow_status = WorkflowStatus.REJECTED
-    application.manager_reviewed_at = datetime.utcnow()
+    application.manager_reviewed_at = datetime.now(timezone.utc)
     application.manager_reviewed_by = current_user.id
     
     # Update legacy status fields for compatibility
     application.status = "rejected"
-    application.rejected_at = datetime.utcnow()
+    application.rejected_at = datetime.now(timezone.utc)
     application.rejected_by = current_user.id
     application.rejection_reason = payload.rejection_reason
     
@@ -1079,7 +1080,7 @@ async def update_loan_status(
     
     # Set loan start date when disbursed
     if loan_status == "disbursed" and not application.loan_start_date:
-        application.loan_start_date = datetime.utcnow().date()
+        application.loan_start_date = datetime.now(timezone.utc).date()
         
         # Calculate loan end date based on desired term
         if application.desired_loan_term and not application.loan_end_date:

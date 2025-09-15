@@ -235,12 +235,34 @@ class CustomerApplicationBase(BaseSchema):
     teller_processed_by: Optional[UUID] = None
     manager_reviewed_at: Optional[datetime] = None
     manager_reviewed_by: Optional[UUID] = None
-    
+
     # Account ID validation
     account_id_validated: Optional[bool] = Field(default=False)
     account_id_validation_notes: Optional[str] = None
 
     # --- Validators to coerce incoming strings to proper types ---
+    @field_validator("workflow_status", mode="before")
+    @classmethod
+    def _normalize_workflow_status(cls, value: Any):
+        # Accept None/empty as default
+        if value in (None, "", "null"):
+            return WorkflowStatus.PO_CREATED
+        # If already Enum, pass through
+        if isinstance(value, WorkflowStatus):
+            return value
+        # Coerce strings like 'user_completed' to 'USER_COMPLETED'
+        if isinstance(value, str):
+            v = value.strip()
+            if not v:
+                return WorkflowStatus.PO_CREATED
+            try:
+                return WorkflowStatus(v.upper())
+            except ValueError:
+                # Provide clear error listing allowed values
+                allowed = ", ".join([s.value for s in WorkflowStatus])
+                raise ValueError(f"Invalid workflow_status '{value}'. Allowed: {allowed}")
+        return value
+
     @field_validator("date_of_birth", "requested_disbursement_date", "loan_start_date", "loan_end_date", mode="before")
     @classmethod
     def _parse_optional_date(cls, value: Any):

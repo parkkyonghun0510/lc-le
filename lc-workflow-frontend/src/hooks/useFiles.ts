@@ -97,7 +97,8 @@ const fileApi = {
     applicationId?: string,
     onProgress?: (progress: number) => void,
     folderId?: string,
-    documentType?: 'photos' | 'references' | 'supporting_docs'
+    documentType?: 'photos' | 'references' | 'supporting_docs',
+    fieldName?: string
   ): Promise<ApiFile> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -107,6 +108,7 @@ const fileApi = {
     if (applicationId) qp.append('application_id', applicationId);
     if (folderId) qp.append('folder_id', folderId);
     if (documentType) qp.append('document_type', documentType);
+    if (fieldName) qp.append('field_name', fieldName);
 
     return apiClient.post(`/files/upload?${qp.toString()}`, formData, {
       headers: {
@@ -287,13 +289,15 @@ export const useUploadFile = () => {
       onProgress,
       folderId,
       documentType,
+      fieldName,
     }: { 
       file: globalThis.File; 
       applicationId?: string; 
       onProgress?: (progress: number) => void;
       folderId?: string;
       documentType?: 'photos' | 'references' | 'supporting_docs';
-    }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType),
+      fieldName?: string;
+    }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType, fieldName),
     onSuccess: (data) => {
       // Invalidate multiple query keys to ensure all related data is refreshed
       queryClient.invalidateQueries({ queryKey: fileKeys.lists() });

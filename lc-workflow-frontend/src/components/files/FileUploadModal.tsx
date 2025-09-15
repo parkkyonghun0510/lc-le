@@ -27,6 +27,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [showCamera, setShowCamera] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  const [fieldName, setFieldName] = useState<string>('');
   const uploadFileMutation = useUploadFile();
 
   // Get device info on component mount
@@ -76,6 +77,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
         file: fileWithProgress.file,
         applicationId,
         documentType,
+        fieldName: fieldName.trim() || undefined,
         onProgress: (progress) => {
           setFiles(prev => prev.map((f, i) => 
             i === index ? { ...f, progress } : f
@@ -110,6 +112,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
   const handleClose = () => {
     setFiles([]);
     setShowCamera(false);
+    setFieldName('');
     onClose();
   };
 
@@ -167,6 +170,23 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          {/* Field Name Input */}
+          <div className="mb-6">
+            <label htmlFor="fieldName" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+              Document Field Name (Optional)
+            </label>
+            <input
+              type="text"
+              id="fieldName"
+              value={fieldName}
+              onChange={(e) => setFieldName(e.target.value)}
+              placeholder="e.g., NID, borrower_photo, salary_certificate"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Specify a field name to generate structured filenames like: fieldname_20240115_uuid.ext
+            </p>
+          </div>
           {/* Dropzone */}
           <div
             {...getRootProps()}

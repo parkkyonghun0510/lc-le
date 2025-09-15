@@ -144,6 +144,7 @@ export default function GroupFileUploadModal({
         file: fileWithCategory.file,
         applicationId,
         documentType: fileWithCategory.category,
+        fieldName: fileWithCategory.category, // Use category as field name for structured naming
         onProgress: (progress) => {
           setFiles((prev) =>
             prev.map((f, i) => (i === index ? { ...f, progress } : f))

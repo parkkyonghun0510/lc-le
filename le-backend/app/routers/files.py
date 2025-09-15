@@ -24,6 +24,7 @@ async def upload_file(
     application_id: Optional[UUID] = None,
     folder_id: Optional[UUID] = None, # This can now be used to specify a sub-folder
     document_type: Optional[str] = Query(None, enum=["photos", "references", "supporting_docs"]),
+    field_name: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
@@ -177,7 +178,8 @@ async def upload_file(
             file_content=content,
             original_filename=sanitized_filename,
             content_type=file.content_type or "application/octet-stream",
-            prefix=storage_prefix
+            prefix=storage_prefix,
+            field_name=field_name
         )
     except Exception as e:
         raise HTTPException(

@@ -5,12 +5,12 @@ from datetime import datetime
 
 class WorkflowStatus(str, Enum):
     """Enum for role-based workflow stages"""
-    PO_CREATED = "po_created"  # PO creates the application form
-    USER_COMPLETED = "user_completed"  # User completes the form details
-    TELLER_PROCESSING = "teller_processing"  # Teller reviews and inputs account_id
-    MANAGER_REVIEW = "manager_review"  # Manager performs final approval
-    APPROVED = "approved"  # Application approved
-    REJECTED = "rejected"  # Application rejected
+    PO_CREATED = "PO_CREATED"  # PO creates the application form
+    USER_COMPLETED = "USER_COMPLETED"  # User completes the form details
+    TELLER_PROCESSING = "TELLER_PROCESSING"  # Teller reviews and inputs account_id
+    MANAGER_REVIEW = "MANAGER_REVIEW"  # Manager performs final approval
+    APPROVED = "APPROVED"  # Application approved
+    REJECTED = "REJECTED"  # Application rejected
 
 class WorkflowTransition(BaseModel):
     """Model for workflow stage transitions"""
@@ -137,23 +137,33 @@ class WorkflowValidator:
             application.user_completed_by = user.id
             
         elif new_status == WorkflowStatus.TELLER_PROCESSING:
-            application.teller_processing_at = current_time
-            application.teller_processing_by = user.id
+            application.teller_processed_at = current_time
+            application.teller_processed_by = user.id
             
         elif new_status == WorkflowStatus.MANAGER_REVIEW:
-            application.manager_review_at = current_time
-            application.manager_review_by = user.id
+            application.manager_reviewed_at = current_time
+            application.manager_reviewed_by = user.id
             # Set account_id if provided by teller
             if account_id:
                 application.account_id = account_id
                 application.account_id_validated = True
                 application.account_id_validation_notes = notes or "Validated by teller"
                 
-        elif new_status in [WorkflowStatus.APPROVED, WorkflowStatus.REJECTED]:
-            application.final_decision_at = current_time
-            application.final_decision_by = user.id
+        elif new_status == WorkflowStatus.APPROVED:
+            # Ensure manager review stamp exists
+            application.manager_reviewed_at = application.manager_reviewed_at or current_time
+            application.manager_reviewed_by = application.manager_reviewed_by or user.id
+            application.approved_at = current_time
+            application.approved_by = user.id
+        
+        elif new_status == WorkflowStatus.REJECTED:
+            # Ensure manager review stamp exists
+            application.manager_reviewed_at = application.manager_reviewed_at or current_time
+            application.manager_reviewed_by = application.manager_reviewed_by or user.id
+            application.rejected_at = current_time
+            application.rejected_by = user.id
             if notes:
-                application.rejection_reason = notes if new_status == WorkflowStatus.REJECTED else None
+                application.rejection_reason = notes
         
         return application
     
@@ -161,15 +171,15 @@ class WorkflowValidator:
     def can_edit_form(cls, current_status: WorkflowStatus, user_role: str) -> bool:
         """Check if user can edit the application form based on current status and role"""
         # PO can edit during creation phase
-        if current_status == WorkflowStatus.PO_CREATED and user_role == "po":
+        if current_status == WorkflowStatus.PO_CREATED and user_role == "PO":
             return True
         
         # User can edit during user completion phase
-        if current_status == WorkflowStatus.USER_COMPLETED and user_role == "user":
+        if current_status == WorkflowStatus.USER_COMPLETED and user_role == "USER":
             return True
             
         # Teller can edit during teller processing
-        if current_status == WorkflowStatus.TELLER_PROCESSING and user_role == "teller":
+        if current_status == WorkflowStatus.TELLER_PROCESSING and user_role == "TELLER":
             return True
             
         return False

@@ -403,7 +403,7 @@ async def update_application(
             
             # Update workflow status and validation flags
             application.workflow_status = WorkflowStatus.TELLER_PROCESSING
-            application.teller_processing_at = datetime.utcnow()
+            application.teller_processed_at = datetime.utcnow()
             application.teller_processed_by = current_user.id
             application.account_id_validated = True
             application.account_id_validation_notes = validation_notes
@@ -558,14 +558,14 @@ async def approve_application(
             detail="Application not found"
         )
     
-    if application.workflow_status != WorkflowStatus.TELLER_PROCESSING:
+    if application.workflow_status != WorkflowStatus.MANAGER_REVIEW:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Application must be processed by teller before manager approval"
+            detail="Application must be under manager review before approval"
         )
     
-    # Update workflow status to manager reviewed
-    application.workflow_status = WorkflowStatus.MANAGER_REVIEWED
+    # Update workflow status to approved
+    application.workflow_status = WorkflowStatus.APPROVED
     application.manager_reviewed_at = datetime.utcnow()
     application.manager_reviewed_by = current_user.id
     
@@ -1236,10 +1236,10 @@ async def get_workflow_history(
             "description": "Form completed by user"
         })
     
-    if application.teller_processing_at:
+    if application.teller_processed_at:
         history.append({
             "status": WorkflowStatus.TELLER_PROCESSING.value,
-            "timestamp": application.teller_processing_at,
+            "timestamp": application.teller_processed_at,
             "user": application.teller_processor.first_name + " " + application.teller_processor.last_name if application.teller_processor else "Unknown",
             "user_role": "Teller",
             "description": f"Account ID processed: {application.account_id or 'N/A'}",
@@ -1247,10 +1247,10 @@ async def get_workflow_history(
             "validation_notes": application.account_id_validation_notes
         })
     
-    if application.manager_review_at:
+    if application.manager_reviewed_at:
         history.append({
             "status": WorkflowStatus.MANAGER_REVIEW.value,
-            "timestamp": application.manager_review_at,
+            "timestamp": application.manager_reviewed_at,
             "user": application.manager_reviewer.first_name + " " + application.manager_reviewer.last_name if application.manager_reviewer else "Unknown",
             "user_role": "Manager",
             "description": "Final review completed by manager"
@@ -1280,7 +1280,7 @@ def _build_workflow_info(application: CustomerApplication, current_user: User) -
         WorkflowStatus.PO_CREATED: "Application created by PO - awaiting user completion",
         WorkflowStatus.USER_COMPLETED: "Form completed by user - awaiting teller processing",
         WorkflowStatus.TELLER_PROCESSING: "Account ID processed by teller - awaiting manager review",
-        WorkflowStatus.MANAGER_REVIEW: "Final review by manager - process complete",
+        WorkflowStatus.MANAGER_REVIEW: "Awaiting manager decision",
         WorkflowStatus.APPROVED: "Application approved",
         WorkflowStatus.REJECTED: "Application rejected"
     }

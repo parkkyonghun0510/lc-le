@@ -114,7 +114,7 @@ export default function FileManager({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                      {file.display_name || file.original_filename}
+                      {file.display_name || ''}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       <span className="font-medium">{formatBytes(file.file_size)}</span>

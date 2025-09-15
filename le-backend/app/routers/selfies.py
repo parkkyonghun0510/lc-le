@@ -95,7 +95,8 @@ async def upload_selfie(
         file_content=content,
         original_filename=file.filename,
         content_type=file.content_type,
-        prefix=storage_prefix
+        prefix=storage_prefix,
+        field_name=f"selfie_{selfie_type}"
     )
     
     # Create file record

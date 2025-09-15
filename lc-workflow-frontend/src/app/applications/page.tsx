@@ -86,7 +86,7 @@ function ApplicationsContent() {
   const [workflowStatusFilter, setWorkflowStatusFilter] = useState<WorkflowStatus | ''>('');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [applicationToDelete, setApplicationToDelete] = useState<any>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   // TODO: Replace with static options or new data source
@@ -101,7 +101,6 @@ function ApplicationsContent() {
       page,
       size: 10
     };
-
     // Add role-specific filtering
     if (user?.role === 'officer') {
       // Officers see applications they need to process

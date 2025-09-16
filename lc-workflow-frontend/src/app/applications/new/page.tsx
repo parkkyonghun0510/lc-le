@@ -93,19 +93,19 @@ const NewApplicationPage = () => {
     portfolio_officer_name: '',
     sex: '',
     marital_status: '',
-    
+
     // Address Information (optional)
     province: '',
     district: '',
     commune: '',
     village: '',
-    
+
     // Employment Information (optional)
     occupation: '',
     employer_name: '',
     monthly_income: 0,
     income_source: '',
-    
+
     // Loan Information
     requested_amount: '',
     desired_loan_term: 1,
@@ -114,14 +114,14 @@ const NewApplicationPage = () => {
     loan_purposes: [LOAN_PURPOSES[0]],
     purpose_details: '',
     interest_rate: 0,
-    
+
     // Guarantor Information
     guarantor_name: '',
     guarantor_phone: '',
     guarantor_id_number: '',
     guarantor_address: '',
     guarantor_relationship: '',
-    
+
     // Financial Information (optional)
     monthly_expenses: 0,
     assets_value: 0,
@@ -145,9 +145,9 @@ const NewApplicationPage = () => {
     const { name, value } = e.target;
     setFormValues(prev => ({
       ...prev,
-      [name]: name === 'loan_purposes' ? [value] : 
-              name === 'desired_loan_term' ? Math.max(1, Number(value) || 1) : 
-              value
+      [name]: name === 'loan_purposes' ? [value] :
+        name === 'desired_loan_term' ? Math.max(1, Number(value) || 1) :
+          value
     }));
   };
 
@@ -163,15 +163,15 @@ const NewApplicationPage = () => {
         toast.error('User authentication required to create applications.');
         return null;
       }
-      
-      const data = await createApplicationMutation.mutateAsync({
 
+      const data = await createApplicationMutation.mutateAsync({
         full_name_latin: formValues.full_name_latin,
         full_name_khmer: formValues.full_name_khmer,
         id_card_type: formValues.id_card_type,
         id_number: formValues.id_number,
         phone: formValues.phone,
         date_of_birth: formValues.date_of_birth,
+        current_address: formValues.current_address,
         portfolio_officer_name: formValues.portfolio_officer_name,
         requested_amount: parseFloat(formValues.requested_amount),
         desired_loan_term: Number(formValues.desired_loan_term),
@@ -181,9 +181,8 @@ const NewApplicationPage = () => {
         purpose_details: formValues.purpose_details,
         guarantor_name: formValues.guarantor_name,
         guarantor_phone: formValues.guarantor_phone,
-        sex: '',
-        marital_status: '',
-
+        sex: formValues.sex,
+        marital_status: formValues.marital_status,
       });
       setApplicationId(data.id);
       toast.success('Application draft created successfully');
@@ -278,9 +277,11 @@ const NewApplicationPage = () => {
           id_number: formValues.id_number,
           phone: formValues.phone,
           current_address: formValues.current_address,
-            date_of_birth: formValues.date_of_birth,
-            portfolio_officer_name: formValues.portfolio_officer_name,
-          
+          date_of_birth: formValues.date_of_birth,
+          portfolio_officer_name: formValues.portfolio_officer_name,
+          marital_status: formValues.marital_status,
+          sex: formValues.sex,
+
           // Loan Information
           requested_amount: parseFloat(formValues.requested_amount),
           desired_loan_term: Number(formValues.desired_loan_term),
@@ -288,7 +289,7 @@ const NewApplicationPage = () => {
           requested_disbursement_date: formValues.requested_disbursement_date,
           loan_purposes: formValues.loan_purposes,
           purpose_details: formValues.purpose_details,
-          
+
           // Guarantor Information
           guarantor_name: formValues.guarantor_name,
           guarantor_phone: formValues.guarantor_phone,
@@ -297,7 +298,7 @@ const NewApplicationPage = () => {
 
       // Then submit the application
       await submitApplicationMutation.mutateAsync(applicationId);
-      
+
       toast.success('Application submitted successfully!');
       // Redirect to applications listing page after successful submission
       router.push('/applications');
@@ -326,9 +327,9 @@ const NewApplicationPage = () => {
 
   const handleDeleteFile = async (fileId: string) => {
     if (!applicationId) return;
-    
+
     setIsDeleting(prev => ({ ...prev, [fileId]: true }));
-    
+
     try {
       await deleteFileMutation.mutateAsync(fileId);
       toast.success('File deleted successfully');
@@ -359,8 +360,8 @@ const NewApplicationPage = () => {
             loanPurposes={LOAN_PURPOSES.map(purpose => ({
               value: purpose,
               label: purpose,
-            }))} isLoadingProductTypes={false}          
-            />
+            }))} isLoadingProductTypes={false}
+          />
         );
       case 2:
         return (
@@ -372,8 +373,8 @@ const NewApplicationPage = () => {
       case 3:
         return (
           <DocumentAttachmentStep
-          applicationId={applicationId || undefined}
-        />
+            applicationId={applicationId || undefined}
+          />
         );
       default:
         return <div>Unknown step</div>;
@@ -393,7 +394,7 @@ const NewApplicationPage = () => {
                 </svg>
               </div>
               <h1 className="text-4xl font-bold dark:from-white dark:to-gray-300 bg-clip-text mb-3">
-              ពាក្យស្នើសុំដាក់បញ្ចាំ និងប្រាកិភោគដោយអនុប្បទាន
+                ពាក្យស្នើសុំដាក់បញ្ចាំ និងប្រាកិភោគដោយអនុប្បទាន
               </h1>
             </div>
 
@@ -407,14 +408,14 @@ const NewApplicationPage = () => {
               {/* Background decoration */}
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-3xl transform rotate-1"></div>
               <div className="absolute inset-0 bg-gradient-to-l from-purple-600/5 to-pink-600/5 rounded-3xl transform -rotate-1"></div>
-              
+
               {/* Main form container */}
               <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/50 p-8 lg:p-12 mb-10">
                 {/* Step content with enhanced spacing */}
                 <div className="relative z-10">
                   {renderStepContent(activeStep)}
                 </div>
-                
+
                 {/* Subtle inner glow effect */}
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
               </div>

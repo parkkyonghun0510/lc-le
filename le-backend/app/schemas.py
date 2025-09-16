@@ -144,6 +144,8 @@ class CustomerApplicationBase(BaseSchema):
     full_name_latin: Optional[str] = Field(None, max_length=255)
     phone: Optional[str] = Field(None, max_length=20)
     date_of_birth: Optional[date] = None
+    sex: Optional[str] = Field(None, max_length=20)  # male, female, other
+    marital_status: Optional[str] = Field(None, max_length=20)  # single, married, divorced, widowed, separated
     portfolio_officer_name: Optional[str] = Field(None, max_length=255)
     
     # Address Information

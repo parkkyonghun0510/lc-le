@@ -78,6 +78,8 @@ export interface CustomerApplication extends BaseModel {
   full_name_latin?: string;
   phone?: string;
   date_of_birth?: string;
+  sex?: string;
+  marital_status?: string;
   portfolio_officer_name?: string;
 
   // Loan Details
@@ -200,6 +202,8 @@ export interface CustomerApplicationCreate {
   phone?: string;
   date_of_birth?: string;
   current_address?: string;
+  sex?: string;
+  marital_status?: string;
   portfolio_officer_name?: string;
   requested_amount?: number;
   loan_purposes?: string[];

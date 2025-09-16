@@ -1,7 +1,24 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { useState, useCallback, useEffect } from 'react';
-import { debounce } from 'lodash';
+// Simple debounce implementation to avoid lodash dependency
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) & { cancel: () => void } => {
+  let timeout: NodeJS.Timeout;
+  
+  const debounced = (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+  
+  debounced.cancel = () => {
+    clearTimeout(timeout);
+  };
+  
+  return debounced;
+};
 
 // Types for validation responses
 export interface ValidationError {

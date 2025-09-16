@@ -5,15 +5,13 @@ import {
   UserIcon,
   IdentificationIcon,
   PhoneIcon,
-  EnvelopeIcon,
-  MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { IDCardType } from '../types';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
+import { AddressField } from './AddressField';
 import { useIDCardTypes } from '@/hooks/useEnums';
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
-import { formatDate, formatDateDOB } from '@/lib/utils';
 
 interface CustomerInformationStepProps {
   formValues: {
@@ -115,14 +113,14 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           required
         />
 
-        <FormField
+
+        <AddressField
           label="អស័យដ្ឋាន"
           name="current_address"
-          type="text"
           value={formValues.current_address}
+          required
           onChange={onInputChange}
-          placeholder="ភូមិ ឃុំ ស្រុក ខេត្ត"
-          icon={MapPinIcon}
+          placeholder="ជ្រើសរើសអាសយដ្ឋាន"
         />
 
         <FormField

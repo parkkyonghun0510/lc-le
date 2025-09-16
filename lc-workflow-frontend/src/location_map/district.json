@@ -1,0 +1,1423 @@
+[
+  {
+    "type": "ស្រុក",
+    "code": "0102",
+    "name_km": "មង្គលបូរី",
+    "name_en": "Mongkol Borei",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0103",
+    "name_km": "ភ្នំស្រុក",
+    "name_en": "Phnum Srok",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0104",
+    "name_km": "ព្រះនេត្រព្រះ",
+    "name_en": "Preah Netr Preah",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0105",
+    "name_km": "អូរជ្រៅ",
+    "name_en": "Ou Chrov",
+    "province_code": "01"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0106",
+    "name_km": "សិរីសោភ័ណ",
+    "name_en": "Serei Saophoan",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0107",
+    "name_km": "ថ្មពួក",
+    "name_en": "Thma Puok",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0108",
+    "name_km": "ស្វាយចេក",
+    "name_en": "Svay Chek",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0109",
+    "name_km": "ម៉ាឡៃ",
+    "name_en": "Malai",
+    "province_code": "01"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0110",
+    "name_km": "ប៉ោយប៉ែត",
+    "name_en": "Paoy Paet",
+    "province_code": "01"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0201",
+    "name_km": "បាណន់",
+    "name_en": "Banan",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0202",
+    "name_km": "ថ្មគោល",
+    "name_en": "Thma Koul",
+    "province_code": "02"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0203",
+    "name_km": "បាត់ដំបង",
+    "name_en": "Battambang",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0204",
+    "name_km": "បវេល",
+    "name_en": "Bavel",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0205",
+    "name_km": "ឯកភ្នំ",
+    "name_en": "Aek Phnum",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0206",
+    "name_km": "មោងឫស្សី",
+    "name_en": "Moung Ruessei",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0207",
+    "name_km": "រតនមណ្ឌល",
+    "name_en": "Rotonak Mondol",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0208",
+    "name_km": "សង្កែ",
+    "name_en": "Sangkae",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0209",
+    "name_km": "សំឡូត",
+    "name_en": "Samlout",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0210",
+    "name_km": "សំពៅលូន",
+    "name_en": "Sampov Lun",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0211",
+    "name_km": "ភ្នំព្រឹក",
+    "name_en": "Phnum Proek",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0212",
+    "name_km": "កំរៀង",
+    "name_en": "Kamrieng",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0213",
+    "name_km": "គាស់ក្រឡ",
+    "name_en": "Koas Krala",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0214",
+    "name_km": "រុក្ខគិរី",
+    "name_en": "Rukh Kiri",
+    "province_code": "02"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0301",
+    "name_km": "បាធាយ",
+    "name_en": "Batheay",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0302",
+    "name_km": "ចំការលើ",
+    "name_en": "Chamkar Leu",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0303",
+    "name_km": "ជើងព្រៃ",
+    "name_en": "Cheung Prey",
+    "province_code": "03"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0305",
+    "name_km": "កំពង់ចាម",
+    "name_en": "Kampong Cham",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0306",
+    "name_km": "កំពង់សៀម",
+    "name_en": "Kampong Siem",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0307",
+    "name_km": "កងមាស",
+    "name_en": "Kang Meas",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0308",
+    "name_km": "កោះសូទិន",
+    "name_en": "Kaoh Soutin",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0313",
+    "name_km": "ព្រៃឈរ",
+    "name_en": "Prey Chhor",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0314",
+    "name_km": "ស្រីសន្ធរ",
+    "name_en": "Srei Santhor",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0315",
+    "name_km": "ស្ទឹងត្រង់",
+    "name_en": "Stueng Trang",
+    "province_code": "03"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0401",
+    "name_km": "បរិបូណ៌",
+    "name_en": "Baribour",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0402",
+    "name_km": "ជលគីរី",
+    "name_en": "Chol Kiri",
+    "province_code": "04"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0403",
+    "name_km": "កំពង់ឆ្នាំង",
+    "name_en": "Kampong Chhnang",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0404",
+    "name_km": "កំពង់លែង",
+    "name_en": "Kampong Leaeng",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0405",
+    "name_km": "កំពង់ត្រឡាច",
+    "name_en": "Kampong Tralach",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0406",
+    "name_km": "រលាប្អៀរ",
+    "name_en": "Rolea Bier",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0407",
+    "name_km": "សាមគ្គីមានជ័យ",
+    "name_en": "Sameakki Mean Chey",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0408",
+    "name_km": "ទឹកផុស",
+    "name_en": "Tuek Phos",
+    "province_code": "04"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0501",
+    "name_km": "បរសេដ្ឋ",
+    "name_en": "Basedth",
+    "province_code": "05"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0502",
+    "name_km": "ច្បារមន",
+    "name_en": "Chbar Mon",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0503",
+    "name_km": "គងពិសី",
+    "name_en": "Kong Pisei",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0504",
+    "name_km": "ឱរ៉ាល់",
+    "name_en": "Aoral",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0505",
+    "name_km": "ឧដុង្គ",
+    "name_en": "Odongk",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0506",
+    "name_km": "ភ្នំស្រួច",
+    "name_en": "Phnum Sruoch",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0507",
+    "name_km": "សំរោងទង",
+    "name_en": "Samraong Tong",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0508",
+    "name_km": "ថ្ពង",
+    "name_en": "Thpong",
+    "province_code": "05"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0601",
+    "name_km": "បារាយណ៍",
+    "name_en": "Baray",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0602",
+    "name_km": "កំពង់ស្វាយ",
+    "name_en": "Kampong Svay",
+    "province_code": "06"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0603",
+    "name_km": "ស្ទឹងសែន",
+    "name_en": "Stueng Saen",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0604",
+    "name_km": "ប្រាសាទបល្ល័ង្គ",
+    "name_en": "Prasat Ballangk",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0605",
+    "name_km": "ប្រាសាទសំបូរ",
+    "name_en": "Prasat Sambour",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0606",
+    "name_km": "សណ្ដាន់",
+    "name_en": "Sandan",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0607",
+    "name_km": "សន្ទុក",
+    "name_en": "Santuk",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0608",
+    "name_km": "ស្ទោង",
+    "name_en": "Stoung",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0609",
+    "name_km": "តាំងគោក",
+    "name_en": "Taing Kouk",
+    "province_code": "06"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0701",
+    "name_km": "អង្គរជ័យ",
+    "name_en": "Angkor Chey",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0702",
+    "name_km": "បន្ទាយមាស",
+    "name_en": "Banteay Meas",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0703",
+    "name_km": "ឈូក",
+    "name_en": "Chhuk",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0704",
+    "name_km": "ជុំគិរី",
+    "name_en": "Chum Kiri",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0705",
+    "name_km": "ដងទង់",
+    "name_en": "Dang Tong",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0706",
+    "name_km": "កំពង់ត្រាច",
+    "name_en": "Kampong Trach",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0707",
+    "name_km": "ទឹកឈូ",
+    "name_en": "Tuek Chhou",
+    "province_code": "07"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0708",
+    "name_km": "កំពត",
+    "name_en": "Kampot",
+    "province_code": "07"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0801",
+    "name_km": "កណ្ដាលស្ទឹង",
+    "name_en": "Kandal Stueng",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0802",
+    "name_km": "កៀនស្វាយ",
+    "name_en": "Kien Svay",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0803",
+    "name_km": "ខ្សាច់កណ្ដាល",
+    "name_en": "Khsach Kandal",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0804",
+    "name_km": "កោះធំ",
+    "name_en": "Kaoh Thum",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0805",
+    "name_km": "លើកដែក",
+    "name_en": "Leuk Daek",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0806",
+    "name_km": "ល្វាឯម",
+    "name_en": "Lvea Aem",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0807",
+    "name_km": "មុខកំពូល",
+    "name_en": "Mukh Kampul",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0808",
+    "name_km": "អង្គស្នួល",
+    "name_en": "Angk Snuol",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0809",
+    "name_km": "ពញាឮ",
+    "name_en": "Ponhea Lueu",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0810",
+    "name_km": "ស្អាង",
+    "name_en": "Sang",
+    "province_code": "08"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0811",
+    "name_km": "តាខ្មៅ",
+    "name_en": "Ta Khmau",
+    "province_code": "08"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0901",
+    "name_km": "បុទុមសាគរ",
+    "name_en": "Botum Sakor",
+    "province_code": "09"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0902",
+    "name_km": "គិរីសាគរ",
+    "name_en": "Kiri Sakor",
+    "province_code": "09"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0903",
+    "name_km": "កោះកុង",
+    "name_en": "Kaoh Kong",
+    "province_code": "09"
+  },
+  {
+    "type": "ក្រុង",
+    "code": "0904",
+    "name_km": "ខេមរភូមិន្ទ",
+    "name_en": "Khemara Phoumin",
+    "province_code": "09"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0905",
+    "name_km": "មណ្ឌលសីមា",
+    "name_en": "Mondol Seima",
+    "province_code": "09"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0906",
+    "name_km": "ស្រែ អំបិល",
+    "name_en": "Srae Ambel",
+    "province_code": "09"
+  },
+  {
+    "type": "ស្រុក",
+    "code": "0907",
+    "name_km": "ថ្មបាំង",
+    "name_en": "Thma Bang",
+    "province_code": "09"
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1001,
+    "name_km": "ឆ្លូង",
+    "name_en": "Chhloung",
+    "province_code": 10
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1002,
+    "name_km": "ក្រចេះ",
+    "name_en": "Kracheh",
+    "province_code": 10
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1003,
+    "name_km": "ព្រែកប្រសព្វ",
+    "name_en": "Prek Prasab",
+    "province_code": 10
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1004,
+    "name_km": "សំបូរ",
+    "name_en": "Sambour",
+    "province_code": 10
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1005,
+    "name_km": "ស្នួល",
+    "name_en": "Snuol",
+    "province_code": 10
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1006,
+    "name_km": "ចិត្របុរី",
+    "name_en": "Chetr Borei",
+    "province_code": 10
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1101,
+    "name_km": "កែវសីមា",
+    "name_en": "Kaev Seima",
+    "province_code": 11
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1102,
+    "name_km": "កោះញែក",
+    "name_en": "Kaoh Nheaek",
+    "province_code": 11
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1103,
+    "name_km": "អូររាំង",
+    "name_en": "Ou Reang",
+    "province_code": 11
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1104,
+    "name_km": "ពេជ្រាដា",
+    "name_en": "Pech Chreada",
+    "province_code": 11
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1105,
+    "name_km": "សែនមនោរម្យ",
+    "name_en": "Saen Monourom",
+    "province_code": 11
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1201,
+    "name_km": "ចំការមន",
+    "name_en": "Chamkar Mon",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1202,
+    "name_km": "ដូនពេញ",
+    "name_en": "Doun Penh",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1203,
+    "name_km": "៧មករា",
+    "name_en": "Prampir Meakkakra",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1204,
+    "name_km": "ទួលគោក",
+    "name_en": "Tuol Kouk",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1205,
+    "name_km": "ដង្កោ",
+    "name_en": "Dangkao",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1206,
+    "name_km": "មានជ័យ",
+    "name_en": "Mean Chey",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1207,
+    "name_km": "ឫស្សីកែវ",
+    "name_en": "Russey Keo",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1208,
+    "name_km": "សែនសុខ",
+    "name_en": "Saensokh",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1209,
+    "name_km": "ពោធិ៍សែនជ័យ",
+    "name_en": "Pur SenChey",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1210,
+    "name_km": "ជ្រោយចង្វារ",
+    "name_en": "Chraoy Chongvar",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1211,
+    "name_km": "ព្រែកព្នៅ",
+    "name_en": "Praek Pnov",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1212,
+    "name_km": "ច្បារអំពៅ",
+    "name_en": "Chbar Ampov",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1213,
+    "name_km": "បឹងកេងកង",
+    "name_en": "Boeng Keng Kang",
+    "province_code": 12
+  },
+  {
+    "type": "ខណ្ឌ",
+    "code": 1214,
+    "name_km": "កំបូល",
+    "name_en": "Kamboul",
+    "province_code": 12
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1301,
+    "name_km": "ជ័យសែន",
+    "name_en": "Chey Saen",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1302,
+    "name_km": "ឆែប",
+    "name_en": "Chhaeb",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1303,
+    "name_km": "ជាំក្សាន្ដ",
+    "name_en": "Choam Ksant",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1304,
+    "name_km": "គូលែន",
+    "name_en": "Kuleaen",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1305,
+    "name_km": "រវៀង",
+    "name_en": "Rovieng",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1306,
+    "name_km": "សង្គមថ្មី",
+    "name_en": "Sangkum Thmei",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1307,
+    "name_km": "ត្បែងមានជ័យ",
+    "name_en": "Tbaeng Mean Chey",
+    "province_code": 13
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1308,
+    "name_km": "ព្រះវិហារ",
+    "name_en": "Preah Vihear",
+    "province_code": 13
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1401,
+    "name_km": "បាភ្នំ",
+    "name_en": "Ba Phnum",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1402,
+    "name_km": "កំចាយមារ",
+    "name_en": "Kamchay Mear",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1403,
+    "name_km": "កំពង់ត្របែក",
+    "name_en": "Kampong Trabaek",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1404,
+    "name_km": "កញ្ជ្រៀច",
+    "name_en": "Kanhchriech",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1405,
+    "name_km": "មេសាង",
+    "name_en": "Me Sang",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1406,
+    "name_km": "ពាមជរ",
+    "name_en": "Peam Chor",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1407,
+    "name_km": "ពាមរក៍",
+    "name_en": "Peam Ro",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1408,
+    "name_km": "ពារាំង",
+    "name_en": "Pea Reang",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1409,
+    "name_km": "ព្រះស្ដេច",
+    "name_en": "Preah Sdach",
+    "province_code": 14
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1410,
+    "name_km": "ព្រៃវែង",
+    "name_en": "Prey Veng",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1411,
+    "name_km": "ពោធិ៍រៀង",
+    "name_en": "Pur Rieng",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1412,
+    "name_km": "ស៊ីធរកណ្ដាល",
+    "name_en": "Sithor Kandal",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1413,
+    "name_km": "ស្វាយអន្ទរ",
+    "name_en": "Svay Antor",
+    "province_code": 14
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1501,
+    "name_km": "បាកាន",
+    "name_en": "Bakan",
+    "province_code": 15
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1502,
+    "name_km": "កណ្ដៀង",
+    "name_en": "Kandieng",
+    "province_code": 15
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1503,
+    "name_km": "ក្រគរ",
+    "name_en": "Krakor",
+    "province_code": 15
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1504,
+    "name_km": "ភ្នំក្រវ៉ាញ",
+    "name_en": "Phnum Kravanh",
+    "province_code": 15
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1505,
+    "name_km": "ពោធិ៍សាត់",
+    "name_en": "Pursat",
+    "province_code": 15
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1506,
+    "name_km": "វាលវែង",
+    "name_en": "Veal Veaeng",
+    "province_code": 15
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1507,
+    "name_km": "តាលោសែនជ័យ",
+    "name_en": "Ta Lou Senchey",
+    "province_code": 15
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1601,
+    "name_km": "អណ្ដូងមាស",
+    "name_en": "Andoung Meas",
+    "province_code": 16
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1602,
+    "name_km": "បានលុង",
+    "name_en": "Ban Lung",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1603,
+    "name_km": "បរកែវ",
+    "name_en": "Bar Kaev",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1604,
+    "name_km": "កូនមុំ",
+    "name_en": "Koun Mom",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1605,
+    "name_km": "លំផាត់",
+    "name_en": "Lumphat",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1606,
+    "name_km": "អូរជុំ",
+    "name_en": "Ou Chum",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1607,
+    "name_km": "អូរយ៉ាដាវ",
+    "name_en": "Ou Ya Dav",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1608,
+    "name_km": "តាវែង",
+    "name_en": "Ta Veaeng",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1609,
+    "name_km": "វើនសៃ",
+    "name_en": "Veun Sai",
+    "province_code": 16
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1701,
+    "name_km": "អង្គរជុំ",
+    "name_en": "Angkor Chum",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1702,
+    "name_km": "អង្គរធំ",
+    "name_en": "Angkor Thum",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1703,
+    "name_km": "បន្ទាយស្រី",
+    "name_en": "Banteay Srei",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1704,
+    "name_km": "ជីក្រែង",
+    "name_en": "Chi Kraeng",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1706,
+    "name_km": "ក្រឡាញ់",
+    "name_en": "Kralanh",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1707,
+    "name_km": "ពួក",
+    "name_en": "Puok",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1709,
+    "name_km": "ប្រាសាទបាគង",
+    "name_en": "Prasat Bakong",
+    "province_code": 17
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1710,
+    "name_km": "សៀមរាប",
+    "name_en": "Siem Reap",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1711,
+    "name_km": "សូទ្រនិគម",
+    "name_en": "Soutr Nikom",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1712,
+    "name_km": "ស្រីស្នំ",
+    "name_en": "Srei Snam",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1713,
+    "name_km": "ស្វាយលើ",
+    "name_en": "Svay Leu",
+    "province_code": 17
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1714,
+    "name_km": "វ៉ារិន",
+    "name_en": "Varin",
+    "province_code": 17
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1801,
+    "name_km": "ព្រះសីហនុ",
+    "name_en": "Preah Sihanouk",
+    "province_code": 18
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1802,
+    "name_km": "ព្រៃនប់",
+    "name_en": "Prey Nob",
+    "province_code": 18
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1803,
+    "name_km": "ស្ទឹងហាវ",
+    "name_en": "Stueng Hav",
+    "province_code": 18
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1804,
+    "name_km": "កំពង់សីលា",
+    "name_en": "Kampong Seila",
+    "province_code": 18
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1805,
+    "name_km": "កោះរ៉ុង",
+    "name_en": "Kaoh Rung",
+    "province_code": 18
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1901,
+    "name_km": "សេសាន",
+    "name_en": "Sesan",
+    "province_code": 19
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1902,
+    "name_km": "សៀមបូក",
+    "name_en": "Siem Bouk",
+    "province_code": 19
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1903,
+    "name_km": "សៀមប៉ាង",
+    "name_en": "Siem Pang",
+    "province_code": 19
+  },
+  {
+    "type": "ក្រុង",
+    "code": 1904,
+    "name_km": "ស្ទឹងត្រែង",
+    "name_en": "Stueng Traeng",
+    "province_code": 19
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1905,
+    "name_km": "ថាឡាបរិវ៉ាត់",
+    "name_en": "Thala Barivat",
+    "province_code": 19
+  },
+  {
+    "type": "ស្រុក",
+    "code": 1906,
+    "name_km": "បុរីអូរស្វាយសែនជ័យ",
+    "name_en": "Borei Ou Svay Senchey",
+    "province_code": 19
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2001,
+    "name_km": "ចន្ទ្រា",
+    "name_en": "Chantrea",
+    "province_code": 20
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2002,
+    "name_km": "កំពង់រោទិ៍",
+    "name_en": "Kampong Rou",
+    "province_code": 20
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2003,
+    "name_km": "រំដួល",
+    "name_en": "Rumduol",
+    "province_code": 20
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2004,
+    "name_km": "រមាសហែក",
+    "name_en": "Romeas Haek",
+    "province_code": 20
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2005,
+    "name_km": "ស្វាយជ្រំ",
+    "name_en": "Svay Chrum",
+    "province_code": 20
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2006,
+    "name_km": "ស្វាយរៀង",
+    "name_en": "Svay Rieng",
+    "province_code": 20
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2007,
+    "name_km": "ស្វាយទាប",
+    "name_en": "Svay Teab",
+    "province_code": 20
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2008,
+    "name_km": "បាវិត",
+    "name_en": "Bavet",
+    "province_code": 20
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2101,
+    "name_km": "អង្គរបូរី",
+    "name_en": "Angkor Borei",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2102,
+    "name_km": "បាទី",
+    "name_en": "Bati",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2103,
+    "name_km": "បូរីជលសារ",
+    "name_en": "Borei Cholsar",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2104,
+    "name_km": "គីរីវង់",
+    "name_en": "Kiri Vong",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2105,
+    "name_km": "កោះអណ្ដែត",
+    "name_en": "Kaoh Andaet",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2106,
+    "name_km": "ព្រៃកប្បាស",
+    "name_en": "Prey Kabbas",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2107,
+    "name_km": "សំរោង",
+    "name_en": "Samraong",
+    "province_code": 21
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2108,
+    "name_km": "ដូនកែវ",
+    "name_en": "Doun Kaev",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2109,
+    "name_km": "ត្រាំកក់",
+    "name_en": "Tram Kak",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2110,
+    "name_km": "ទ្រាំង",
+    "name_en": "Treang",
+    "province_code": 21
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2201,
+    "name_km": "អន្លង់វែង",
+    "name_en": "Anlong Veaeng",
+    "province_code": 22
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2202,
+    "name_km": "បន្ទាយអំពិល",
+    "name_en": "Banteay Ampil",
+    "province_code": 22
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2203,
+    "name_km": "ចុងកាល់",
+    "name_en": "Chong Kal",
+    "province_code": 22
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2204,
+    "name_km": "សំរោង",
+    "name_en": "Samraong",
+    "province_code": 22
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2205,
+    "name_km": "ត្រពាំងប្រាសាទ",
+    "name_en": "Trapeang Prasat",
+    "province_code": 22
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2301,
+    "name_km": "ដំណាក់ចង្អើរ",
+    "name_en": "Damnak Changaeur",
+    "province_code": 23
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2302,
+    "name_km": "កែប",
+    "name_en": "Kaeb",
+    "province_code": 23
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2401,
+    "name_km": "ប៉ៃលិន",
+    "name_en": "Pailin",
+    "province_code": 24
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2402,
+    "name_km": "សាលាក្រៅ",
+    "name_en": "Sala Krau",
+    "province_code": 24
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2501,
+    "name_km": "តំបែរ",
+    "name_en": "Dambae",
+    "province_code": 25
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2502,
+    "name_km": "ក្រូចឆ្មារ",
+    "name_en": "Krouch Chhmar",
+    "province_code": 25
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2503,
+    "name_km": "មេមត់",
+    "name_en": "Memot",
+    "province_code": 25
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2504,
+    "name_km": "អូររាំងឪ",
+    "name_en": "Ou Reang Ov",
+    "province_code": 25
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2505,
+    "name_km": "ពញាក្រែក",
+    "name_en": "Ponhea Kraek",
+    "province_code": 25
+  },
+  {
+    "type": "ក្រុង",
+    "code": 2506,
+    "name_km": "សួង",
+    "name_en": "Suong",
+    "province_code": 25
+  },
+  {
+    "type": "ស្រុក",
+    "code": 2507,
+    "name_km": "ត្បូងឃ្មុំ",
+    "name_en": "Tboung Khmum",
+    "province_code": 25
+  }
+]

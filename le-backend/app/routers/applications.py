@@ -42,7 +42,7 @@ async def create_application(
     db.add(db_application)
     await db.commit()
     await db.refresh(db_application)
-    return CustomerApplicationResponse.from_orm(db_application)
+    return CustomerApplicationResponse.model_validate(db_application)
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_applications(
@@ -144,7 +144,7 @@ async def list_applications(
     applications = result.scalars().all()
     
     return PaginatedResponse(
-        items=[CustomerApplicationResponse.from_orm(app) for app in applications],
+        items=[CustomerApplicationResponse.model_validate(app) for app in applications],
         total=total,
         page=page,
         size=size,
@@ -305,7 +305,7 @@ async def get_application(
                     detail="Not authorized to access this application"
                 )
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 @router.put("/{application_id}", response_model=CustomerApplicationResponse)
 async def update_application(
@@ -411,7 +411,7 @@ async def update_application(
     
     await db.commit()
     await db.refresh(application)
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 @router.delete("/{application_id}")
 async def delete_application(
@@ -528,7 +528,7 @@ async def submit_application(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 class ApprovalRequest(BaseSchema):
     approved_amount: Optional[float] = None
@@ -590,7 +590,7 @@ async def approve_application(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 @router.patch("/{application_id}/reject", response_model=CustomerApplicationResponse)
 async def reject_application(
@@ -636,7 +636,7 @@ async def reject_application(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 @router.get("/{application_id}/relationships")
 async def get_application_relationships(
@@ -678,7 +678,7 @@ async def get_application_relationships(
     branch_manager = branch.manager if branch else None
     
     return {
-        "application": CustomerApplicationResponse.from_orm(application),
+        "application": CustomerApplicationResponse.model_validate(application),
         "officer": {
             "id": officer.id,
             "first_name": officer.first_name,
@@ -785,7 +785,7 @@ async def assign_reviewer(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 @router.patch("/{application_id}/priority")
 async def update_priority(
@@ -823,7 +823,7 @@ async def update_priority(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 @router.get("/stats/summary")
 async def get_application_stats(
@@ -1040,7 +1040,7 @@ async def update_workflow_stage(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 
 
@@ -1092,7 +1092,7 @@ async def update_loan_status(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.from_orm(application)
+    return CustomerApplicationResponse.model_validate(application)
 
 
 # Workflow Management Endpoints

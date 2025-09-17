@@ -113,10 +113,21 @@ function ApplicationDetailContent() {
   const rejectMutation = useRejectApplication();
 
   // Files/folders for grouping
-  const { data: allFilesData } = useFiles({ application_id: applicationId, limit: 100 });
-  const { data: appFoldersData } = useFolders({ application_id: applicationId });
+  const { data: allFilesData, refetch: refetchFiles } = useFiles({ application_id: applicationId, limit: 100 });
+  const { data: appFoldersData, refetch: refetchFolders } = useFolders({ application_id: applicationId });
   const appFolders = appFoldersData?.items || [];
   const files: ApiFile[] = allFilesData?.items || [];
+  
+  // Debug logging
+  console.log('Fetching files for application:', applicationId);
+  console.log('Application files:', files.length, files);
+  console.log('Application folders:', appFolders.length, appFolders);
+  
+  // Add refresh button for testing
+  const handleRefreshFiles = () => {
+    refetchFiles();
+    refetchFolders();
+  };
   const { downloadFile } = useDownloadFile();
   const [previewFile, setPreviewFile] = useState<ApiFile | null>(null);
   const [previewList, setPreviewList] = useState<ApiFile[]>([]);

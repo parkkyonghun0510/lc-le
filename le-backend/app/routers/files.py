@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc, func
@@ -21,13 +21,39 @@ router = APIRouter()
 @router.post("/upload", response_model=FileResponse)
 async def upload_file(
     file: UploadFile = File(),
-    application_id: Optional[UUID] = None,
-    folder_id: Optional[UUID] = None, # This can now be used to specify a sub-folder
-    document_type: Optional[str] = Query(None, enum=["photos", "references", "supporting_docs"]),
-    field_name: Optional[str] = Query(None),
+    application_id: Optional[str] = Form(None),
+    folder_id: Optional[str] = Form(None), # This can now be used to specify a sub-folder
+    document_type: Optional[str] = Form(None),
+    field_name: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
+    # Convert string parameters to UUID if provided
+    application_uuid = None
+    folder_uuid = None
+    
+    if application_id:
+        try:
+            application_uuid = UUID(application_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid application_id format"
+            )
+    
+    if folder_id:
+        try:
+            folder_uuid = UUID(folder_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid folder_id format"
+            )
+    
+    # Debug logging to track parameters
+    print(f"Upload parameters received: application_id={application_id}, folder_id={folder_id}")
+    print(f"Converted UUIDs: application_uuid={application_uuid}, folder_uuid={folder_uuid}")
+    
     # Validate file presence and filename
     if not file.filename:
         raise HTTPException(
@@ -69,28 +95,28 @@ async def upload_file(
         )
     
     # If application_id is provided, ensure folder structure exists
-    if application_id:
-        folder_ids = await get_or_create_application_folder_structure(db, application_id)
+    if application_uuid:
+        folder_ids = await get_or_create_application_folder_structure(db, application_uuid)
         
         # If a specific document_type is given, use its folder
         if document_type and document_type in folder_ids:
-            folder_id = folder_ids[document_type]
+            folder_uuid = folder_ids[document_type]
         # If no specific type, but a folder_id is passed, use it (optional)
-        elif not folder_id:
+        elif not folder_uuid:
             # Default to parent application folder if no specific folder is chosen
-            folder_id = folder_ids.get("parent_id")
+            folder_uuid = folder_ids.get("parent_id")
 
     # Authorization: if attaching to application, ensure user can access it
-    if application_id is not None:
-        app_q = await db.execute(select(CustomerApplication).where(CustomerApplication.id == application_id))
+    if application_uuid is not None:
+        app_q = await db.execute(select(CustomerApplication).where(CustomerApplication.id == application_uuid))
         app_obj = app_q.scalar_one_or_none()
         if not app_obj:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
         if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
 
-    if folder_id is not None:
-        folder_q = await db.execute(select(Folder).where(Folder.id == folder_id))
+    if folder_uuid is not None:
+        folder_q = await db.execute(select(Folder).where(Folder.id == folder_uuid))
         folder_obj = folder_q.scalar_one_or_none()
         if not folder_obj:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
@@ -160,15 +186,15 @@ async def upload_file(
     
     # Build storage prefix for logical organization
     storage_prefix = None
-    if application_id is not None:
+    if application_uuid is not None:
         # If folder provided, try to include folder name as role-based segment
         role_segment = None
-        if folder_id is not None:
-            folder_q2 = await db.execute(select(Folder).where(Folder.id == folder_id))
+        if folder_uuid is not None:
+            folder_q2 = await db.execute(select(Folder).where(Folder.id == folder_uuid))
             folder_for_prefix = folder_q2.scalar_one_or_none()
             if folder_for_prefix and folder_for_prefix.name:
                 role_segment = folder_for_prefix.name.lower()
-        storage_prefix = f"applications/{application_id}"
+        storage_prefix = f"applications/{application_uuid}"
         if role_segment:
             storage_prefix = f"{storage_prefix}/{role_segment}"
 
@@ -197,9 +223,13 @@ async def upload_file(
             file_size=len(content),
             mime_type=file.content_type or "application/octet-stream",
             uploaded_by=current_user.id,
-            application_id=application_id,
-            folder_id=folder_id
+            application_id=application_uuid,
+            folder_id=folder_uuid
         )
+        
+        # Debug logging to verify file record creation
+        print(f"Creating file record with: application_id={application_uuid}, folder_id={folder_uuid}")
+        print(f"File record created: {db_file.id}, folder_id={db_file.folder_id}")
         
         db.add(db_file)
         await db.commit()

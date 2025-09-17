@@ -103,25 +103,36 @@ const fileApi = {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Also try sending parameters in form data (in case backend expects them there)
-    if (applicationId) formData.append('application_id', applicationId);
-    if (folderId) formData.append('folder_id', folderId);
-    if (documentType) formData.append('document_type', documentType);
-    if (fieldName) formData.append('field_name', fieldName);
-    
-    // Send ids as query params to match backend expectations
-    const qp = new URLSearchParams();
-    if (applicationId) qp.append('application_id', applicationId);
-    if (folderId) qp.append('folder_id', folderId);
-    if (documentType) qp.append('document_type', documentType);
-    if (fieldName) qp.append('field_name', fieldName);
-
-    // Debug logging (can be removed in production)
+    // Send parameters as form data (try multiple parameter formats)
+    if (applicationId) {
+      formData.append('application_id', applicationId);
+      formData.append('applicationId', applicationId); // Alternative format
+    }
     if (folderId) {
-      console.log(`Uploading to folder: ${folderId}`);
+      formData.append('folder_id', folderId);
+      formData.append('folderId', folderId); // Alternative format
+    }
+    if (documentType) {
+      formData.append('document_type', documentType);
+      formData.append('documentType', documentType); // Alternative format
+    }
+    if (fieldName) {
+      formData.append('field_name', fieldName);
+      formData.append('fieldName', fieldName); // Alternative format
     }
 
-    return apiClient.post(`/files/upload?${qp.toString()}`, formData, {
+    // Debug logging
+    if (folderId) {
+      console.log(`Uploading to folder: ${folderId}`);
+      console.log('Form data parameters:', {
+        application_id: applicationId,
+        folder_id: folderId,
+        document_type: documentType,
+        field_name: fieldName
+      });
+    }
+
+    return apiClient.post(`/files/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

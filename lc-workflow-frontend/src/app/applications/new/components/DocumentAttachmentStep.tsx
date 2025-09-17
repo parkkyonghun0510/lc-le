@@ -31,7 +31,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
   applicationId,
 }) => {
   const uploadMutation = useUploadFile();
-  
+
   // Document definitions for the upload section
   const docDefs = [
     { id: 'borrower_photo', label: 'រូបថតអ្នកខ្ចី', role: 'borrower' },
@@ -45,24 +45,27 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
     { id: 'house_photo', label: 'រូបផ្ទះ', role: 'collateral' },
     { id: 'collateral_other', label: 'បញ្ចាំផ្សេងៗ', role: 'collateral' },
   ];
-  
+
   // Mobile device detection
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [currentDocType, setCurrentDocType] = useState<string | null>(null);
-  
+
   // Existing state
   const [selectedDocs, setSelectedDocs] = useState<Record<string, boolean>>({});
-  const [docFiles, setDocFiles] = useState<Record<string, File[]>>({});
+  const [, setDocFiles] = useState<Record<string, File[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, ApiFile[]>>({});
-  
+
   // Upload and folder hooks
   const uploadFileMutation = useUploadFile();
   const createFolderMutation = useCreateFolder();
   const { data: foldersData, refetch: refetchFolders } = useFolders({ application_id: applicationId });
   const folders = foldersData?.items || [];
-  
+
+  // In-memory cache to prevent duplicate folder creation during simultaneous uploads
+  const [folderCache, setFolderCache] = useState<Record<string, string>>({});
+
   // Detect device on mount
   useEffect(() => {
     const detectDevice = async () => {
@@ -71,29 +74,41 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
     };
     detectDevice();
   }, []);
-  
+
   // Get or create folder for document role
   const getOrCreateFolder = async (role: string): Promise<string | undefined> => {
     if (!applicationId) return undefined;
-    
+
     // Map roles to folder names
     const folderNames = {
       borrower: 'Borrower Documents',
-      guarantor: 'Guarantor Documents', 
+      guarantor: 'Guarantor Documents',
       collateral: 'Collateral Documents'
     };
-    
+
     const folderName = folderNames[role as keyof typeof folderNames];
     if (!folderName) return undefined;
-    
+
+    // Check in-memory cache first to prevent duplicate creation during simultaneous uploads
+    const cacheKey = `${applicationId}-${role}`;
+    if (folderCache[cacheKey]) {
+      console.log(`Using cached folder: ${folderName} (${folderCache[cacheKey]})`);
+      return folderCache[cacheKey];
+    }
+
+    // Always fetch fresh folder data to check for existing folders
+    const { data: currentFoldersData } = await refetchFolders();
+    const currentFolders = currentFoldersData?.items || [];
+
     // Check if folder already exists
-    // Check if folder already exists
-    const existingFolder = folders.find(f => f.name === folderName && f.application_id === applicationId);
+    const existingFolder = currentFolders.find(f => f.name === folderName && f.application_id === applicationId);
     if (existingFolder) {
       console.log(`Using existing folder: ${folderName} (${existingFolder.id})`);
+      // Cache the folder ID to prevent future duplicates
+      setFolderCache(prev => ({ ...prev, [cacheKey]: existingFolder.id }));
       return existingFolder.id;
     }
-    
+
     // Create new folder
     try {
       console.log(`Creating new folder: ${folderName} for application: ${applicationId}`);
@@ -101,18 +116,15 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
         name: folderName,
         application_id: applicationId
       });
-      
-      // Small delay to ensure backend processing
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Refetch folders to get the updated list
-      await refetchFolders();
-      
-      // Refetch folders to get the updated list
-      await refetchFolders();
-      
+
+      // No need for additional refetch since we'll fetch fresh data on next call
+
       console.log(`Created folder: ${folderName} (${newFolder.id})`);
       toast.success(`Created folder: ${folderName}`);
+
+      // Cache the new folder ID to prevent future duplicates
+      setFolderCache(prev => ({ ...prev, [cacheKey]: newFolder.id }));
+
       return newFolder.id;
     } catch (error) {
       console.error('Failed to create folder:', error);
@@ -126,70 +138,97 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
     setCurrentDocType(docId);
     setShowCamera(true);
   };
-  
+
+  // Retry function for server errors
+  const retryUpload = async (uploadFn: () => Promise<any>, maxRetries = 2, delay = 1000): Promise<any> => {
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+      try {
+        return await uploadFn();
+      } catch (error: any) {
+        const isServerError = error?.response?.status >= 500;
+        const isLastAttempt = attempt === maxRetries + 1;
+
+        if (isServerError && !isLastAttempt) {
+          console.log(`Upload attempt ${attempt} failed with server error, retrying in ${delay}ms...`);
+          const retryToastId = toast.loading(`Retrying upload... (attempt ${attempt}/${maxRetries + 1})`);
+          // Dismiss the loading toast after the delay
+          setTimeout(() => toast.dismiss(retryToastId), delay);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        } else {
+          throw error; // Re-throw if not a server error or if last attempt
+        }
+      }
+    }
+  };
+
   // Handle file upload from input
   const handleFileUpload = async (files: File[], docType: string) => {
     if (!applicationId) {
       toast.error('Application ID is required for file upload');
       return;
     }
-    
+
     // Get document definition to determine role
     const docDef = docDefs.find(d => d.id === docType);
     if (!docDef) {
       toast.error('Invalid document type');
       return;
     }
-    
+
     // Get or create folder for this document role
     // Get or create folder for this document role
     const folderId = await getOrCreateFolder(docDef.role);
-    
+
     for (const file of files) {
       const key = `${docType}-${Date.now()}-${file.name}`;
-      
+
       try {
         // Validate file type
         if (!file.type.startsWith('image/')) {
           toast.error(`${file.name} is not a valid image file`);
           continue;
         }
-        
+
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
           toast.error(`${file.name} is too large. Maximum size is 10MB`);
           continue;
         }
-        
+
         // Set initial progress
         setUploadProgress(prev => ({ ...prev, [key]: 0 }));
-        
-        // Upload the file with folder ID
-        // Upload the file with folder ID
-        const uploadedFile = await uploadFileMutation.mutateAsync({
-          file,
-          applicationId,
-          folderId,
-          documentType: 'photos',
-          fieldName: docType,
-          onProgress: (progress) => {
-            setUploadProgress(prev => ({ ...prev, [key]: progress }));
-          },
-        });
-        
+
+        // Upload the file with folder ID (with retry for server errors)
+        const uploadedFile = await retryUpload(() =>
+          uploadFileMutation.mutateAsync({
+            file,
+            applicationId,
+            folderId,
+            documentType: 'photos',
+            fieldName: docType,
+            onProgress: (progress) => {
+              setUploadProgress(prev => ({ ...prev, [key]: progress }));
+            },
+          })
+        );
+
+        console.log('Upload response:', uploadedFile);
+        console.log('File uploaded with folder_id:', uploadedFile.folder_id);
+
         // Add to doc files and uploaded files after successful upload
         setDocFiles(prev => ({
           ...prev,
           [docType]: [...(prev[docType] || []), file]
         }));
-        
+
         setUploadedFiles(prev => ({
           ...prev,
           [docType]: [...(prev[docType] || []), uploadedFile]
         }));
-        
+
         toast.success(`${file.name} uploaded successfully to ${docDef.role} folder`);
-        
+
         // Clear progress after successful upload
         setTimeout(() => {
           setUploadProgress(prev => {
@@ -198,11 +237,19 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
             return newProgress;
           });
         }, 2000);
-        
-      } catch (error) {
+
+      } catch (error: any) {
         console.error('Upload failed:', error);
-        toast.error(`Failed to upload ${file.name}`);
-        
+
+        // Check if it's a server error (5xx) vs client error (4xx)
+        if (error?.response?.status >= 500) {
+          toast.error(`Server temporarily unavailable. Please try again later.`);
+        } else if (error?.response?.status === 413) {
+          toast.error(`${file.name} is too large for upload.`);
+        } else {
+          toast.error(`Failed to upload ${file.name}: ${error?.response?.data?.message || error?.message || 'Unknown error'}`);
+        }
+
         // Remove failed upload from progress
         setUploadProgress(prev => {
           const newProgress = { ...prev };
@@ -216,55 +263,59 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
   // Handle captured image
   const handleImageCaptured = async (capture: { blob: Blob; dataUrl: string; file: File }) => {
     if (!currentDocType) return;
-    
+
     const key = `${currentDocType}-${Date.now()}-${capture.file.name}`;
-    
+
     try {
       if (!applicationId) {
         toast.error('Application ID is required for file upload');
         return;
       }
-      
+
       // Get document definition to determine role
       const docDef = docDefs.find(d => d.id === currentDocType);
       if (!docDef) {
         toast.error('Invalid document type');
         return;
       }
-      
+
       // Get or create folder for this document role
       // Get or create folder for this document role
       const folderId = await getOrCreateFolder(docDef.role);
-      
+
       // Set initial progress
       setUploadProgress(prev => ({ ...prev, [key]: 0 }));
-      
-      // Upload the file with folder ID
-      // Upload the file with folder ID
-      const uploadedFile = await uploadFileMutation.mutateAsync({
-        file: capture.file,
-        applicationId,
-        folderId,
-        documentType: 'photos',
-        fieldName: currentDocType,
-        onProgress: (progress) => {
-          setUploadProgress(prev => ({ ...prev, [key]: progress }));
-        },
-      });
-      
+
+      // Upload the file with folder ID (with retry for server errors)
+      const uploadedFile = await retryUpload(() =>
+        uploadFileMutation.mutateAsync({
+          file: capture.file,
+          applicationId,
+          folderId,
+          documentType: 'photos',
+          fieldName: currentDocType,
+          onProgress: (progress) => {
+            setUploadProgress(prev => ({ ...prev, [key]: progress }));
+          },
+        })
+      );
+
+      console.log('Camera upload response:', uploadedFile);
+      console.log('Camera file uploaded with folder_id:', uploadedFile.folder_id);
+
       // Add to doc files and uploaded files after successful upload
       setDocFiles(prev => ({
         ...prev,
         [currentDocType]: [...(prev[currentDocType] || []), capture.file]
       }));
-      
+
       setUploadedFiles(prev => ({
         ...prev,
         [currentDocType]: [...(prev[currentDocType] || []), uploadedFile]
       }));
-      
+
       toast.success(`Photo captured and uploaded successfully to ${docDef.role} folder`);
-      
+
       // Clear progress after successful upload
       setTimeout(() => {
         setUploadProgress(prev => {
@@ -273,11 +324,19 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
           return newProgress;
         });
       }, 2000);
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Upload failed:', error);
-      toast.error('Failed to upload captured photo');
-      
+
+      // Check if it's a server error (5xx) vs client error (4xx)
+      if (error?.response?.status >= 500) {
+        toast.error(`Server temporarily unavailable. Please try again later.`);
+      } else if (error?.response?.status === 413) {
+        toast.error(`Captured photo is too large for upload.`);
+      } else {
+        toast.error(`Failed to upload captured photo: ${error?.response?.data?.message || error?.message || 'Unknown error'}`);
+      }
+
       // Remove failed upload from progress
       setUploadProgress(prev => {
         const newProgress = { ...prev };
@@ -285,7 +344,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
         return newProgress;
       });
     }
-    
+
     setShowCamera(false);
     setCurrentDocType(null);
   };
@@ -309,34 +368,34 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
               <div className="ml-6 space-y-2">
                 <div className="flex flex-col sm:flex-row gap-2">
                   {deviceInfo?.isMobile ? (
-                     deviceInfo?.hasCamera ? (
-                       // Mobile with camera: Camera-only mode
-                       <div className="flex-1">
-                         <button
-                           type="button"
-                           onClick={() => handleCameraCapture(def.id)}
-                           className="w-full p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 flex items-center justify-center gap-2"
-                         >
-                           <CameraIcon className="w-4 h-4" />
-                           <span>Take Photo</span>
-                         </button>
-                         <p className="text-xs text-gray-500 mt-1 text-center">
-                           Camera capture only on mobile devices
-                         </p>
-                       </div>
-                     ) : (
-                       // Mobile without camera: Show message
-                       <div className="flex-1 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                         <div className="flex items-center gap-2 text-yellow-800">
-                           <DevicePhoneMobileIcon className="w-5 h-5" />
-                           <span className="text-sm font-medium">Camera Required</span>
-                         </div>
-                         <p className="text-xs text-yellow-700 mt-1">
-                           Please enable camera access or use a desktop device to upload files.
-                         </p>
-                       </div>
-                     )
-                   ) : (
+                    deviceInfo?.hasCamera ? (
+                      // Mobile with camera: Camera-only mode
+                      <div className="flex-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCameraCapture(def.id)}
+                          className="w-full p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 flex items-center justify-center gap-2"
+                        >
+                          <CameraIcon className="w-4 h-4" />
+                          <span>Take Photo</span>
+                        </button>
+                        <p className="text-xs text-gray-500 mt-1 text-center">
+                          Camera capture only on mobile devices
+                        </p>
+                      </div>
+                    ) : (
+                      // Mobile without camera: Show message
+                      <div className="flex-1 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-yellow-800">
+                          <DevicePhoneMobileIcon className="w-5 h-5" />
+                          <span className="text-sm font-medium">Camera Required</span>
+                        </div>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          Please enable camera access or use a desktop device to upload files.
+                        </p>
+                      </div>
+                    )
+                  ) : (
                     // Desktop: File upload with optional camera
                     <>
                       <input
@@ -364,7 +423,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
                     </>
                   )}
                 </div>
-                
+
                 {/* Upload Progress */}
                 {Object.entries(uploadProgress).filter(([key]) => key.startsWith(def.id)).map(([key, progress]) => (
                   <div key={key} className="text-xs">
@@ -377,7 +436,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
                     </div>
                   </div>
                 ))}
-                
+
                 {/* Uploaded Files */}
                 {uploadedFiles[def.id] && uploadedFiles[def.id].length > 0 && (
                   <div className="space-y-2">
@@ -428,7 +487,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
           {renderDocumentSection('ឯកសារបញ្ចាំ', 'collateral')}
         </div>
       </div>
-      
+
       {/* Camera Capture Modal */}
       {showCamera && (
         <CameraCapture

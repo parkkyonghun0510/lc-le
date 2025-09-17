@@ -114,7 +114,8 @@ function ApplicationDetailContent() {
 
   // Files/folders for grouping
   const { data: allFilesData } = useFiles({ application_id: applicationId, limit: 100 });
-  const { data: appFolders = [] } = useFolders({ application_id: applicationId });
+  const { data: appFoldersData } = useFolders({ application_id: applicationId });
+  const appFolders = appFoldersData?.items || [];
   const files: ApiFile[] = allFilesData?.items || [];
   const { downloadFile } = useDownloadFile();
   const [previewFile, setPreviewFile] = useState<ApiFile | null>(null);
@@ -1261,7 +1262,7 @@ function ApplicationDetailContent() {
                                                 {file.display_name || file.original_filename}
                                               </p>
                                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                {file.mime_type} • {file.size ? `${Math.round(file.size / 1024)} KB` : 'Unknown size'}
+                                                {file.mime_type} • {file.file_size ? `${Math.round(file.file_size / 1024)} KB` : 'Unknown size'}
                                               </p>
                                             </div>
                                           </div>
@@ -1385,7 +1386,7 @@ function ApplicationDetailContent() {
                                         {file.display_name || file.original_filename}
                                       </p>
                                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {file.mime_type} • {file.size ? `${Math.round(file.size / 1024)} KB` : 'Unknown size'}
+                                        {file.mime_type} • {file.file_size ? `${Math.round(file.file_size / 1024)} KB` : 'Unknown size'}
                                       </p>
                                     </div>
                                   </div>

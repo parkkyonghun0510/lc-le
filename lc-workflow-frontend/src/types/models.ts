@@ -78,6 +78,7 @@ export interface CustomerApplication extends BaseModel {
   full_name_latin?: string;
   phone?: string;
   date_of_birth?: string;
+  current_address?: string;
   sex?: string;
   marital_status?: string;
   portfolio_officer_name?: string;
@@ -93,6 +94,9 @@ export interface CustomerApplication extends BaseModel {
   // Guarantor Information
   guarantor_name?: string;
   guarantor_phone?: string;
+  guarantor_id_number?: string;
+  guarantor_address?: string;
+  guarantor_relationship?: string;
 
   // Additional data
   collaterals?: Collateral[];

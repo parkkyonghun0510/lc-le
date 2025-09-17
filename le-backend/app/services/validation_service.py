@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from app.models import User, CustomerApplication, Department, Branch
 from app.core.logging import get_logger
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 logger = get_logger(__name__)
@@ -27,7 +27,7 @@ class ValidationService:
                             user_id: Optional[int] = None, additional_info: Dict = None):
         """Log duplicate attempt for auditing purposes"""
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "model": model_name,
             "field": field,
             "attempted_value": str(value),

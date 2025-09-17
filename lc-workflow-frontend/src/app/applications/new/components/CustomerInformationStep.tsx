@@ -5,15 +5,13 @@ import {
   UserIcon,
   IdentificationIcon,
   PhoneIcon,
-  EnvelopeIcon,
-  MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { IDCardType } from '../types';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
+import { AddressField } from './AddressField';
 import { useIDCardTypes } from '@/hooks/useEnums';
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
-import { formatDate, formatDateDOB } from '@/lib/utils';
 
 interface CustomerInformationStepProps {
   formValues: {
@@ -25,6 +23,8 @@ interface CustomerInformationStepProps {
     current_address: string;
     date_of_birth: string;
     portfolio_officer_name: string;
+    sex: string;
+    marital_status: string;
   };
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 }
@@ -39,6 +39,20 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
   const idNumberPlaceholder = useMemo(() => {
     return getIDNumberPlaceholder(formValues.id_card_type);
   }, [formValues.id_card_type]);
+
+  // Options for Sex field
+  const sexOptions = [
+    { value: 'male', label: 'ប្រុស' },
+    { value: 'female', label: 'ស្រី' },
+  ];
+
+  // Options for Marital Status field
+  const maritalStatusOptions = [
+    { value: 'single', label: 'នៅលីវ' },
+    { value: 'married', label: 'រៀបការរួច' },
+    { value: 'divorced', label: 'មេម៉ាយ' },
+    { value: 'widowed', label: 'ពោះម៉ាយ' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -71,14 +85,14 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           value={formValues.id_card_type}
           onChange={onInputChange}
           options={idCardTypes?.map(type => ({ value: type.value, label: type.label })) || []}
-          placeholder="Select ID Card Type"
+          placeholder="សូមជ្រើសរើស"
           icon={IdentificationIcon}
           required
           disabled={isLoadingIdCardTypes}
         />
 
         <FormField
-          label="លេខអត្តសញ្ញាណប័ណ្ណ"
+          label="លេខសម្គាល់ប័ណ្ណ"
           name="id_number"
           type="text"
           value={formValues.id_number}
@@ -100,15 +114,13 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
         />
 
 
-
-        <FormField
-          label="Address"
+        <AddressField
+          label="អស័យដ្ឋាន"
           name="current_address"
-          type="text"
           value={formValues.current_address}
+          required
           onChange={onInputChange}
-          placeholder="Enter address"
-          icon={MapPinIcon}
+          placeholder="ជ្រើសរើសអាសយដ្ឋាន"
         />
 
         <FormField
@@ -120,13 +132,35 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           icon={UserIcon}
         />
 
+        {/* <SelectField
+          label="ភេទ"
+          name="sex"
+          value={formValues.sex}
+          onChange={onInputChange}
+          options={sexOptions}
+          placeholder="សូមជ្រើសរើស"
+          icon={UserIcon}
+          required
+        /> */}
+
+        {/* <SelectField
+          label="ស្ថានភាពគ្រួសារ"
+          name="marital_status"
+          value={formValues.marital_status}
+          onChange={onInputChange}
+          options={maritalStatusOptions}
+          placeholder="សូមជ្រើសរើស"
+          icon={UserIcon}
+          required
+        /> */}
+
         <FormField
-          label="Portfolio Officer Name"
+          label="មន្រ្តី ទទួលបន្ទុក"
           name="portfolio_officer_name"
           type="text"
           value={formValues.portfolio_officer_name}
           onChange={onInputChange}
-          placeholder="Enter portfolio officer name"
+          placeholder="ឈ្មោះមន្ត្រី"
           icon={UserIcon}
         />
       </div>

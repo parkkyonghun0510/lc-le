@@ -42,12 +42,12 @@ export const ValidationInput: React.FC<ValidationInputProps> = ({
   showValidationIcon = true,
   debounceMs = 500,
 }) => {
-  const [localValue, setLocalValue] = useState(value);
+  const [localValue, setLocalValue] = useState(value || '');
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Sync with external value changes
   useEffect(() => {
-    setLocalValue(value);
+    setLocalValue(value || '');
   }, [value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

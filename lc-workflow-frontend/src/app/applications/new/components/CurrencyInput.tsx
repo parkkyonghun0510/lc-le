@@ -62,7 +62,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
     return cleaned;
   };
 
-  const displayValue = isEditing ? value : formatCurrencyValue(value);
+  const displayValue = isEditing ? (value || '') : formatCurrencyValue(value || '');
   
   const baseInputClasses = `
     w-full pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent 

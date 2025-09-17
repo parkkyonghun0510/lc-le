@@ -86,6 +86,8 @@ class CustomerApplication(Base):
     full_name_latin = Column(String(255))
     phone = Column(String(20))
     date_of_birth = Column(Date)
+    sex = Column(String(20))  # male, female, other
+    marital_status = Column(String(20))  # single, married, divorced, widowed, separated
     portfolio_officer_name = Column(String(255))
     
     # Address Information
@@ -153,6 +155,21 @@ class CustomerApplication(Base):
     assigned_reviewer = Column(UUID(as_uuid=True), ForeignKey('users.id'))
     priority_level = Column(String(20), default='normal')  # low, normal, high, urgent
     
+    # Role-based workflow stages
+    workflow_status = Column(String(50), default='po_created')  # po_created, user_completed, teller_processing, manager_review, approved, rejected
+    po_created_at = Column(DateTime(timezone=True))  # When PO creates the form
+    po_created_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))  # PO who created the form
+    user_completed_at = Column(DateTime(timezone=True))  # When User completes the form
+    user_completed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))  # User who completed the form
+    teller_processed_at = Column(DateTime(timezone=True))  # When Teller processes account_id
+    teller_processed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))  # Teller who processed
+    manager_reviewed_at = Column(DateTime(timezone=True))  # When Manager performs final approval
+    manager_reviewed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'))  # Manager who reviewed
+    
+    # Account ID validation tracking
+    account_id_validated = Column(Boolean, default=False)  # Whether account_id has been validated by Teller
+    account_id_validation_notes = Column(Text)  # Teller's notes on account_id validation
+    
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -168,6 +185,12 @@ class CustomerApplication(Base):
     approver = relationship("User", foreign_keys=[approved_by])
     rejector = relationship("User", foreign_keys=[rejected_by])
     reviewer = relationship("User", foreign_keys=[assigned_reviewer])
+    
+    # Role-based workflow relationships
+    po_creator = relationship("User", foreign_keys=[po_created_by])
+    user_completer = relationship("User", foreign_keys=[user_completed_by])
+    teller_processor = relationship("User", foreign_keys=[teller_processed_by])
+    manager_reviewer = relationship("User", foreign_keys=[manager_reviewed_by])
     # Application-linked resources
     files = relationship(
         "File",
@@ -188,6 +211,7 @@ class File(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
     file_path = Column(Text, nullable=False)
     file_size = Column(BigInteger, nullable=False)
     mime_type = Column(String(100), nullable=False)

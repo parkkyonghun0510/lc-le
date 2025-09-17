@@ -269,7 +269,7 @@ export default function CustomerFileExplorer({
         // Build virtual group folders from files
         const counts: Record<string, { count: number; created_at: string }> = {};
         for (const f of filesData.items) {
-          const key = getGroupKeyForFilename(f.original_filename);
+          const key = getGroupKeyForFilename(f.display_name || f.original_filename);
           if (!counts[key]) counts[key] = { count: 0, created_at: f.created_at };
           counts[key].count += 1;
           // earliest created_at for display ordering
@@ -302,7 +302,7 @@ export default function CustomerFileExplorer({
         const files: FileItem[] = filesData.items
           .filter(file => {
             if (!isVirtualGroup) return true; // real folders already filtered by API in useFiles
-            const key = getGroupKeyForFilename(file.original_filename);
+            const key = getGroupKeyForFilename(file.display_name || file.original_filename);
             return key === groupKey;
           })
           .map(file => ({ ...file, type: 'file' as const }));
@@ -310,7 +310,7 @@ export default function CustomerFileExplorer({
         let filteredFiles = files;
         if (searchTerm) {
           filteredFiles = filteredFiles.filter(file =>
-            file.original_filename.toLowerCase().includes(searchTerm.toLowerCase())
+            (file.display_name || file.original_filename).toLowerCase().includes(searchTerm.toLowerCase())
           );
         }
 
@@ -619,7 +619,7 @@ export default function CustomerFileExplorer({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              downloadFile(file.id, file.original_filename);
+                              downloadFile(file.id, file.display_name || file.original_filename);
                             }}
                             className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/70 rounded-lg transition-colors duration-200"
                             title="Download"
@@ -667,7 +667,7 @@ export default function CustomerFileExplorer({
                     
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                        {file.original_filename}
+                        {file.display_name || file.original_filename}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         <span className="font-medium">{formatBytes(file.file_size)}</span>
@@ -682,7 +682,7 @@ export default function CustomerFileExplorer({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          downloadFile(file.id, file.original_filename);
+                          downloadFile(file.id, file.display_name || file.original_filename);
                         }}
                         className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/70 rounded-lg transition-colors duration-200"
                         title="Download"
@@ -729,7 +729,7 @@ export default function CustomerFileExplorer({
           onClose={() => setFileToDelete(null)}
           onConfirm={handleDelete}
           title="Delete File"
-          message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
+          message={`Are you sure you want to delete "${fileToDelete.display_name || fileToDelete.original_filename}"?`}
           confirmText="Delete"
           confirmButtonClass="bg-red-600 hover:bg-red-700"
         />

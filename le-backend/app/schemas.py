@@ -6,6 +6,7 @@ import json
 import re
 from uuid import UUID
 from enum import Enum
+from .workflow import WorkflowStatus, WorkflowStatusUpdate, WorkflowStatusResponse
 
 # Base schemas
 class BaseSchema(BaseModel):
@@ -143,6 +144,8 @@ class CustomerApplicationBase(BaseSchema):
     full_name_latin: Optional[str] = Field(None, max_length=255)
     phone: Optional[str] = Field(None, max_length=20)
     date_of_birth: Optional[date] = None
+    sex: Optional[str] = Field(None, max_length=20)  # male, female, other
+    marital_status: Optional[str] = Field(None, max_length=20)  # single, married, divorced, widowed, separated
     portfolio_officer_name: Optional[str] = Field(None, max_length=255)
     
     # Address Information
@@ -223,8 +226,45 @@ class CustomerApplicationBase(BaseSchema):
     workflow_stage: Optional[str] = Field(None, max_length=50)
     assigned_reviewer: Optional[UUID] = None
     priority_level: Optional[str] = Field(default='normal', max_length=20)
+    
+    # Role-based workflow fields
+    workflow_status: Optional[WorkflowStatus] = Field(default=WorkflowStatus.PO_CREATED)
+    po_created_at: Optional[datetime] = None
+    po_created_by: Optional[UUID] = None
+    user_completed_at: Optional[datetime] = None
+    user_completed_by: Optional[UUID] = None
+    teller_processed_at: Optional[datetime] = None
+    teller_processed_by: Optional[UUID] = None
+    manager_reviewed_at: Optional[datetime] = None
+    manager_reviewed_by: Optional[UUID] = None
+
+    # Account ID validation
+    account_id_validated: Optional[bool] = Field(default=False)
+    account_id_validation_notes: Optional[str] = None
 
     # --- Validators to coerce incoming strings to proper types ---
+    @field_validator("workflow_status", mode="before")
+    @classmethod
+    def _normalize_workflow_status(cls, value: Any):
+        # Accept None/empty as default
+        if value in (None, "", "null"):
+            return WorkflowStatus.PO_CREATED
+        # If already Enum, pass through
+        if isinstance(value, WorkflowStatus):
+            return value
+        # Coerce strings like 'user_completed' to 'USER_COMPLETED'
+        if isinstance(value, str):
+            v = value.strip()
+            if not v:
+                return WorkflowStatus.PO_CREATED
+            try:
+                return WorkflowStatus(v.upper())
+            except ValueError:
+                # Provide clear error listing allowed values
+                allowed = ", ".join([s.value for s in WorkflowStatus])
+                raise ValueError(f"Invalid workflow_status '{value}'. Allowed: {allowed}")
+        return value
+
     @field_validator("date_of_birth", "requested_disbursement_date", "loan_start_date", "loan_end_date", mode="before")
     @classmethod
     def _parse_optional_date(cls, value: Any):
@@ -285,6 +325,45 @@ class CustomerApplicationBase(BaseSchema):
             raise ValueError("Please enter a valid date of birth")
         
         return value
+    
+    @field_validator("account_id", mode="after")
+    @classmethod
+    def validate_account_id_format(cls, v):
+        """Validate account_id format when provided"""
+        if v is None:
+            return v
+        
+        # Reject empty strings
+        if v == "":
+            raise ValueError('Account ID cannot be empty')
+        
+        # Allow fallback values (single digits) for system defaults
+        if v in ['1', '0'] or (len(v) == 1 and v.isdigit()):
+            return v
+        
+        # Allow 6-digit account IDs from external systems
+        if re.match(r'^\d{6}$', v):
+            # Validate it's not all zeros
+            if v == '000000':
+                raise ValueError('Account ID cannot be all zeros')
+            return v.zfill(6)  # Ensure leading zeros are preserved
+        
+        # Allow 8-digit account IDs from external systems
+        if re.match(r'^\d{8}$', v):
+            # Validate it's not all zeros
+            if v == '00000000':
+                raise ValueError('Account ID cannot be all zeros')
+            return v.zfill(8)  # Ensure leading zeros are preserved
+        
+        # Allow UUID format (36 characters with dashes)
+        if re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', v, re.IGNORECASE):
+            return v
+        
+        # Account ID should be alphanumeric and between 8-20 characters for real accounts
+        if not re.match(r'^[A-Za-z0-9]{8,20}$', v):
+            raise ValueError('Account ID must be 6-digit numeric, 8-digit numeric, 8-20 alphanumeric characters, or UUID format')
+        
+        return v
     
     @field_validator("desired_loan_term", mode="before")
     @classmethod
@@ -488,6 +567,7 @@ class CustomerCardResponse(BaseSchema):
 class FileBase(BaseSchema):
     filename: str
     original_filename: str
+    display_name: Optional[str] = None
     file_size: int
     mime_type: str
 
@@ -648,3 +728,52 @@ class SelfieListResponse(BaseSchema):
             # Let field validators raise precise errors later
             pass
         return data
+
+# Workflow-specific schemas
+class WorkflowTransitionRequest(BaseSchema):
+    """Schema for requesting workflow transitions"""
+    new_status: WorkflowStatus
+    notes: Optional[str] = None
+    account_id: Optional[str] = None  # Required for teller processing
+    
+    @field_validator('account_id')
+    @classmethod
+    def validate_account_id_for_transition(cls, v, info):
+        """Validate account_id is provided for teller transitions"""
+        data = info.data if hasattr(info, 'data') else {}
+        new_status = data.get('new_status')
+        
+        if new_status == WorkflowStatus.MANAGER_REVIEW and not v:
+            raise ValueError('Account ID is required when transitioning to manager review')
+        
+        if v:
+            # Allow 6-digit numeric IDs from external systems
+            if re.match(r'^\d{6}$', v):
+                if v == '000000':
+                    raise ValueError('Account ID cannot be all zeros')
+                return v.zfill(6)
+            # Allow UUID format
+            elif re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', v, re.IGNORECASE):
+                return v
+            # Allow 8-20 alphanumeric
+            elif not re.match(r'^[A-Za-z0-9]{8,20}$', v):
+                raise ValueError('Account ID must be 6-digit numeric, 8-20 alphanumeric characters, or UUID format')
+            
+        return v
+
+class WorkflowStatusInfo(BaseSchema):
+    """Schema for workflow status information"""
+    current_status: WorkflowStatus
+    can_edit_form: bool
+    can_transition: bool
+    next_possible_stages: List[WorkflowStatus]
+    requires_account_id: bool
+    stage_description: str
+    
+class ApplicationWorkflowResponse(CustomerApplicationResponse):
+    """Extended response with workflow information"""
+    workflow_info: WorkflowStatusInfo
+    po_creator: Optional[UserResponse] = None
+    user_completer: Optional[UserResponse] = None
+    teller_processor: Optional[UserResponse] = None
+    manager_reviewer: Optional[UserResponse] = None

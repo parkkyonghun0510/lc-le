@@ -31,13 +31,13 @@ async def get_loan_statuses():
 async def get_loan_purposes():
     """Get available loan purposes"""
     return [
-        {"value": "commerce", "label": "Commerce/Business"},
-        {"value": "agriculture", "label": "Agriculture"},
-        {"value": "education", "label": "Education"},
-        {"value": "housing", "label": "Housing"},
-        {"value": "vehicle", "label": "Vehicle"},
-        {"value": "medical", "label": "Medical"},
-        {"value": "other", "label": "Other"}
+        {"value": "commerce", "label": "អាជីវកម្ម"},
+        {"value": "agriculture", "label": "កសិកម្ម"},
+        {"value": "education", "label": "ការសិក្សា"},
+        {"value": "housing", "label": "លំនៅដ្ឋាន"},
+        {"value": "vehicle", "label": "យានយន្ត"},
+        {"value": "medical", "label": "វេជ្ជសាស្ត្រ"},
+        {"value": "other", "label": "ផ្សេងៗ"}
     ]
 
 @router.get("/product-types")
@@ -47,7 +47,7 @@ async def get_product_types():
         {"value": "monthly_loan", "label": "បង់​ប្រចាំ ខែ"},
         {"value": "biweekly_loan", "label": "បង់​ប្រចាំ ២សប្តាហ៍"},
         {"value": "weekly_loan", "label": "បង់​ប្រចាំ សប្តាហ៍"},
-        {"value": "daily_loan", "label": "បង់​ប្រចាំ ថ្ងៃ"}
+        {"value": "daily_loan", "label": "បង់​ប្រាក់ បង្វិល"}
 
 
     ]

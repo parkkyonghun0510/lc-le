@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, and_, desc
 from typing import Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models import User, CustomerApplication, Department, Branch, File
@@ -194,9 +194,13 @@ async def get_recent_applications(
                 "full_name_latin": app.full_name_latin,
                 "full_name_khmer": app.full_name_khmer,
                 "requested_amount": float(str(app.requested_amount)) if app.requested_amount is not None else None,
+                "phone": app.phone,
+                "portfolio_officer_name": app.portfolio_officer_name,
+                "product_type": app.product_type,
                 "status": app.status,
                 "created_at": app.created_at.isoformat(),
                 "user_id": str(app.user_id),
+                "account_id": str(app.account_id),
             }
             for app in applications
         ]
@@ -218,7 +222,7 @@ async def get_activity_timeline(
     """
     try:
         # Get date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Get applications created in the date range
@@ -310,7 +314,7 @@ async def get_performance_metrics(
     """
     try:
         # Calculate metrics for the last 30 days
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=30)
         
         # Applications processed in last 30 days

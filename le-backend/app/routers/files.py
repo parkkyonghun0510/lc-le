@@ -24,20 +24,48 @@ async def upload_file(
     application_id: Optional[UUID] = None,
     folder_id: Optional[UUID] = None, # This can now be used to specify a sub-folder
     document_type: Optional[str] = Query(None, enum=["photos", "references", "supporting_docs"]),
+    field_name: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
+    # Validate file presence and filename
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No file provided"
+            detail="No file provided or filename is empty"
+        )
+    
+    # Sanitize filename to prevent security issues
+    from app.core.security_utils import sanitize_filename
+    sanitized_filename = sanitize_filename(file.filename)
+    if not sanitized_filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename provided"
         )
 
-    # Validate file type
+    # Validate file type with better error handling
+    if not file.content_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content type could not be determined. Please ensure the file is valid."
+        )
+    
     if file.content_type not in settings.ALLOWED_FILE_TYPES:
+        allowed_types_display = []
+        for mime_type in settings.ALLOWED_FILE_TYPES:
+            if mime_type.startswith('image/'):
+                allowed_types_display.append(mime_type.replace('image/', '').upper())
+            elif mime_type == 'application/pdf':
+                allowed_types_display.append('PDF')
+            elif 'word' in mime_type:
+                allowed_types_display.append('Word Document')
+            else:
+                allowed_types_display.append(mime_type)
+        
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Unsupported file type: {file.content_type}. Supported types are: {', '.join(settings.ALLOWED_FILE_TYPES)}"
+            detail=f"Unsupported file type '{file.content_type}'. Allowed formats: {', '.join(set(allowed_types_display))}"
         )
     
     # If application_id is provided, ensure folder structure exists
@@ -75,11 +103,60 @@ async def upload_file(
             if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
 
-    # Read file content
-    content = await file.read()
-    # Enforce max file size
+    # Read file content with size validation
+    try:
+        content = await file.read()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to read file content: {str(e)}"
+        )
+    
+    # Validate file is not empty
+    if len(content) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File is empty. Please select a valid file."
+        )
+    
+    # Enforce max file size with detailed error message
+    max_size_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
+    current_size_mb = len(content) / (1024 * 1024)
+    
     if len(content) > settings.MAX_FILE_SIZE:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large")
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size ({current_size_mb:.1f}MB) exceeds maximum allowed size ({max_size_mb:.0f}MB). Please compress or select a smaller file."
+        )
+    
+    # Basic file content validation for images
+    if file.content_type.startswith('image/'):
+        # Check for basic image file signatures
+        image_signatures = {
+            b'\xff\xd8\xff': 'image/jpeg',
+            b'\x89PNG\r\n\x1a\n': 'image/png',
+            b'GIF87a': 'image/gif',
+            b'GIF89a': 'image/gif',
+            b'RIFF': 'image/webp'  # WebP files start with RIFF
+        }
+        
+        is_valid_image = False
+        for signature, expected_type in image_signatures.items():
+            if content.startswith(signature):
+                # For WebP, need additional check
+                if signature == b'RIFF' and len(content) > 12:
+                    if content[8:12] == b'WEBP':
+                        is_valid_image = True
+                        break
+                elif signature != b'RIFF':
+                    is_valid_image = True
+                    break
+        
+        if not is_valid_image:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File appears to be corrupted or is not a valid image file. Please select a different file."
+            )
     
     # Build storage prefix for logical organization
     storage_prefix = None
@@ -95,29 +172,50 @@ async def upload_file(
         if role_segment:
             storage_prefix = f"{storage_prefix}/{role_segment}"
 
-    # Upload to MinIO
-    object_name = minio_service.upload_file(
-        file_content=content,
-        original_filename=file.filename,
-        content_type=file.content_type or "application/octet-stream",
-        prefix=storage_prefix
-    )
+    # Upload to MinIO with error handling
+    try:
+        object_name = minio_service.upload_file(
+            file_content=content,
+            original_filename=sanitized_filename,
+            content_type=file.content_type or "application/octet-stream",
+            prefix=storage_prefix,
+            field_name=field_name
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload file to storage: {str(e)}"
+        )
     
-    # Create file record
-    db_file = File(
-        filename=os.path.basename(object_name),
-        original_filename=file.filename,
-        file_path=object_name,  # Store MinIO object name with prefix
-        file_size=len(content),
-        mime_type=file.content_type or "application/octet-stream",
-        uploaded_by=current_user.id,
-        application_id=application_id,
-        folder_id=folder_id
-    )
-    
-    db.add(db_file)
-    await db.commit()
-    await db.refresh(db_file)
+    # Create file record with proper error handling
+    try:
+        db_file = File(
+            filename=os.path.basename(object_name),
+            original_filename=file.filename,  # Keep original for display
+            display_name=file.filename,  # Set display name from original filename
+            file_path=object_name,  # Store MinIO object name with prefix
+            file_size=len(content),
+            mime_type=file.content_type or "application/octet-stream",
+            uploaded_by=current_user.id,
+            application_id=application_id,
+            folder_id=folder_id
+        )
+        
+        db.add(db_file)
+        await db.commit()
+        await db.refresh(db_file)
+        
+    except Exception as e:
+        # If database operation fails, try to clean up the uploaded file
+        try:
+            minio_service.delete_file(object_name)
+        except:
+            pass  # Ignore cleanup errors
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save file record: {str(e)}"
+        )
     
     return FileResponse.from_orm(db_file)
 

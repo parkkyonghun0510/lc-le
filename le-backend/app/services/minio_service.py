@@ -1,11 +1,12 @@
 import os
+import re
 from typing import Optional
 from minio import Minio
 from minio.error import S3Error
 import uuid
 from urllib.parse import urlparse
 from io import BytesIO
-from datetime import timedelta
+from datetime import timedelta, datetime
 from app.core.config import settings
 
 class MinIOService:
@@ -67,7 +68,7 @@ class MinIOService:
             self.client = None
             self._enabled = False
 
-    def upload_file(self, file_content: bytes, original_filename: str, content_type: str = "application/octet-stream", prefix: Optional[str] = None) -> str:
+    def upload_file(self, file_content: bytes, original_filename: str, content_type: str = "application/octet-stream", prefix: Optional[str] = None, field_name: Optional[str] = None) -> str:
         """Upload file to MinIO and return the object name.
         If prefix is provided, the object will be stored under that prefix (folder-like path).
         It avoids overwriting by appending a unique suffix if the file exists.
@@ -77,8 +78,24 @@ class MinIOService:
         
         try:
             file_extension = os.path.splitext(original_filename)[1]
-            base_filename = os.path.splitext(original_filename)[0]
-            unique_filename = f"{base_filename}_{uuid.uuid4()}{file_extension}"
+            
+            # Generate filename based on field_name if provided
+            if field_name and field_name.strip():
+                # Sanitize field_name: remove invalid characters and limit length
+                sanitized_field_name = self._sanitize_field_name(field_name.strip())
+                if sanitized_field_name:
+                    # Generate structured filename: {field_name}_{timestamp}_{unique_id}.{extension}
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    unique_id = str(uuid.uuid4())[:8]  # Use shorter UUID for readability
+                    unique_filename = f"{sanitized_field_name}_{timestamp}_{unique_id}{file_extension}"
+                else:
+                    # Fallback to original naming if field_name is invalid after sanitization
+                    base_filename = os.path.splitext(original_filename)[0]
+                    unique_filename = f"{base_filename}_{uuid.uuid4()}{file_extension}"
+            else:
+                # Original naming convention when no field_name provided
+                base_filename = os.path.splitext(original_filename)[0]
+                unique_filename = f"{base_filename}_{uuid.uuid4()}{file_extension}"
 
             # Build object name with optional prefix
             object_name = unique_filename
@@ -103,6 +120,42 @@ class MinIOService:
             raise Exception(f"Failed to upload file: {e}")
         except Exception as e:
             raise Exception(f"Failed to upload file: {e}")
+    
+    def _sanitize_field_name(self, field_name: str) -> str:
+        """Sanitize field name to ensure it's safe for use in filenames.
+        
+        Args:
+            field_name: The raw field name to sanitize
+            
+        Returns:
+            Sanitized field name or empty string if invalid
+        """
+        if not field_name or not field_name.strip():
+            return ""
+        
+        # Remove leading/trailing whitespace
+        sanitized = field_name.strip()
+        
+        # Replace spaces and special characters with underscores
+        # Allow only alphanumeric characters, underscores, and hyphens
+        sanitized = re.sub(r'[^a-zA-Z0-9_-]', '_', sanitized)
+        
+        # Remove multiple consecutive underscores
+        sanitized = re.sub(r'_+', '_', sanitized)
+        
+        # Remove leading/trailing underscores
+        sanitized = sanitized.strip('_')
+        
+        # Limit length to prevent overly long filenames
+        max_length = 50
+        if len(sanitized) > max_length:
+            sanitized = sanitized[:max_length].rstrip('_')
+        
+        # Ensure it's not empty after sanitization
+        if not sanitized or len(sanitized) < 1:
+            return ""
+            
+        return sanitized
 
     def get_file_url(self, object_name: str, expires: int = 3600) -> str:
         """Get presigned URL for file download"""

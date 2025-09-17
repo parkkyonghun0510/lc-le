@@ -131,7 +131,7 @@ export default function AdvancedFileExplorer({
     // Filter by search term
     if (searchTerm) {
       files = files.filter(file =>
-        file.original_filename.toLowerCase().includes(searchTerm.toLowerCase())
+        (file.display_name || file.original_filename).toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -141,8 +141,8 @@ export default function AdvancedFileExplorer({
 
       switch (sortField) {
         case 'name':
-          aValue = a.original_filename.toLowerCase();
-          bValue = b.original_filename.toLowerCase();
+          aValue = (a.display_name || a.original_filename).toLowerCase();
+        bValue = (b.display_name || b.original_filename).toLowerCase();
           break;
         case 'size':
           aValue = a.file_size;
@@ -213,7 +213,7 @@ export default function AdvancedFileExplorer({
   };
 
   const handleDownload = async (file: File) => {
-    await downloadFile(file.id, file.original_filename);
+    await downloadFile(file.id, file.display_name || file.original_filename);
   };
 
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -394,7 +394,7 @@ export default function AdvancedFileExplorer({
                     {getFileIcon(file.mime_type)}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {file.original_filename}
+                        {file.display_name || file.original_filename}
                       </p>
                     </div>
                   </div>
@@ -442,8 +442,8 @@ export default function AdvancedFileExplorer({
                     {getFileIcon(file.mime_type, 'lg')}
                   </div>
                   <div className="text-center min-w-0 w-full space-y-1">
-                    <p className="text-xs font-medium text-gray-900 dark:text-white truncate" title={file.original_filename}>
-                      {file.original_filename}
+                    <p className="text-xs font-medium text-gray-900 dark:text-white truncate" title={file.display_name || file.original_filename}>
+              {file.display_name || file.original_filename}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatBytes(file.file_size)}
@@ -472,7 +472,7 @@ export default function AdvancedFileExplorer({
                   </div>
                   <div className="min-w-0 space-y-1">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {file.original_filename}
+                      {file.display_name || file.original_filename}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatBytes(file.file_size)} • {formatDate(file.created_at)}
@@ -549,7 +549,7 @@ export default function AdvancedFileExplorer({
           onClose={() => setFileToDelete(null)}
           onConfirm={handleDelete}
           title="Delete File"
-          message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
+          message={`Are you sure you want to delete "${fileToDelete.display_name || fileToDelete.original_filename}"?`}
           confirmText="Delete"
           confirmButtonClass="bg-red-600 hover:bg-red-700"
         />

@@ -187,7 +187,7 @@ export default function FolderFileExplorer({
       
       if (searchTerm) {
         filteredFiles = filteredFiles.filter(file =>
-          file.original_filename.toLowerCase().includes(searchTerm.toLowerCase())
+          (file.display_name || file.original_filename).toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
 
@@ -205,7 +205,7 @@ export default function FolderFileExplorer({
           );
         } else if (currentFolder === 'contracts') {
           filteredFiles = filteredFiles.filter(file => 
-            file.original_filename.toLowerCase().includes('contract')
+            (file.display_name || file.original_filename).toLowerCase().includes('contract')
           );
         }
       }
@@ -223,8 +223,8 @@ export default function FolderFileExplorer({
 
       switch (sortField) {
         case 'name':
-          aValue = a.type === 'folder' ? (a as FolderItem).name : (a as FileItem).original_filename;
-          bValue = b.type === 'folder' ? (b as FolderItem).name : (b as FileItem).original_filename;
+          aValue = a.type === 'folder' ? (a as FolderItem).name : ((a as FileItem).display_name || (a as FileItem).original_filename);
+        bValue = b.type === 'folder' ? (b as FolderItem).name : ((b as FileItem).display_name || (b as FileItem).original_filename);
           aValue = aValue.toLowerCase();
           bValue = bValue.toLowerCase();
           break;
@@ -336,7 +336,7 @@ export default function FolderFileExplorer({
   };
 
   const handleDownload = async (file: File) => {
-    await downloadFile(file.id, file.original_filename);
+    await downloadFile(file.id, file.display_name || file.original_filename);
   };
 
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -544,7 +544,7 @@ export default function FolderFileExplorer({
                     }
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {item.type === 'folder' ? item.name : (item as FileItem).original_filename}
+                        {item.type === 'folder' ? item.name : ((item as FileItem).display_name || (item as FileItem).original_filename)}
                       </p>
                     </div>
                   </div>
@@ -602,9 +602,9 @@ export default function FolderFileExplorer({
                   </div>
                   <div className="text-center min-w-0 w-full">
                     <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate mb-1" title={
-                      item.type === 'folder' ? item.name : (item as FileItem).original_filename
-                    }>
-                      {item.type === 'folder' ? item.name : (item as FileItem).original_filename}
+                      item.type === 'folder' ? item.name : ((item as FileItem).display_name || (item as FileItem).original_filename)
+            }>
+              {item.type === 'folder' ? item.name : ((item as FileItem).display_name || (item as FileItem).original_filename)}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                       {item.type === 'folder' ? 
@@ -639,7 +639,7 @@ export default function FolderFileExplorer({
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                      {item.type === 'folder' ? item.name : (item as FileItem).original_filename}
+                      {item.type === 'folder' ? item.name : ((item as FileItem).display_name || (item as FileItem).original_filename)}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                       {item.type === 'folder' ? 
@@ -790,7 +790,7 @@ export default function FolderFileExplorer({
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete File</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
-              Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">"{fileToDelete.original_filename}"</span>? This action cannot be undone.
+              Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">"{fileToDelete.display_name || fileToDelete.original_filename}"</span>? This action cannot be undone.
             </p>
             <div className="flex justify-end space-x-3">
               <button

@@ -15,6 +15,7 @@ import {
   useNotificationSettings
 } from '@/hooks/useSettings';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
+
 import {
     Cog6ToothIcon,
     UserGroupIcon,
@@ -26,7 +27,8 @@ import {
     GlobeAltIcon,
     CircleStackIcon,
     ChartBarIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    ListBulletIcon
 } from '@heroicons/react/24/outline';
 
 interface SettingSection {
@@ -70,6 +72,7 @@ const settingSections: SettingSection[] = [
         description: 'Loan application workflow and approval settings',
         icon: DocumentTextIcon,
     },
+
     {
         id: 'notifications',
         name: 'Notifications',
@@ -149,6 +152,7 @@ export default function SettingsPage() {
                 return <SecuritySettings />;
             case 'applications':
                 return <ApplicationSettings />;
+
             case 'notifications':
                 return <NotificationSettings />;
             case 'theme':

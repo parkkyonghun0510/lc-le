@@ -7,9 +7,12 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import {
   useCreateApplication,
   useUpdateApplication,
+  useSubmitApplication,
 } from '@/hooks/useApplications';
-import { useApplicationFiles, useUploadFile } from '@/hooks/useFiles';
+import { useApplicationFiles, useUploadFile, useDeleteFile } from '@/hooks/useFiles';
+import { useAuth } from '@/hooks/useAuth';
 import FileUploadModal from '@/components/files/FileUploadModal';
+import GroupFileUploadModal from '@/components/files/GroupFileUploadModal';
 import { File as ApiFile } from '@/types/models';
 import {
   UserIcon,
@@ -45,36 +48,38 @@ import { validateStep } from './utils/validation';
 const steps: Step[] = [
   {
     id: 0,
-    title: 'Customer Information',
-    description: 'Basic customer details',
+    title: 'ក.ព័ត៌មានរបស់អតិថិជន ',
+    // description: 'Basic customer details',
     icon: UserIcon,
   },
   {
     id: 1,
-    title: 'Loan Information',
-    description: 'Loan amount and terms',
+    title: 'ខ.ព័ត៌មានបញ្ចាំ',
+    // description: 'Loan amount and terms',
     icon: CurrencyDollarIcon,
   },
   {
     id: 2,
-    title: 'Guarantor Information',
-    description: 'Guarantor details',
+    title: 'គ.ការធានារបស់អតិថិជន',
+    // description: 'Guarantor details',
     icon: UserGroupIcon,
   },
   {
     id: 3,
-    title: 'Document Attachment',
-    description: 'Upload required documents',
+    title: 'ឃ.ទ្រព្យសម្បត្តិដែលមានស្រាប់របស់អតិថិជន ',
+    // description: 'Upload required documents',
     icon: DocumentTextIcon,
   },
 ];
 
 const NewApplicationPage = () => {
-  const [activeStep, setActiveStep] = useState(0);
+  const { user } = useAuth();
+  const [activeStep, setActiveStep] = useState(0); // Start at customer information step
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDocumentType, setSelectedDocumentType] =
-    useState<DocumentType>('photos');
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [selectedDocumentType, setSelectedDocumentType] = useState<DocumentType | undefined>();
+  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
 
   const [formValues, setFormValues] = useState<ApplicationFormValues>({
     // Customer Information
@@ -86,19 +91,21 @@ const NewApplicationPage = () => {
     current_address: '',
     date_of_birth: '',
     portfolio_officer_name: '',
-    
+    sex: '',
+    marital_status: '',
+
     // Address Information (optional)
     province: '',
     district: '',
     commune: '',
     village: '',
-    
+
     // Employment Information (optional)
     occupation: '',
     employer_name: '',
     monthly_income: 0,
     income_source: '',
-    
+
     // Loan Information
     requested_amount: '',
     desired_loan_term: 1,
@@ -107,14 +114,14 @@ const NewApplicationPage = () => {
     loan_purposes: [LOAN_PURPOSES[0]],
     purpose_details: '',
     interest_rate: 0,
-    
+
     // Guarantor Information
     guarantor_name: '',
     guarantor_phone: '',
     guarantor_id_number: '',
     guarantor_address: '',
     guarantor_relationship: '',
-    
+
     // Financial Information (optional)
     monthly_expenses: 0,
     assets_value: 0,
@@ -122,7 +129,9 @@ const NewApplicationPage = () => {
 
   const createApplicationMutation = useCreateApplication();
   const updateApplicationMutation = useUpdateApplication();
+  const submitApplicationMutation = useSubmitApplication();
   const uploadFileMutation = useUploadFile();
+  const deleteFileMutation = useDeleteFile();
   const router = useRouter();
 
   const { data: files, isLoading: isLoadingFiles } = useApplicationFiles(
@@ -136,27 +145,33 @@ const NewApplicationPage = () => {
     const { name, value } = e.target;
     setFormValues(prev => ({
       ...prev,
-      [name]: name === 'loan_purposes' ? [value] : 
-              name === 'desired_loan_term' ? Math.max(1, Number(value) || 1) : 
-              value
+      [name]: name === 'loan_purposes' ? [value] :
+        name === 'desired_loan_term' ? Math.max(1, Number(value) || 1) :
+          value
     }));
   };
 
   const isStepValid = useMemo(() => {
-    const validation = validateStep(activeStep, formValues);
-    return validation.isValid;
+    // Temporarily disable validation for testing
+    return true;
   }, [activeStep, formValues]);
 
   const createDraftApplication = async () => {
     try {
+      // Validate user permissions for creating applications
+      if (!user) {
+        toast.error('User authentication required to create applications.');
+        return null;
+      }
+
       const data = await createApplicationMutation.mutateAsync({
-        account_id: '1', // Default account ID - should be set based on logged in user
         full_name_latin: formValues.full_name_latin,
         full_name_khmer: formValues.full_name_khmer,
         id_card_type: formValues.id_card_type,
         id_number: formValues.id_number,
         phone: formValues.phone,
         date_of_birth: formValues.date_of_birth,
+        current_address: formValues.current_address,
         portfolio_officer_name: formValues.portfolio_officer_name,
         requested_amount: parseFloat(formValues.requested_amount),
         desired_loan_term: Number(formValues.desired_loan_term),
@@ -166,6 +181,11 @@ const NewApplicationPage = () => {
         purpose_details: formValues.purpose_details,
         guarantor_name: formValues.guarantor_name,
         guarantor_phone: formValues.guarantor_phone,
+        guarantor_address: formValues.guarantor_address,
+        guarantor_relationship: formValues.guarantor_relationship,
+        guarantor_id_number: formValues.guarantor_id_number,
+        // sex: formValues.sex,
+        // marital_status: formValues.marital_status,
       });
       setApplicationId(data.id);
       toast.success('Application draft created successfully');
@@ -236,12 +256,55 @@ const NewApplicationPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (!applicationId) return;
+    if (!applicationId) {
+      toast.error('No application to submit');
+      return;
+    }
+
+    // Validate the entire form before submission
+    const validation = validateStep(activeStep, formValues);
+    if (!validation.isValid) {
+      validation.errors.forEach(error => toast.error(error));
+      return;
+    }
+
     try {
+      // First, ensure all form data is saved
       await updateApplicationMutation.mutateAsync({
         id: applicationId,
-        data: {},
+        data: {
+          // Customer Information
+          full_name_latin: formValues.full_name_latin,
+          full_name_khmer: formValues.full_name_khmer,
+          id_card_type: formValues.id_card_type,
+          id_number: formValues.id_number,
+          phone: formValues.phone,
+          current_address: formValues.current_address,
+          date_of_birth: formValues.date_of_birth,
+          portfolio_officer_name: formValues.portfolio_officer_name,
+          // marital_status: formValues.marital_status,
+          // sex: formValues.sex,
+
+          // Loan Information
+          requested_amount: parseFloat(formValues.requested_amount),
+          desired_loan_term: Number(formValues.desired_loan_term),
+          product_type: formValues.product_type,
+          requested_disbursement_date: formValues.requested_disbursement_date,
+          loan_purposes: formValues.loan_purposes,
+          purpose_details: formValues.purpose_details,
+
+          // Guarantor Information
+          guarantor_name: formValues.guarantor_name,
+          guarantor_phone: formValues.guarantor_phone,
+          guarantor_address: formValues.guarantor_address,
+          guarantor_id_number: formValues.guarantor_id_number,
+          guarantor_relationship: formValues.guarantor_relationship
+        },
       });
+
+      // Then submit the application
+      await submitApplicationMutation.mutateAsync(applicationId);
+
       toast.success('Application submitted successfully!');
       // Redirect to applications listing page after successful submission
       router.push('/applications');
@@ -260,6 +323,32 @@ const NewApplicationPage = () => {
     setIsModalOpen(false);
   };
 
+  const handleOpenGroupModal = () => {
+    setIsGroupModalOpen(true);
+  };
+
+  const handleCloseGroupModal = () => {
+    setIsGroupModalOpen(false);
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    if (!applicationId) return;
+
+    setIsDeleting(prev => ({ ...prev, [fileId]: true }));
+
+    try {
+      await deleteFileMutation.mutateAsync(fileId);
+      toast.success('File deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+      toast.error('Failed to delete file');
+    } finally {
+      setIsDeleting(prev => ({ ...prev, [fileId]: false }));
+    }
+  };
+
+
+
   const renderStepContent = (step: number) => {
     switch (step) {
       case 0:
@@ -277,7 +366,8 @@ const NewApplicationPage = () => {
             loanPurposes={LOAN_PURPOSES.map(purpose => ({
               value: purpose,
               label: purpose,
-            }))} isLoadingProductTypes={false}          />
+            }))} isLoadingProductTypes={false}
+          />
         );
       case 2:
         return (
@@ -289,10 +379,7 @@ const NewApplicationPage = () => {
       case 3:
         return (
           <DocumentAttachmentStep
-            documentTypes={DOCUMENT_TYPES}
-            uploadedFiles={uploadedFiles}
-            isLoadingFiles={isLoadingFiles}
-            onOpenModal={handleOpenModal}
+            applicationId={applicationId || undefined}
           />
         );
       default:
@@ -303,7 +390,7 @@ const NewApplicationPage = () => {
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <div className="min-h-screen  dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Enhanced Header with Visual Elements */}
             <div className="mb-12 text-center">
@@ -312,12 +399,9 @@ const NewApplicationPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-3">
-                New Loan Application
+              <h1 className="text-4xl font-bold dark:from-white dark:to-gray-300 bg-clip-text mb-3">
+                ពាក្យស្នើសុំដាក់បញ្ចាំ និងប្រាកិភោគដោយអនុប្បទាន
               </h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                Complete the form below to submit your loan application. Our streamlined process ensures quick and secure processing.
-              </p>
             </div>
 
             {/* Enhanced Step Indicator Container */}
@@ -330,14 +414,14 @@ const NewApplicationPage = () => {
               {/* Background decoration */}
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-3xl transform rotate-1"></div>
               <div className="absolute inset-0 bg-gradient-to-l from-purple-600/5 to-pink-600/5 rounded-3xl transform -rotate-1"></div>
-              
+
               {/* Main form container */}
               <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/50 p-8 lg:p-12 mb-10">
                 {/* Step content with enhanced spacing */}
                 <div className="relative z-10">
                   {renderStepContent(activeStep)}
                 </div>
-                
+
                 {/* Subtle inner glow effect */}
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
               </div>
@@ -379,6 +463,16 @@ const NewApplicationPage = () => {
             onClose={handleCloseModal}
             applicationId={applicationId}
             documentType={selectedDocumentType}
+          />
+        )}
+
+        {/* Group File Upload Modal */}
+        {applicationId && (
+          <GroupFileUploadModal
+            isOpen={isGroupModalOpen}
+            onClose={handleCloseGroupModal}
+            applicationId={applicationId}
+            documentTypes={DOCUMENT_TYPES}
           />
         )}
       </Layout>

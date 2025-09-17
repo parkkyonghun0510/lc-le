@@ -67,7 +67,8 @@ export interface Branch extends BaseModel {
 
 export interface CustomerApplication extends BaseModel {
   user_id: string;
-  status: ApplicationStatus;
+  status: ApplicationStatus; // Legacy status field for compatibility
+  workflow_status: WorkflowStatus; // New workflow status
   account_id?: string;
 
   // Borrower Information
@@ -77,6 +78,8 @@ export interface CustomerApplication extends BaseModel {
   full_name_latin?: string;
   phone?: string;
   date_of_birth?: string;
+  sex?: string;
+  marital_status?: string;
   portfolio_officer_name?: string;
 
   // Loan Details
@@ -95,9 +98,17 @@ export interface CustomerApplication extends BaseModel {
   collaterals?: Collateral[];
   documents?: ApplicationDocument[];
 
-  // Status tracking
+  // Legacy status tracking (kept for compatibility)
   submitted_at?: string;
   approved_at?: string;
+
+  // New workflow status tracking
+  user_completed_at?: string;
+  teller_processing_at?: string;
+  teller_processed_by?: string;
+  manager_review_at?: string;
+  manager_reviewed_at?: string;
+  manager_reviewed_by?: string;
   approved_by?: string;
   rejected_at?: string;
   rejected_by?: string;
@@ -121,6 +132,7 @@ export interface ApplicationDocument {
 export interface File extends BaseModel {
   filename: string;
   original_filename: string;
+  display_name?: string;
   file_path: string;
   file_size: number;
   mime_type: string;
@@ -190,23 +202,27 @@ export interface CustomerApplicationCreate {
   phone?: string;
   date_of_birth?: string;
   current_address?: string;
+  sex?: string;
+  marital_status?: string;
   portfolio_officer_name?: string;
   requested_amount?: number;
   loan_purposes?: string[];
   purpose_details?: string;
   product_type?: string;
   desired_loan_term?: number;
-  loan_term_duration?: string;
-  loan_term_frequency?: string;
   requested_disbursement_date?: string;
   guarantor_name?: string;
   guarantor_phone?: string;
+  guarantor_id_number?: string;
+  guarantor_address?: string;
+  guarantor_relationship?: string;
   collaterals?: Collateral[];
   documents?: ApplicationDocument[];
 }
 
 export interface CustomerApplicationUpdate extends Partial<CustomerApplicationCreate> {
-  status?: ApplicationStatus;
+  status?: ApplicationStatus; // Legacy status field
+  workflow_status?: WorkflowStatus; // New workflow status
   desired_loan_term?: number;
 }
 
@@ -231,6 +247,7 @@ export interface PaginatedResponse<T> {
   pages: number;
 }
 
+// Legacy ApplicationStatus (kept for compatibility)
 export type ApplicationStatus =
   | 'draft'
   | 'submitted'
@@ -238,5 +255,50 @@ export type ApplicationStatus =
   | 'approved'
   | 'rejected';
 
+// New WorkflowStatus enum matching backend
+export type WorkflowStatus =
+  | 'PO_CREATED'
+  | 'USER_COMPLETED'
+  | 'TELLER_PROCESSING'
+  | 'MANAGER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED';
+
 export type UserRole = 'admin' | 'manager' | 'officer';
 export type UserStatus = 'active' | 'inactive';
+
+// Workflow-related interfaces
+export interface WorkflowStatusInfo {
+  current_status: WorkflowStatus;
+  can_edit_form: boolean;
+  next_stages: WorkflowStatus[];
+  stage_description: string;
+  permissions: {
+    can_submit: boolean;
+    can_process: boolean;
+    can_review: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
+  };
+}
+
+export interface WorkflowHistoryEntry {
+  status: WorkflowStatus;
+  timestamp: string;
+  user_id?: string;
+  user_name?: string;
+  notes?: string;
+}
+
+export interface WorkflowTransitionRequest {
+  new_status: WorkflowStatus;
+  account_id?: string; // Required for teller processing
+  notes?: string;
+}
+
+export interface ApprovalData {
+  approved_amount: number;
+  approved_term: number;
+  interest_rate: number;
+  notes?: string;
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplications, useDeleteApplication } from '@/hooks/useApplications';
@@ -25,46 +25,52 @@ import {
   Squares2X2Icon,
   ListBulletIcon,
   AdjustmentsHorizontalIcon,
-  TrashIcon
+  TrashIcon,
+  ArrowsUpDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 import Link from 'next/link';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+
+import { WorkflowActions } from '@/components/applications/WorkflowActions';
+import type { CustomerApplication, WorkflowStatus } from '@/types/models';
 import { useProductTypes } from '@/hooks/useEnums';
 
-const statusConfig = {
-  draft: { 
-    label: 'ព្រាង', 
-    color: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300', 
-    icon: DocumentTextIcon,
-    khmer: 'ព្រាង'
-  },
-  submitted: { 
-    label: 'បានដាក់ស្នើ', 
+const workflowStatusConfig = {
+  PO_CREATED: { 
+    label: 'បានបង្កើត', 
     color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400', 
-    icon: ClockIcon,
-    khmer: 'បានដាក់ស្នើ'
+    icon: DocumentTextIcon,
+    khmer: 'បានបង្កើត'
   },
-  pending: { 
-    label: 'កំពុងរង់ចាំ', 
-    color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-400', 
-    icon: ClockIcon,
-    khmer: 'កំពុងរង់ចាំ'
+  USER_COMPLETED: { 
+    label: 'អតិថិជនបានបំពេញ', 
+    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400', 
+    icon: CheckCircleIcon,
+    khmer: 'អតិថិជនបានបំពេញ'
   },
-  under_review: { 
-    label: 'កំពុងពិនិត្យ', 
+  TELLER_PROCESSING: { 
+    label: 'កំពុងដំណើរការ', 
     color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-400', 
     icon: ClockIcon,
+    khmer: 'កំពុងដំណើរការ'
+  },
+  MANAGER_REVIEW: { 
+    label: 'កំពុងពិនិត្យ', 
+    color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-400', 
+    icon: UserIcon,
     khmer: 'កំពុងពិនិត្យ'
   },
-  approved: { 
+  APPROVED: { 
     label: 'អនុម័ត', 
     color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400', 
     icon: CheckCircleIcon,
     khmer: 'អនុម័ត'
   },
-  rejected: { 
+  REJECTED: { 
     label: 'បដិសេធ', 
     color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400', 
     icon: XCircleIcon,
@@ -77,28 +83,110 @@ function ApplicationsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const formatCurrencyWithConversion = useFormatCurrency();
   const [statusFilter, setStatusFilter] = useState('');
+  const [workflowStatusFilter, setWorkflowStatusFilter] = useState<WorkflowStatus | ''>('');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [applicationToDelete, setApplicationToDelete] = useState<any>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // TODO: Replace with static options or new data source
   const productTypes = useProductTypes();
+
+  // Role-based filtering
+  const getRoleBasedFilters = () => {
+    const baseFilters = {
+      search: searchTerm,
+      status: statusFilter,
+      workflow_status: workflowStatusFilter || undefined,
+      page,
+      size: 10
+    };
+    // Add role-specific filtering
+    if (user?.role === 'officer') {
+      // Officers see applications they need to process
+      return { ...baseFilters, workflow_status: workflowStatusFilter || 'USER_COMPLETED' as WorkflowStatus };
+    } else if (user?.role === 'manager') {
+      // Managers see applications ready for review
+      return { ...baseFilters, workflow_status: workflowStatusFilter || 'TELLER_PROCESSING' as WorkflowStatus };
+    }
+    
+    return baseFilters;
+  };
 
   const { 
     data: applicationsData, 
     isLoading, 
     error 
-  } = useApplications({
-    search: searchTerm,
-    status: statusFilter,
-    page,
-    size: 10
-  });
+  } = useApplications(getRoleBasedFilters());
 
   const deleteApplicationMutation = useDeleteApplication();
 
   const applications = applicationsData?.items || [];
   const totalPages = applicationsData?.pages || 1;
+
+  // Sorting state and helpers for table view
+  type SortKey = 'name' | 'id_number' | 'phone' | 'officer' | 'amount' | 'product' | 'workflow_status' | 'created_at';
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection(key === 'created_at' || key === 'amount' ? 'desc' : 'asc');
+    }
+  };
+
+  const getSortIndicator = (key: SortKey) => {
+    if (sortKey !== key) return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    return sortDirection === 'asc' ? (
+      <ChevronUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ChevronDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const sortedApplications = useMemo<CustomerApplication[]>(() => {
+    const arr = [...applications];
+    const getValue = (a: any) => {
+      switch (sortKey) {
+        case 'name':
+          return a.full_name_khmer || a.full_name_latin || '';
+        case 'id_number':
+          return a.id_number || '';
+        case 'phone':
+          return a.phone || '';
+        case 'officer':
+          return a.portfolio_officer_name || '';
+        case 'amount':
+          return typeof a.requested_amount === 'number' ? a.requested_amount : -Infinity;
+        case 'product':
+          return productTypes.getLabel?.(a.product_type) || '';
+        case 'workflow_status':
+          return a.workflow_status || '';
+        case 'created_at':
+        default:
+          return a.created_at || '';
+      }
+    };
+    arr.sort((a, b) => {
+      const va = getValue(a);
+      const vb = getValue(b);
+      let res = 0;
+      if (sortKey === 'amount') {
+        const na = Number(va);
+        const nb = Number(vb);
+        res = (isNaN(na) ? -Infinity : na) - (isNaN(nb) ? -Infinity : nb);
+      } else if (sortKey === 'created_at') {
+        res = new Date(va as string).getTime() - new Date(vb as string).getTime();
+      } else {
+        res = String(va).localeCompare(String(vb), 'km-KH', { sensitivity: 'base' });
+      }
+      return sortDirection === 'asc' ? res : -res;
+    });
+    return arr;
+  }, [applications, sortKey, sortDirection, productTypes]);
 
   const handleDeleteClick = (application: any) => {
     setApplicationToDelete(application);
@@ -122,8 +210,8 @@ function ApplicationsContent() {
     setApplicationToDelete(null);
   };
 
-  const getStatusBadge = (status: string) => {
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+  const getWorkflowStatusBadge = (workflowStatus: WorkflowStatus) => {
+    const config = workflowStatusConfig[workflowStatus] || workflowStatusConfig.PO_CREATED;
     const Icon = config.icon;
     
     return (
@@ -138,9 +226,9 @@ function ApplicationsContent() {
     if (!purposes || purposes.length === 0) return 'មិនបានបញ្ជាក់';
     
     const purposeMap: { [key: string]: string } = {
-      'business': 'អាជីវកម្ម',
+      'commerce': 'អាជីវកម្ម',
       'agriculture': 'កសិកម្ម',
-      'education': 'អប់រំ',
+      'education': 'ការសិក្សា',
       'housing': 'លំនៅដ្ឋាន',
       'vehicle': 'យានយន្ត',
       'medical': 'វេជ្ជសាស្ត្រ',
@@ -194,9 +282,9 @@ function ApplicationsContent() {
                     <Squares2X2Icon className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => setViewMode('list')}
+                    onClick={() => setViewMode('table')}
                     className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'list'
+                      viewMode === 'table'
                         ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
@@ -235,14 +323,14 @@ function ApplicationsContent() {
               {/* Status Filter */}
               <div className="lg:w-56">
                 <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  value={workflowStatusFilter}
+                  onChange={(e) => setWorkflowStatusFilter(e.target.value as WorkflowStatus | '')}
                   className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 >
                   <option value="">ស្ថានភាពទាំងអស់</option>
-                  {Object.entries(statusConfig).map(([key, config]) => (
-                    <option key={key} value={key}>{config.khmer}</option>
-                  ))}
+                    {Object.entries(workflowStatusConfig).map(([key, config]) => (
+                      <option key={key} value={key}>{config.khmer}</option>
+                    ))}
                 </select>
               </div>
 
@@ -300,7 +388,7 @@ function ApplicationsContent() {
             )}
           </div>
 
-          {/* Applications Grid */}
+          {/* Applications Grid or Table */}
           {isLoading ? (
             <div className={`grid gap-8 ${
               viewMode === 'grid' 
@@ -351,6 +439,130 @@ function ApplicationsContent() {
                 </Link>
               </div>
             </div>
+          ) : viewMode === 'table' ? (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('name')}>
+                        <div className="flex items-center space-x-2">
+                          <span>ឈ្មោះអតិថិជន</span>
+                          {getSortIndicator('name')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('id_number')}>
+                        <div className="flex items-center space-x-2">
+                          <span>លេខអត្តសញ្ញាណ</span>
+                          {getSortIndicator('id_number')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('phone')}>
+                        <div className="flex items-center space-x-2">
+                          <span>ទូរស័ព្ទ</span>
+                          {getSortIndicator('phone')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('officer')}>
+                        <div className="flex items-center space-x-2">
+                          <span>មន្ត្រីទទួលបន្ទុក</span>
+                          {getSortIndicator('officer')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('amount')}>
+                        <div className="flex items-center justify-end space-x-2">
+                          <span>ចំនួនទឹកប្រាក់</span>
+                          {getSortIndicator('amount')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('product')}>
+                        <div className="flex items-center space-x-2">
+                          <span>ផលិតផល</span>
+                          {getSortIndicator('product')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('workflow_status')}>
+                        <div className="flex items-center space-x-2">
+                          <span>ស្ថានភាព</span>
+                          {getSortIndicator('workflow_status')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('created_at')}>
+                        <div className="flex items-center space-x-2">
+                          <span>បង្កើតនៅ</span>
+                          {getSortIndicator('created_at')}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                        សកម្មភាព
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {sortedApplications.map((application) => (
+                      <tr key={application.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <div className="font-semibold">
+                            {application.full_name_khmer || application.full_name_latin || 'មិនបានបញ្ជាក់'}
+                          </div>
+                          {application.full_name_khmer && application.full_name_latin && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{application.full_name_latin}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{application.id_number || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{application.phone || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{application.portfolio_officer_name || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 text-right">
+                          {application.requested_amount
+                            ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
+                            : '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{productTypes.getLabel(application.product_type) || '-'}</td>
+                        <td className="px-6 py-4">{getWorkflowStatusBadge(application.workflow_status)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{formatDate(application.created_at)}</td>
+                        <td className="px-6 py-4 text-sm text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            <Link
+                              href={`/applications/${application.id}`}
+                              className="inline-flex items-center px-3 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800 rounded-lg transition-all duration-200"
+                            >
+                              <EyeIcon className="w-4 h-4 mr-1.5" />
+                              មើល
+                            </Link>
+                            {(user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                              <Link
+                                href={`/applications/${application.id}/edit`}
+                                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 rounded-lg transition-all duration-200"
+                              >
+                                <PencilIcon className="w-4 h-4 mr-1.5" />
+                                កែប្រែ
+                              </Link>
+                            )}
+                            {application.status === 'draft' && (user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                              <button
+                                onClick={() => handleDeleteClick(application)}
+                                className="inline-flex items-center px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900 dark:text-red-400 dark:hover:bg-red-800 rounded-lg transition-all duration-200"
+                                disabled={deleteApplicationMutation.isPending}
+                              >
+                                <TrashIcon className="w-4 h-4 mr-1.5" />
+                                លុប
+                              </button>
+                            )}
+                            {/* Workflow Actions */}
+                            <WorkflowActions
+                              applicationId={application.id}
+                              currentStatus={application.workflow_status}
+                              userRole={user?.role || 'officer'}
+                              className="ml-2"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
             <div className={`grid gap-8 ${
               viewMode === 'grid' 
@@ -358,34 +570,29 @@ function ApplicationsContent() {
                 : 'grid-cols-1'
             }`}>
               {applications.map((application) => (
-                <div key={application.id} className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-600 group overflow-hidden ${
-                  viewMode === 'list' ? 'flex items-center space-x-6 p-6' : 'p-0'
-                }`}>
-                  {/* Header */}
-                  <div className={`${viewMode === 'list' ? '' : 'px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600'}`}>
-                    <div className={`flex items-start justify-between ${viewMode === 'list' ? 'flex-1 mb-4' : 'mb-0'}`}>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg group-hover:scale-110 transition-transform duration-200">
-                          <UserIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                            {application.full_name_khmer || application.full_name_latin || 'មិនបានបញ្ជាក់ឈ្មោះ'}
-                          </h3>
-                          {application.full_name_khmer && application.full_name_latin && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{application.full_name_latin}</p>
-                          )}
-                        </div>
+                <div key={application.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-600 group overflow-hidden">
+                  <div className="flex items-start justify-between mb-0">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg group-hover:scale-110 transition-transform duration-200">
+                        <UserIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                       </div>
-                      {getStatusBadge(application.status)}
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                          {application.full_name_khmer || application.full_name_latin || 'មិនបានបញ្ជាក់ឈ្មោះ'}
+                        </h3>
+                        {application.full_name_khmer && application.full_name_latin && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{application.full_name_latin}</p>
+                        )}
+                      </div>
                     </div>
+                    {getWorkflowStatusBadge(application.workflow_status)}
                   </div>
 
                   {/* Content */}
-                  <div className={`${viewMode === 'list' ? '' : 'p-6'}`}>
+                  <div className="p-6">
 
                     {/* Customer Info */}
-                    <div className={`space-y-3 mb-6 ${viewMode === 'list' ? 'flex-1 grid grid-cols-2 gap-4' : ''}`}>
+                    <div className="space-y-3 mb-6">
                       {application.id_number && (
                         <div className="flex items-center text-sm">
                           <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mr-3">
@@ -478,12 +685,12 @@ function ApplicationsContent() {
                   </div>
 
                   {/* Actions */}
-                  <div className={`${viewMode === 'list' ? 'flex space-x-3 flex-shrink-0' : 'px-6 py-4 bg-gray-50 dark:bg-gray-700 rounded-b-xl border-t border-gray-200 dark:border-gray-600'}`}>
-                    <div className={`flex items-center ${viewMode === 'list' ? 'space-x-3' : 'justify-between'}`}>
+                  <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 rounded-b-xl border-t border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
                       <div className="flex space-x-3">
                         <Link
                           href={`/applications/${application.id}`}
-                          className="inline-flex items-center px-4 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                          className="inline-flex items-center px-4 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                         >
                           <EyeIcon className="w-4 h-4 mr-2" />
                           មើល
@@ -508,6 +715,13 @@ function ApplicationsContent() {
                             លុប
                           </button>
                         )}
+                        {/* Workflow Actions */}
+                        <WorkflowActions
+                          applicationId={application.id}
+                          currentStatus={application.workflow_status}
+                          userRole={user?.role || 'officer'}
+                          className=""
+                        />
                       </div>
                       
                       {/* Document count */}

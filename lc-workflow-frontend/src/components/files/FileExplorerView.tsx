@@ -110,8 +110,8 @@ export default function FileExplorerView({
 
       switch (sortField) {
         case 'name':
-          aValue = a.original_filename.toLowerCase();
-          bValue = b.original_filename.toLowerCase();
+          aValue = (a.display_name || a.original_filename).toLowerCase();
+        bValue = (b.display_name || b.original_filename).toLowerCase();
           break;
         case 'size':
           aValue = a.file_size;
@@ -179,7 +179,7 @@ export default function FileExplorerView({
   };
 
   const handleDownload = async (file: File) => {
-    await downloadFile(file.id, file.original_filename);
+    await downloadFile(file.id, file.display_name || file.original_filename);
   };
 
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -303,7 +303,7 @@ export default function FileExplorerView({
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                      {file.original_filename}
+                      {file.display_name || file.original_filename}
                     </p>
                   </div>
                 </div>
@@ -373,8 +373,8 @@ export default function FileExplorerView({
                   {getFileIcon(file.mime_type, 'lg')}
                 </div>
                 <div className="text-center min-w-0 w-full mb-3">
-                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate mb-1" title={file.original_filename}>
-                    {file.original_filename}
+                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate mb-1" title={file.display_name || file.original_filename}>
+              {file.display_name || file.original_filename}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                     {formatBytes(file.file_size)}
@@ -438,7 +438,7 @@ export default function FileExplorerView({
           onClose={() => setFileToDelete(null)}
           onConfirm={handleDelete}
           title="Delete File"
-          message={`Are you sure you want to delete "${fileToDelete.original_filename}"?`}
+          message={`Are you sure you want to delete "${fileToDelete.display_name || fileToDelete.original_filename}"?`}
           confirmText="Delete"
           confirmButtonClass="bg-red-600 hover:bg-red-700"
         />

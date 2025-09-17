@@ -27,6 +27,7 @@ if models_path.exists():
     Folder = parent_models.Folder
     Selfie = parent_models.Selfie
 
+
 __all__ = [
     "AuditLog", "AuditEventType", "User", "Department", "Branch", 
     "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie"

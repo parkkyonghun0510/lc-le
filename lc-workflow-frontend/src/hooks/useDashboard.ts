@@ -55,6 +55,8 @@ export interface RecentApplication {
   status: string;
   created_at: string;
   user_id: string;
+  account_id: string;
+  product_type: string;
 }
 
 // Activity timeline interface
@@ -82,10 +84,10 @@ export const useDashboardStats = () => {
   return useQuery({
     queryKey: dashboardKeys.stats(),
     queryFn: (): Promise<DashboardStats> => apiClient.get('/dashboard/stats'),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
-    refetchOnWindowFocus: true,
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
   });
 };
 
@@ -94,9 +96,9 @@ export const useRecentApplications = (limit: number = 10) => {
     queryKey: dashboardKeys.recentApplications(limit),
     queryFn: (): Promise<RecentApplication[]> => 
       apiClient.get(`/dashboard/recent-applications?limit=${limit}`),
-    staleTime: 1 * 60 * 1000, // 1 minute
-    gcTime: 3 * 60 * 1000, // 3 minutes
-    refetchOnWindowFocus: true,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -105,9 +107,9 @@ export const useActivityTimeline = (days: number = 7) => {
     queryKey: dashboardKeys.activityTimeline(days),
     queryFn: (): Promise<ActivityItem[]> => 
       apiClient.get(`/dashboard/activity-timeline?days=${days}`),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
   });
 };
 

@@ -3,11 +3,15 @@
 import React from 'react';
 import { UserIcon, PhoneIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { FormField } from './FormField';
+import { AddressField } from './AddressField';
 
 interface GuarantorInformationStepProps {
   formValues: {
     guarantor_name: string;
     guarantor_phone: string;
+    guarantor_id_number?: string;
+    guarantor_address?: string;
+    guarantor_relationship?: string;
   };
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -20,7 +24,7 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
-          label="Guarantor Name"
+          label="ឈ្មោះ អ្នកធានា"
           name="guarantor_name"
           type="text"
           value={formValues.guarantor_name}
@@ -30,7 +34,7 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
         />
 
         <FormField
-          label="Guarantor Phone Number"
+          label="លេខទូរស័ព្ទ"
           name="guarantor_phone"
           type="tel"
           value={formValues.guarantor_phone}
@@ -39,6 +43,37 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
           icon={PhoneIcon}
           required
         />
+
+        <FormField
+          label="លេខសម្គាល់ប័ណ្ណ"
+          name="guarantor_id_number"
+          type="text"
+          value={formValues.guarantor_id_number || ''}
+          onChange={onInputChange}
+          placeholder="Enter guarantor ID number"
+          icon={UserIcon}
+          required
+        />
+
+        <AddressField
+          label="អស័យដ្ឋាន"
+          name="guarantor_address"
+          value={formValues.guarantor_address || ''}
+          required
+          onChange={onInputChange}
+          placeholder="ជ្រើសរើសអាសយដ្ឋាន"
+        />
+
+        <FormField
+          label="Relationship to Applicant"
+          name="guarantor_relationship"
+          type="text"
+          value={formValues.guarantor_relationship || ''}
+          onChange={onInputChange}
+          placeholder="e.g., Spouse, Parent, Friend"
+          icon={UserGroupIcon}
+        />
+
       </div>
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">

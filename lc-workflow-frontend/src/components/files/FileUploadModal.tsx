@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useUploadFile } from '@/hooks/useFiles';
-import { XMarkIcon, DocumentIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, DocumentIcon, CloudArrowUpIcon, CameraIcon } from '@heroicons/react/24/outline';
 import { formatBytes } from '@/lib/utils';
+import { CameraCapture } from '@/components/CameraCapture';
+import { isMobileDevice, getDeviceInfo, DeviceInfo } from '@/utils/deviceDetection';
+import { CameraCapture as CameraCaptureType } from '@/hooks/useCamera';
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -22,7 +25,19 @@ interface FileWithProgress {
 
 export default function FileUploadModal({ isOpen, onClose, applicationId, documentType }: FileUploadModalProps) {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
+  const [showCamera, setShowCamera] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  const [fieldName, setFieldName] = useState<string>('');
   const uploadFileMutation = useUploadFile();
+
+  // Get device info on component mount
+  useEffect(() => {
+    const fetchDeviceInfo = async () => {
+      const info = await getDeviceInfo();
+      setDeviceInfo(info);
+    };
+    fetchDeviceInfo();
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -62,6 +77,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
         file: fileWithProgress.file,
         applicationId,
         documentType,
+        fieldName: fieldName.trim() || undefined,
         onProgress: (progress) => {
           setFiles(prev => prev.map((f, i) => 
             i === index ? { ...f, progress } : f
@@ -95,7 +111,41 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
 
   const handleClose = () => {
     setFiles([]);
+    setShowCamera(false);
+    setFieldName('');
     onClose();
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = () => {
+    setShowCamera(true);
+  };
+
+  // Handle camera photo capture
+  const handleCameraPhoto = async (capture: CameraCaptureType) => {
+    try {
+      // Convert base64 to blob
+      const response = await fetch(capture.dataUrl);
+      const blob = await response.blob();
+      
+      // Create file from blob
+      const file = new File([blob], `camera-capture-${Date.now()}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      
+      // Add to files list
+      const newFile = {
+        file,
+        progress: 0,
+        status: 'pending' as const,
+      };
+      
+      setFiles(prev => [...prev, newFile]);
+      setShowCamera(false);
+    } catch (error) {
+      console.error('Error processing camera capture:', error);
+    }
   };
 
   const allCompleted = files.length > 0 && files.every(f => f.status === 'completed');
@@ -120,6 +170,23 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          {/* Field Name Input */}
+          <div className="mb-6">
+            <label htmlFor="fieldName" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+              Document Field Name (Optional)
+            </label>
+            <input
+              type="text"
+              id="fieldName"
+              value={fieldName}
+              onChange={(e) => setFieldName(e.target.value)}
+              placeholder="e.g., NID, borrower_photo, salary_certificate"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Specify a field name to generate structured filenames like: fieldname_20240115_uuid.ext
+            </p>
+          </div>
           {/* Dropzone */}
           <div
             {...getRootProps()}
@@ -140,9 +207,26 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
                 <p className="text-gray-700 dark:text-gray-200 mb-3 font-semibold text-lg">
                   Drag & drop files here, or click to select files
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg inline-block">
+                <p className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg inline-block mb-4">
                   Supports: Images, PDF, Word, Excel, Text files (max 10MB each)
                 </p>
+                
+                {/* Camera Capture Button */}
+                {deviceInfo?.hasCamera && (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCameraCapture();
+                      }}
+                      className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                    >
+                      <CameraIcon className="h-5 w-5 mr-2" />
+                      Take Photo
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -236,6 +320,17 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
           )}
         </div>
       </div>
+      
+      {/* Camera Capture Modal */}
+      {showCamera && (
+        <CameraCapture
+          isOpen={showCamera}
+          onClose={() => setShowCamera(false)}
+          onCapture={handleCameraPhoto}
+          title="Capture Document"
+          description="Position your document in the frame and tap to capture"
+        />
+      )}
     </div>
   );
 }

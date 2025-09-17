@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -73,7 +73,7 @@ class AuditService:
                 details=audit_data,
                 ip_address=ip_address,
                 user_agent=user_agent,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
             self.db.add(audit_log)
@@ -268,7 +268,7 @@ class AuditService:
             # Look for high-frequency duplicate attempts from same IP/user
             from datetime import timedelta
             
-            cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=time_window_hours)
             
             query = select(AuditLog).where(
                 AuditLog.event_type == AuditEventType.VALIDATION,

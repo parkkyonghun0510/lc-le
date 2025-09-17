@@ -97,16 +97,29 @@ const fileApi = {
     applicationId?: string,
     onProgress?: (progress: number) => void,
     folderId?: string,
-    documentType?: 'photos' | 'references' | 'supporting_docs'
+    documentType?: 'photos' | 'references' | 'supporting_docs',
+    fieldName?: string
   ): Promise<ApiFile> => {
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Also try sending parameters in form data (in case backend expects them there)
+    if (applicationId) formData.append('application_id', applicationId);
+    if (folderId) formData.append('folder_id', folderId);
+    if (documentType) formData.append('document_type', documentType);
+    if (fieldName) formData.append('field_name', fieldName);
     
     // Send ids as query params to match backend expectations
     const qp = new URLSearchParams();
     if (applicationId) qp.append('application_id', applicationId);
     if (folderId) qp.append('folder_id', folderId);
     if (documentType) qp.append('document_type', documentType);
+    if (fieldName) qp.append('field_name', fieldName);
+
+    // Debug logging (can be removed in production)
+    if (folderId) {
+      console.log(`Uploading to folder: ${folderId}`);
+    }
 
     return apiClient.post(`/files/upload?${qp.toString()}`, formData, {
       headers: {
@@ -287,13 +300,15 @@ export const useUploadFile = () => {
       onProgress,
       folderId,
       documentType,
+      fieldName,
     }: { 
       file: globalThis.File; 
       applicationId?: string; 
       onProgress?: (progress: number) => void;
       folderId?: string;
       documentType?: 'photos' | 'references' | 'supporting_docs';
-    }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType),
+      fieldName?: string;
+    }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType, fieldName),
     onSuccess: (data) => {
       // Invalidate multiple query keys to ensure all related data is refreshed
       queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
@@ -393,7 +408,8 @@ export const useCreateFolder = () => {
       application_id?: string;
     }) => folderApi.createFolder(data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: folderKeys.lists() });
+      // Invalidate all folder queries
+      queryClient.invalidateQueries({ queryKey: folderKeys.all });
       
       // If the folder was created for an application, invalidate application queries
       if (data.application_id) {

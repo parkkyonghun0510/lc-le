@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
+import redis
 from app.core.config import settings
 
 # Convert psycopg2 URL to asyncpg URL for Railway compatibility
@@ -34,3 +35,35 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
+
+
+# Redis configuration
+_redis_client: Optional[redis.Redis] = None
+
+def get_redis() -> Optional[redis.Redis]:
+    """Get Redis client instance"""
+    global _redis_client
+    
+    if _redis_client is None:
+        try:
+            # Try to get Redis URL from settings
+            redis_url = getattr(settings, 'REDIS_URL', None)
+            if redis_url:
+                _redis_client = redis.from_url(redis_url, decode_responses=True)
+                # Test connection
+                _redis_client.ping()
+            else:
+                # Fallback to default Redis configuration
+                _redis_client = redis.Redis(
+                    host=getattr(settings, 'REDIS_HOST', 'localhost'),
+                    port=getattr(settings, 'REDIS_PORT', 6379),
+                    db=getattr(settings, 'REDIS_DB', 0),
+                    decode_responses=True
+                )
+                _redis_client.ping()
+        except Exception:
+            # If Redis is not available, return None
+            # The enum service will handle this gracefully
+            _redis_client = None
+    
+    return _redis_client

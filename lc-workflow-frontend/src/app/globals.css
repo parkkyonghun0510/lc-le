@@ -75,8 +75,37 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark theme class-based styles */
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  
+  /* Dark mode color adjustments */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #1e293b;
+  --secondary: #94a3b8;
+  --secondary-hover: #cbd5e1;
+  
+  /* Dark neutral colors */
+  --gray-50: #0f172a;
+  --gray-100: #1e293b;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+  --gray-700: #e2e8f0;
+  --gray-800: #f1f5f9;
+  --gray-900: #f8fafc;
+  
+  --border: var(--gray-200);
+  --border-hover: var(--gray-300);
+}
+
+/* System preference fallback */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #0f172a;
     --foreground: #f1f5f9;
     
@@ -279,6 +308,16 @@ body {
   transition: all 0.2s ease-in-out;
   cursor: pointer;
   border: 1px solid transparent;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  .btn-base {
+    min-height: 44px;
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
 }
 
 .btn-primary {

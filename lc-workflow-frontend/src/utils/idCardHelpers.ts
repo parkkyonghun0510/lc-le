@@ -10,67 +10,67 @@ export interface IDCardTypeConfig {
 // Configuration for different ID card types
 export const ID_CARD_TYPE_CONFIG: Record<string, IDCardTypeConfig> = {
   'cambodian_identity': {
-    placeholder: 'Enter Cambodian ID number (9 digits)',
+    placeholder: 'បញ្ចូលលេខអត្តសញ្ញាណប័ណ្ឌកម្ពុជា (៩ ខ្ទង់)',
     pattern: '^[0-9]{9}$',
     maxLength: 9,
     example: '123456789'
   },
   'passport': {
-    placeholder: 'Enter passport number',
+    placeholder: 'បញ្ចូលលេខលិខិតឆ្លងដែន',
     pattern: '^[A-Z0-9]{6,12}$',
     maxLength: 12,
     example: 'A1234567'
   },
   'driver-license': {
-    placeholder: 'Enter driver license number',
+    placeholder: 'បញ្ចូលលេខប័ណ្ណបើកបរ',
     pattern: '^[A-Z0-9]{8,15}$',
     maxLength: 15,
     example: 'DL12345678'
   },
   'gov-card': {
-    placeholder: 'Enter government card number',
+    placeholder: 'បញ្ចូលលេខកាតរដ្ឋាភិបាល',
     pattern: '^[A-Z0-9]{8,12}$',
     maxLength: 12,
     example: 'GOV123456'
   },
   'monk-card': {
-    placeholder: 'Enter monk card number',
+    placeholder: 'បញ្ចូលលេខកាតព្រះសង្ឃ',
     pattern: '^[A-Z0-9]{6,10}$',
     maxLength: 10,
     example: 'MNK12345'
   },
   'family-book': {
-    placeholder: 'Enter family book number',
+    placeholder: 'បញ្ចូលលេខសៀវភៅគ្រួសារ',
     pattern: '^[A-Z0-9]{8,12}$',
     maxLength: 12,
     example: 'FB12345678'
   },
   'birth-certificate': {
-    placeholder: 'Enter birth certificate number',
+    placeholder: 'បញ្ចូលលេខវិញ្ញាបនបត្រកំណើត',
     pattern: '^[A-Z0-9]{8,15}$',
     maxLength: 15,
     example: 'BC123456789'
   },
   'other': {
-    placeholder: 'Enter ID number',
+    placeholder: 'បញ្ចូលលេខអត្តសញ្ញាណប័ណ្ឌ',
     maxLength: 20,
-    example: 'Enter your ID number'
+    example: 'បញ្ចូលលេខអត្តសញ្ញាណប័ណ្ឌរបស់អ្នក'
   },
   // Legacy support for old format
   'National ID': {
-    placeholder: 'Enter National ID number (9 digits)',
+    placeholder: 'បញ្ចូលលេខអត្តសញ្ញាណប័ណ្ឌជាតិ (9 ខ្ទង់)',
     pattern: '^[0-9]{9}$',
     maxLength: 9,
     example: '123456789'
   },
   'Passport': {
-    placeholder: 'Enter passport number',
+    placeholder: 'បញ្ចូលលេខលិខិតឆ្លងដែន',
     pattern: '^[A-Z0-9]{6,12}$',
     maxLength: 12,
     example: 'A1234567'
   },
   'Driving License': {
-    placeholder: 'Enter driver license number',
+    placeholder: 'បញ្ចូលលេខប័ណ្ណបើកបរ',
     pattern: '^[A-Z0-9]{8,15}$',
     maxLength: 15,
     example: 'DL12345678'

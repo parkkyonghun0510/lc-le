@@ -28,7 +28,7 @@ class ApiClient {
 
   constructor() {
     console.log('API_BASE_URL', API_BASE_URL);
-    this.client = axios.create({ baseURL: API_BASE_URL, timeout: 30000, headers: { 'Content-Type': 'application/json' }, withCredentials: true });
+    this.client = axios.create({ baseURL: API_BASE_URL, timeout: 10000, headers: { 'Content-Type': 'application/json' }, withCredentials: true });
     this.setupInterceptors();
   }
 

@@ -7,7 +7,7 @@ from uuid import UUID
 import uuid
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models import Selfie, File as FileModel, User, CustomerApplication
@@ -95,7 +95,8 @@ async def upload_selfie(
         file_content=content,
         original_filename=file.filename,
         content_type=file.content_type,
-        prefix=storage_prefix
+        prefix=storage_prefix,
+        field_name=f"selfie_{selfie_type}"
     )
     
     # Create file record
@@ -301,7 +302,7 @@ async def validate_selfie(
             "is_validated": is_approved,
             "status": "validated" if is_approved else "rejected",
             "validated_by": current_user.id,
-            "validated_at": datetime.utcnow(),
+            "validated_at": datetime.now(timezone.utc),
             "validation_notes": validation_notes
         }
         
@@ -322,7 +323,7 @@ async def validate_selfie(
             "is_approved": is_approved,
             "validation_notes": validation_notes,
             "validated_by": str(current_user.id),
-            "validated_at": datetime.utcnow().isoformat(),
+            "validated_at": datetime.now(timezone.utc).isoformat(),
             "message": "Selfie validation completed successfully"
         }
         
@@ -381,4 +382,3 @@ async def delete_selfie(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid selfie ID format"
         )
-

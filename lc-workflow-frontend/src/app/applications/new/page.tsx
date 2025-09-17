@@ -181,8 +181,11 @@ const NewApplicationPage = () => {
         purpose_details: formValues.purpose_details,
         guarantor_name: formValues.guarantor_name,
         guarantor_phone: formValues.guarantor_phone,
-        sex: formValues.sex,
-        marital_status: formValues.marital_status,
+        guarantor_address: formValues.guarantor_address,
+        guarantor_relationship: formValues.guarantor_relationship,
+        guarantor_id_number: formValues.guarantor_id_number,
+        // sex: formValues.sex,
+        // marital_status: formValues.marital_status,
       });
       setApplicationId(data.id);
       toast.success('Application draft created successfully');
@@ -279,8 +282,8 @@ const NewApplicationPage = () => {
           current_address: formValues.current_address,
           date_of_birth: formValues.date_of_birth,
           portfolio_officer_name: formValues.portfolio_officer_name,
-          marital_status: formValues.marital_status,
-          sex: formValues.sex,
+          // marital_status: formValues.marital_status,
+          // sex: formValues.sex,
 
           // Loan Information
           requested_amount: parseFloat(formValues.requested_amount),
@@ -293,6 +296,9 @@ const NewApplicationPage = () => {
           // Guarantor Information
           guarantor_name: formValues.guarantor_name,
           guarantor_phone: formValues.guarantor_phone,
+          guarantor_address: formValues.guarantor_address,
+          guarantor_id_number: formValues.guarantor_id_number,
+          guarantor_relationship: formValues.guarantor_relationship
         },
       });
 

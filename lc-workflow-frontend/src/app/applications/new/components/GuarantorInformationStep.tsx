@@ -3,6 +3,7 @@
 import React from 'react';
 import { UserIcon, PhoneIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { FormField } from './FormField';
+import { AddressField } from './AddressField';
 
 interface GuarantorInformationStepProps {
   formValues: {
@@ -23,7 +24,7 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
-          label="Guarantor Name"
+          label="ឈ្មោះ អ្នកធានា"
           name="guarantor_name"
           type="text"
           value={formValues.guarantor_name}
@@ -33,7 +34,7 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
         />
 
         <FormField
-          label="Guarantor Phone Number"
+          label="លេខទូរស័ព្ទ"
           name="guarantor_phone"
           type="tel"
           value={formValues.guarantor_phone}
@@ -44,23 +45,23 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
         />
 
         <FormField
-          label="Guarantor ID Number"
+          label="លេខសម្គាល់ប័ណ្ណ"
           name="guarantor_id_number"
           type="text"
           value={formValues.guarantor_id_number || ''}
           onChange={onInputChange}
           placeholder="Enter guarantor ID number"
           icon={UserIcon}
+          required
         />
 
-        <FormField
-          label="Guarantor Address"
+        <AddressField
+          label="អស័យដ្ឋាន"
           name="guarantor_address"
-          type="text"
           value={formValues.guarantor_address || ''}
+          required
           onChange={onInputChange}
-          placeholder="Enter guarantor address"
-          icon={UserGroupIcon}
+          placeholder="ជ្រើសរើសអាសយដ្ឋាន"
         />
 
         <FormField
@@ -72,6 +73,7 @@ export const GuarantorInformationStep: React.FC<GuarantorInformationStepProps> =
           placeholder="e.g., Spouse, Parent, Friend"
           icon={UserGroupIcon}
         />
+
       </div>
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">

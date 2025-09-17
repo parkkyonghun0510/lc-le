@@ -5,13 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplication, useSubmitApplication, useApproveApplication, useRejectApplication } from '@/hooks/useApplications';
-import { useFiles, useDownloadFile } from '@/hooks/useFiles';
-import { useFolders } from '@/hooks/useFolders';
+import { useFiles, useDownloadFile, useFolders } from '@/hooks/useFiles';
 import type { File as ApiFile } from '@/types/models';
 import FilePreview from '@/components/files/FilePreview';
 import ImageThumbnail from '@/components/files/ImageThumbnail';
 import { useAuth } from '@/hooks/useAuth';
-import { 
+import {
   ArrowLeftIcon,
   PencilIcon,
   CheckCircleIcon,
@@ -24,7 +23,7 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   BuildingOfficeIcon,
-  
+
   DocumentDuplicateIcon,
   UserGroupIcon,
   BanknotesIcon,
@@ -41,39 +40,39 @@ import Link from 'next/link';
 
 
 const statusConfig = {
-  draft: { 
-    label: 'ព្រាង', 
-    color: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700', 
+  draft: {
+    label: 'ព្រាង',
+    color: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700',
     icon: DocumentTextIcon,
     khmer: 'ព្រាង'
   },
-  submitted: { 
-    label: 'បានដាក់ស្នើ', 
-    color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700', 
+  submitted: {
+    label: 'បានដាក់ស្នើ',
+    color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700',
     icon: ClockIcon,
     khmer: 'បានដាក់ស្នើ'
   },
-  pending: { 
-    label: 'កំពុងរង់ចាំ', 
-    color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-700', 
+  pending: {
+    label: 'កំពុងរង់ចាំ',
+    color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-700',
     icon: ClockIcon,
     khmer: 'កំពុងរង់ចាំ'
   },
-  under_review: { 
-    label: 'កំពុងពិនិត្យ', 
-    color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700', 
+  under_review: {
+    label: 'កំពុងពិនិត្យ',
+    color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700',
     icon: ClockIcon,
     khmer: 'កំពុងពិនិត្យ'
   },
-  approved: { 
-    label: 'អនុម័ត', 
-    color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700', 
+  approved: {
+    label: 'អនុម័ត',
+    color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700',
     icon: CheckCircleIcon,
     khmer: 'អនុម័ត'
   },
-  rejected: { 
-    label: 'បដិសេធ', 
-    color: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700', 
+  rejected: {
+    label: 'បដិសេធ',
+    color: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700',
     icon: XCircleIcon,
     khmer: 'បដិសេធ'
   }
@@ -122,15 +121,15 @@ function ApplicationDetailContent() {
   const [previewList, setPreviewList] = useState<ApiFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   // TODO: Replace with static options or new data source
-  const productTypes = { 
-    data: [], 
-    isLoading: false, 
+  const productTypes = {
+    data: [],
+    isLoading: false,
     error: null,
     getLabel: (value: string | null | undefined) => value || null
   };
-  const idCardTypes = { 
-    data: [], 
-    isLoading: false, 
+  const idCardTypes = {
+    data: [],
+    isLoading: false,
     error: null,
     getLabel: (value: string | null | undefined) => value || null
   };
@@ -181,7 +180,7 @@ function ApplicationDetailContent() {
                 </div>
               </div>
             </div>
-            
+
             {/* Content Skeleton */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
@@ -252,8 +251,8 @@ function ApplicationDetailContent() {
   };
 
   const handleApprove = () => {
-    approveMutation.mutate({ 
-      id: applicationId, 
+    approveMutation.mutate({
+      id: applicationId,
       data: {
         approved_amount: application?.requested_amount || 0,
         approved_term: application?.desired_loan_term || 12,
@@ -285,7 +284,7 @@ function ApplicationDetailContent() {
                   <ArrowLeftIcon className="h-5 w-5 mr-2 group-hover:-translate-x-0.5 transition-transform duration-200" />
                   <span className="font-medium">Back</span>
                 </button>
-                
+
                 <div className="flex items-center space-x-4 pl-6 border-l border-gray-200 dark:border-gray-600">
                   <div className="relative">
                     <div className="p-4 bg-gradient-to-br from-primary-100 via-primary-50 to-blue-100 dark:from-primary-900/50 dark:via-primary-800/30 dark:to-blue-800/50 rounded-2xl shadow-inner">
@@ -293,7 +292,7 @@ function ApplicationDetailContent() {
                     </div>
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-green-400 to-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
                   </div>
-                  
+
                   <div className="space-y-1">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                       {application.full_name_khmer || application.full_name_latin || 'ពាក្យសុំកម្ចី'}
@@ -383,266 +382,266 @@ function ApplicationDetailContent() {
           </div>
         </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Customer Information */}
-              <div className="bg-white dark:bg-gray-800 mt-4 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
-                <div className="px-8 py-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                      <UserIcon className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        Customer Information
-                      </h2>
-                      <p className="text-base text-blue-600 dark:text-blue-400 font-medium">
-                        ព័ត៌មានអតិថិជន
-                      </p>
-                    </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Customer Information */}
+            <div className="bg-white dark:bg-gray-800 mt-4 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+              <div className="px-8 py-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-600">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                    <UserIcon className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Customer Information
+                    </h2>
+                    <p className="text-base text-blue-600 dark:text-blue-400 font-medium">
+                      ព័ត៌មានអតិថិជន
+                    </p>
                   </div>
                 </div>
-                
-                <div className="p-8">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <div className="group relative p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl border border-blue-200 dark:border-blue-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-blue-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <IdentificationIcon className="w-5 h-5 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Khmer Name</p>
-                              <div className="h-1 w-1 bg-blue-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-3 font-medium">ឈ្មោះជាភាសាខ្មែរ</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{application.full_name_khmer || 'មិនបានបញ្ជាក់'}</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="group relative p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl border border-purple-200 dark:border-purple-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-purple-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <IdentificationIcon className="w-5 h-5 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">Latin Name</p>
-                              <div className="h-1 w-1 bg-purple-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">ឈ្មោះជាអក្សរឡាតាំង</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{application.full_name_latin || 'មិនបានបញ្ជាក់'}</p>
-                          </div>
-                        </div>
-                      </div>
+              </div>
 
-                      <div className="group relative p-6 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-800/20 rounded-2xl border border-green-200 dark:border-green-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-green-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <PhoneIcon className="w-5 h-5 text-white" />
+              <div className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="group relative p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl border border-blue-200 dark:border-blue-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-blue-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <IdentificationIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Khmer Name</p>
+                            <div className="h-1 w-1 bg-blue-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">Phone Number</p>
-                              <div className="h-1 w-1 bg-green-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-green-600 dark:text-green-400 mb-3 font-medium">លេខទូរស័ព្ទ</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white font-mono">{application.phone || 'មិនបានបញ្ជាក់'}</p>
-                          </div>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mb-3 font-medium">ឈ្មោះជាភាសាខ្មែរ</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{application.full_name_khmer || 'មិនបានបញ្ជាក់'}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="group relative p-6 bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-800/20 rounded-2xl border border-orange-200 dark:border-orange-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-orange-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <IdentificationIcon className="w-5 h-5 text-white" />
+                    <div className="group relative p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl border border-purple-200 dark:border-purple-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-purple-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <IdentificationIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">Latin Name</p>
+                            <div className="h-1 w-1 bg-purple-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">ID Card Type</p>
-                              <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{idCardTypes.getLabel(application.id_card_type) || 'មិនបានបញ្ជាក់'}</p>
-                          </div>
+                          <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">ឈ្មោះជាអក្សរឡាតាំង</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{application.full_name_latin || 'មិនបានបញ្ជាក់'}</p>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-indigo-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <IdentificationIcon className="w-5 h-5 text-white" />
+                    <div className="group relative p-6 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-800/20 rounded-2xl border border-green-200 dark:border-green-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-green-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <PhoneIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">Phone Number</p>
+                            <div className="h-1 w-1 bg-green-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">ID Number</p>
-                              <div className="h-1 w-1 bg-indigo-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3 font-medium">លេខអត្តសញ្ញាណប័ណ្ណ</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white font-mono tracking-wider">{application.id_number || 'មិនបានបញ្ជាក់'}</p>
-                          </div>
+                          <p className="text-xs text-green-600 dark:text-green-400 mb-3 font-medium">លេខទូរស័ព្ទ</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white font-mono">{application.phone || 'មិនបានបញ្ជាក់'}</p>
                         </div>
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="group relative p-6 bg-gradient-to-br from-rose-50 to-pink-100 dark:from-rose-900/20 dark:to-pink-800/20 rounded-2xl border border-rose-200 dark:border-rose-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-rose-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <CalendarIcon className="w-5 h-5 text-white" />
+                  <div className="space-y-6">
+                    <div className="group relative p-6 bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-800/20 rounded-2xl border border-orange-200 dark:border-orange-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-orange-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <IdentificationIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">ID Card Type</p>
+                            <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 uppercase tracking-wide">Date of Birth</p>
-                              <div className="h-1 w-1 bg-rose-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-rose-600 dark:text-rose-400 mb-3 font-medium">ថ្ងៃខែឆ្នាំកំណើត</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">{application.date_of_birth ? formatDateDOB(application.date_of_birth) : 'មិនបានបញ្ជាក់'}</p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{idCardTypes.getLabel(application.id_card_type) || 'មិនបានបញ្ជាក់'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-indigo-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <IdentificationIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">ID Number</p>
+                            <div className="h-1 w-1 bg-indigo-400 rounded-full"></div>
                           </div>
+                          <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3 font-medium">លេខអត្តសញ្ញាណប័ណ្ណ</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white font-mono tracking-wider">{application.id_number || 'មិនបានបញ្ជាក់'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="group relative p-6 bg-gradient-to-br from-rose-50 to-pink-100 dark:from-rose-900/20 dark:to-pink-800/20 rounded-2xl border border-rose-200 dark:border-rose-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-rose-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <CalendarIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 uppercase tracking-wide">Date of Birth</p>
+                            <div className="h-1 w-1 bg-rose-400 rounded-full"></div>
+                          </div>
+                          <p className="text-xs text-rose-600 dark:text-rose-400 mb-3 font-medium">ថ្ងៃខែឆ្នាំកំណើត</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">{application.date_of_birth ? formatDateDOB(application.date_of_birth) : 'មិនបានបញ្ជាក់'}</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Loan Details */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
-                <div className="px-8 py-6 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-b border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
-                      <CurrencyDollarIcon className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        Loan Details
-                      </h2>
-                      <p className="text-base text-green-600 dark:text-green-400 font-medium">
-                        ព័ត៌មានកម្ចី
-                      </p>
-                    </div>
+            {/* Loan Details */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+              <div className="px-8 py-6 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-b border-gray-200 dark:border-gray-600">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
+                    <CurrencyDollarIcon className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Loan Details
+                    </h2>
+                    <p className="text-base text-green-600 dark:text-green-400 font-medium">
+                      ព័ត៌មានកម្ចី
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                <div className="p-8">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <div className="group relative p-6 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-800/20 rounded-2xl border border-green-200 dark:border-green-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-green-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <CurrencyDollarIcon className="w-6 h-6 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">Requested Amount</p>
-                              <div className="h-1 w-1 bg-green-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-green-600 dark:text-green-400 mb-3 font-medium">ចំនួនទឹកប្រាក់ស្នើសុំ</p>
-                            <p className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono">
-                              {application.requested_amount 
-                                ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
-                                : 'មិនបានបញ្ជាក់'
-                              }
-                            </p>
-                          </div>
+              <div className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="group relative p-6 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-800/20 rounded-2xl border border-green-200 dark:border-green-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-green-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <CurrencyDollarIcon className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-
-                      <div className="group relative p-6 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-800/20 rounded-2xl border border-blue-200 dark:border-blue-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-blue-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <CalendarIcon className="w-5 h-5 text-white" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">Requested Amount</p>
+                            <div className="h-1 w-1 bg-green-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Loan Term</p>
-                              <div className="h-1 w-1 bg-blue-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-3 font-medium">ចំនួនបង់(ដង)</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              {application.desired_loan_term || 'មិនបានបញ្ជាក់'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="group relative p-6 bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-800/20 rounded-2xl border border-purple-200 dark:border-purple-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-purple-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <DocumentTextIcon className="w-5 h-5 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">Product Type</p>
-                              <div className="h-1 w-1 bg-purple-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">ប្រភេទផលិតផល</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
-                              {productTypes.getLabel(application.product_type) || 'មិនបានបញ្ជាក់'}
-                            </p>
-                          </div>
+                          <p className="text-xs text-green-600 dark:text-green-400 mb-3 font-medium">ចំនួនទឹកប្រាក់ស្នើសុំ</p>
+                          <p className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono">
+                            {application.requested_amount
+                              ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
+                              : 'មិនបានបញ្ជាក់'
+                            }
+                          </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="group relative p-6 bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-800/20 rounded-2xl border border-orange-200 dark:border-orange-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-orange-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <CalendarIcon className="w-5 h-5 text-white" />
+                    <div className="group relative p-6 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-800/20 rounded-2xl border border-blue-200 dark:border-blue-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-blue-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <CalendarIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Loan Term</p>
+                            <div className="h-1 w-1 bg-blue-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">Disbursement Date</p>
-                              <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">កាលបរិច្ឆេទចង់បានប្រាក់</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              {application.requested_disbursement_date 
-                                ? formatDate(application.requested_disbursement_date)
-                                : 'មិនបានបញ្ជាក់'
-                              }
-                            </p>
-                          </div>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mb-3 font-medium">ចំនួនបង់(ដង)</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            {application.desired_loan_term || 'មិនបានបញ្ជាក់'}
+                          </p>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-start space-x-4">
-                          <div className="p-3 bg-indigo-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
-                            <DocumentTextIcon className="w-5 h-5 text-white" />
+                    <div className="group relative p-6 bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-800/20 rounded-2xl border border-purple-200 dark:border-purple-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-purple-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <DocumentTextIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">Product Type</p>
+                            <div className="h-1 w-1 bg-purple-400 rounded-full"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Loan Purpose</p>
-                              <div className="h-1 w-1 bg-indigo-400 rounded-full"></div>
-                            </div>
-                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3 font-medium">គោលបំណងប្រើប្រាស់</p>
-                            <div className="flex flex-wrap gap-2">
-                              {application.loan_purposes && application.loan_purposes.length > 0 ? (
-                                application.loan_purposes.map((purpose, index) => {
-                                  const Icon = purposeIcons[purpose as keyof typeof purposeIcons] || EllipsisHorizontalIcon;
-                                  const label = purposeLabels[purpose as keyof typeof purposeLabels] || purpose;
-                                  return (
-                                    <span
-                                      key={index}
-                                      className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
-                                    >
-                                      <Icon className="w-4 h-4 mr-2" />
-                                      {label}
-                                    </span>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-gray-500 dark:text-gray-400 font-medium">មិនបានបញ្ជាក់</span>
-                              )}
-                            </div>
+                          <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">ប្រភេទផលិតផល</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                            {productTypes.getLabel(application.product_type) || 'មិនបានបញ្ជាក់'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="group relative p-6 bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-800/20 rounded-2xl border border-orange-200 dark:border-orange-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-orange-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <CalendarIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">Disbursement Date</p>
+                            <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
+                          </div>
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">កាលបរិច្ឆេទចង់បានប្រាក់</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            {application.requested_disbursement_date
+                              ? formatDate(application.requested_disbursement_date)
+                              : 'មិនបានបញ្ជាក់'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-indigo-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <DocumentTextIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Loan Purpose</p>
+                            <div className="h-1 w-1 bg-indigo-400 rounded-full"></div>
+                          </div>
+                          <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3 font-medium">គោលបំណងប្រើប្រាស់</p>
+                          <div className="flex flex-wrap gap-2">
+                            {application.loan_purposes && application.loan_purposes.length > 0 ? (
+                              application.loan_purposes.map((purpose, index) => {
+                                const Icon = purposeIcons[purpose as keyof typeof purposeIcons] || EllipsisHorizontalIcon;
+                                const label = purposeLabels[purpose as keyof typeof purposeLabels] || purpose;
+                                return (
+                                  <span
+                                    key={index}
+                                    className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+                                  >
+                                    <Icon className="w-4 h-4 mr-2" />
+                                    {label}
+                                  </span>
+                                );
+                              })
+                            ) : (
+                              <span className="text-gray-500 dark:text-gray-400 font-medium">មិនបានបញ្ជាក់</span>
+                            )}
                           </div>
                         </div>
                       </div>
+                    </div>
 
                     {application.purpose_details && (
                       <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
@@ -791,7 +790,7 @@ function ApplicationDetailContent() {
                                                 </div>
                                               </div>
                                               <div className="mt-3 text-xs font-medium text-gray-700 dark:text-gray-300 truncate" title={file.display_name || file.original_filename}>
-                  {file.display_name || file.original_filename}
+                                                {file.display_name || file.original_filename}
                                               </div>
                                             </div>
                                           ))}
@@ -810,7 +809,7 @@ function ApplicationDetailContent() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                   <span className="text-sm font-semibold text-gray-900 dark:text-white truncate block" title={file.display_name || file.original_filename}>
-                  {file.display_name || file.original_filename}
+                                                    {file.display_name || file.original_filename}
                                                   </span>
                                                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">{(file.file_size / 1024).toFixed(0)} KB</p>
                                                 </div>
@@ -875,7 +874,7 @@ function ApplicationDetailContent() {
                                               >
                                                 <ImageThumbnail file={file} size="lg" className="w-full h-40" />
                                                 <div className="mt-2 text-xs text-gray-700 truncate" title={file.display_name || file.original_filename}>
-                  {file.display_name || file.original_filename}
+                                                  {file.display_name || file.original_filename}
                                                 </div>
                                               </div>
                                             ))}
@@ -891,7 +890,7 @@ function ApplicationDetailContent() {
                                                 <div className="flex items-center mb-1">
                                                   <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
                                                   <span className="text-sm font-medium text-gray-900 truncate" title={file.display_name || file.original_filename}>
-                  {file.display_name || file.original_filename}
+                                                    {file.display_name || file.original_filename}
                                                   </span>
                                                 </div>
                                                 <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
@@ -948,7 +947,7 @@ function ApplicationDetailContent() {
                                     >
                                       <ImageThumbnail file={file} size="lg" className="w-full h-40" />
                                       <div className="mt-2 text-xs text-gray-700 truncate" title={file.display_name || file.original_filename}>
-                  {file.display_name || file.original_filename}
+                                        {file.display_name || file.original_filename}
                                       </div>
                                     </div>
                                   ))}
@@ -964,7 +963,7 @@ function ApplicationDetailContent() {
                                       <div className="flex items-center mb-1">
                                         <DocumentTextIcon className="w-5 h-5 mr-2 text-gray-400" />
                                         <span className="text-sm font-medium text-gray-900 truncate" title={file.display_name || file.original_filename}>
-                  {file.display_name || file.original_filename}
+                                          {file.display_name || file.original_filename}
                                         </span>
                                       </div>
                                       <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB</p>
@@ -994,6 +993,430 @@ function ApplicationDetailContent() {
                   </div>
                 )}
               </div>
+
+              {/* Address Information */}
+              {application.current_address && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+                  <div className="px-8 py-6 bg-gradient-to-r from-purple-50 via-violet-50 to-indigo-50 dark:from-purple-900/20 dark:via-violet-900/20 dark:to-indigo-900/20 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg">
+                        <HomeIcon className="w-7 h-7 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                          Address Information
+                        </h2>
+                        <p className="text-base text-purple-600 dark:text-purple-400 font-medium">
+                          ព័ត៌មានអាសយដ្ឋាន
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-8">
+                    <div className="group relative p-6 bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-800/20 rounded-2xl border border-purple-200 dark:border-purple-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-purple-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                          <HomeIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">Current Address</p>
+                            <div className="h-1 w-1 bg-purple-400 rounded-full"></div>
+                          </div>
+                          <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">អាសយដ្ឋានបច្ចុប្បន្ន</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white leading-relaxed">
+                            {application.current_address}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Guarantor Information */}
+              {(application.guarantor_name || application.guarantor_phone) && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+                  <div className="px-8 py-6 bg-gradient-to-r from-amber-50 via-orange-50 to-red-50 dark:from-amber-900/20 dark:via-orange-900/20 dark:to-red-900/20 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-500 to-red-600 rounded-2xl shadow-lg">
+                        <UserGroupIcon className="w-7 h-7 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                          Guarantor Information
+                        </h2>
+                        <p className="text-base text-amber-600 dark:text-amber-400 font-medium">
+                          ព័ត៌មានអ្នកធានា
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {application.guarantor_name && (
+                        <div className="group relative p-6 bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-900/20 dark:to-orange-800/20 rounded-2xl border border-amber-200 dark:border-amber-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-3 bg-amber-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                              <UserIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wide">Guarantor Name</p>
+                                <div className="h-1 w-1 bg-amber-400 rounded-full"></div>
+                              </div>
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 font-medium">ឈ្មោះអ្នកធានា</p>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{application.guarantor_name}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {application.guarantor_phone && (
+                        <div className="group relative p-6 bg-gradient-to-br from-orange-50 to-red-100 dark:from-orange-900/20 dark:to-red-800/20 rounded-2xl border border-orange-200 dark:border-orange-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-3 bg-orange-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                              <PhoneIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <p className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">Guarantor Phone</p>
+                                <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
+                              </div>
+                              <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">លេខទូរស័ព្ទអ្នកធានា</p>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white font-mono">{application.guarantor_phone}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {application.guarantor_id_number && (
+                        <div className="group relative p-6 bg-gradient-to-br from-red-50 to-pink-100 dark:from-red-900/20 dark:to-pink-800/20 rounded-2xl border border-red-200 dark:border-red-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-3 bg-red-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                              <IdentificationIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <p className="text-sm font-semibold text-red-700 dark:text-red-300 uppercase tracking-wide">Guarantor ID</p>
+                                <div className="h-1 w-1 bg-red-400 rounded-full"></div>
+                              </div>
+                              <p className="text-xs text-red-600 dark:text-red-400 mb-3 font-medium">លេខអត្តសញ្ញាណអ្នកធានា</p>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white font-mono tracking-wider">{application.guarantor_id_number}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {application.guarantor_address && (
+                        <div className="group relative p-6 bg-gradient-to-br from-pink-50 to-rose-100 dark:from-pink-900/20 dark:to-rose-800/20 rounded-2xl border border-pink-200 dark:border-pink-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-3 bg-pink-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                              <HomeIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <p className="text-sm font-semibold text-pink-700 dark:text-pink-300 uppercase tracking-wide">Guarantor Address</p>
+                                <div className="h-1 w-1 bg-pink-400 rounded-full"></div>
+                              </div>
+                              <p className="text-xs text-pink-600 dark:text-pink-400 mb-3 font-medium">អាសយដ្ឋានអ្នកធានា</p>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white leading-relaxed">{application.guarantor_address}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {application.guarantor_relationship && (
+                        <div className="group relative p-6 bg-gradient-to-br from-rose-50 to-red-100 dark:from-rose-900/20 dark:to-red-800/20 rounded-2xl border border-rose-200 dark:border-rose-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-3 bg-rose-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+                              <UserGroupIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 uppercase tracking-wide">Relationship</p>
+                                <div className="h-1 w-1 bg-rose-400 rounded-full"></div>
+                              </div>
+                              <p className="text-xs text-rose-600 dark:text-rose-400 mb-3 font-medium">ទំនាក់ទំនងជាមួយអ្នកខ្ចី</p>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white">{application.guarantor_relationship}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Documents by Folder */}
+              {(files.length > 0 || appFolders.length > 0) && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+                  <div className="px-8 py-6 bg-gradient-to-r from-teal-50 via-cyan-50 to-blue-50 dark:from-teal-900/20 dark:via-cyan-900/20 dark:to-blue-900/20 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-teal-500 to-blue-600 rounded-2xl shadow-lg">
+                          <DocumentDuplicateIcon className="w-7 h-7 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                            ឯកសារ (តាមថត)
+                          </h2>
+                          <p className="text-base text-teal-600 dark:text-teal-400 font-medium">
+                            Documents by Folder ({files.length} files, {appFolders.length} folders)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-8">
+                    {/* Documents organized by folders */}
+                    {appFolders.length > 0 ? (
+                      <div className="space-y-8">
+                        {appFolders.map((folder) => {
+                          const folderFiles = files.filter(f => f.folder_id === folder.id);
+                          const folderImages = folderFiles.filter(isImageFile);
+                          const folderDocs = folderFiles.filter(f => !isImageFile(f));
+
+                          if (folderFiles.length === 0) return null;
+
+                          return (
+                            <div key={folder.id} className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
+                              {/* Folder Header */}
+                              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-700 dark:to-blue-900/20 border-b border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center space-x-3">
+                                  <div className="p-2 bg-blue-500 rounded-lg shadow-md">
+                                    <DocumentDuplicateIcon className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                      {folder.name}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                      {folderFiles.length} files ({folderImages.length} images, {folderDocs.length} documents)
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Folder Content */}
+                              <div className="p-6">
+                                {/* Images in this folder */}
+                                {folderImages.length > 0 && (
+                                  <div className="mb-6">
+                                    <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                                      <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
+                                      រូបភាព ({folderImages.length})
+                                    </h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                      {folderImages.map((file) => (
+                                        <div
+                                          key={file.id}
+                                          className="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105"
+                                          onClick={() => openPreview(file, folderImages)}
+                                        >
+                                          <ImageThumbnail
+                                            file={file}
+                                            className="w-full h-full object-cover"
+                                          />
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                              <div className="p-2 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-lg">
+                                                <EyeIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                            <p className="text-white text-xs font-medium truncate">
+                                              {file.display_name || file.original_filename}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Documents in this folder */}
+                                {folderDocs.length > 0 && (
+                                  <div>
+                                    <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                                      ឯកសារ ({folderDocs.length})
+                                    </h4>
+                                    <div className="space-y-2">
+                                      {folderDocs.map((file) => (
+                                        <div
+                                          key={file.id}
+                                          className="group flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-700 dark:to-blue-900/20 rounded-lg border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-300"
+                                        >
+                                          <div className="flex items-center space-x-3">
+                                            <div className="p-2 bg-blue-500 rounded-lg shadow-md">
+                                              <DocumentTextIcon className="w-4 h-4 text-white" />
+                                            </div>
+                                            <div>
+                                              <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                                {file.display_name || file.original_filename}
+                                              </p>
+                                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {file.mime_type} • {file.size ? `${Math.round(file.size / 1024)} KB` : 'Unknown size'}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={() => downloadFile(file.id, file.original_filename || 'document')}
+                                            className="group/btn flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200 hover:shadow-md text-sm"
+                                          >
+                                            <ArrowDownTrayIcon className="w-3 h-3 mr-1.5" />
+                                            <span className="font-medium">Download</span>
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Files not in any folder */}
+                        {(() => {
+                          const unorganizedFiles = files.filter(f => !f.folder_id);
+                          if (unorganizedFiles.length === 0) return null;
+
+                          return (
+                            <div className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
+                              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-orange-50 dark:from-gray-700 dark:to-orange-900/20 border-b border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center space-x-3">
+                                  <div className="p-2 bg-orange-500 rounded-lg shadow-md">
+                                    <DocumentDuplicateIcon className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                      Other Files
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                      {unorganizedFiles.length} files not organized in folders
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="p-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                  {unorganizedFiles.filter(isImageFile).map((file) => (
+                                    <div
+                                      key={file.id}
+                                      className="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105"
+                                      onClick={() => openPreview(file, unorganizedFiles.filter(isImageFile))}
+                                    >
+                                      <ImageThumbnail
+                                        file={file}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                          <div className="p-2 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-lg">
+                                            <EyeIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      /* Fallback: show all files when no folders exist */
+                      <div className="space-y-6">
+                        {files.filter(isImageFile).length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                              <div className="w-2 h-2 bg-teal-500 rounded-full mr-3"></div>
+                              រូបភាព ({files.filter(isImageFile).length})
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {files.filter(isImageFile).map((file) => (
+                                <div
+                                  key={file.id}
+                                  className="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105"
+                                  onClick={() => openPreview(file, files.filter(isImageFile))}
+                                >
+                                  <ImageThumbnail
+                                    file={file}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                      <div className="p-2 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-lg">
+                                        <EyeIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {files.filter(f => !isImageFile(f)).length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                              ឯកសារ ({files.filter(f => !isImageFile(f)).length})
+                            </h3>
+                            <div className="space-y-3">
+                              {files.filter(f => !isImageFile(f)).map((file) => (
+                                <div
+                                  key={file.id}
+                                  className="group flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-700 dark:to-blue-900/20 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-300"
+                                >
+                                  <div className="flex items-center space-x-4">
+                                    <div className="p-3 bg-blue-500 rounded-xl shadow-md">
+                                      <DocumentTextIcon className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-gray-900 dark:text-white">
+                                        {file.display_name || file.original_filename}
+                                      </p>
+                                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {file.mime_type} • {file.size ? `${Math.round(file.size / 1024)} KB` : 'Unknown size'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => downloadFile(file.id, file.original_filename || 'document')}
+                                    className="group/btn flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 hover:shadow-md hover:scale-105"
+                                  >
+                                    <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                                    <span className="font-medium">Download</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {files.length === 0 && (
+                          <div className="text-center py-12">
+                            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-2xl w-fit mx-auto mb-4">
+                              <DocumentDuplicateIcon className="w-12 h-12 text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <p className="text-gray-500 dark:text-gray-400 text-lg">
+                              មិនមានឯកសារដែលបានផ្ទុកឡើង
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sidebar */}
@@ -1012,7 +1435,7 @@ function ApplicationDetailContent() {
                     {config.khmer}
                   </span>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="group/item relative p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-700/50 hover:shadow-md transition-all duration-200">
                     <div className="flex items-center justify-between">
@@ -1022,7 +1445,7 @@ function ApplicationDetailContent() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="group/item relative p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700/50 hover:shadow-md transition-all duration-200">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">ចំនួនឯកសារ</span>
@@ -1031,7 +1454,7 @@ function ApplicationDetailContent() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm font-medium text-gray-700">ថ្ងៃកែប្រែចុងក្រោយ</span>
                     <span className="text-sm text-gray-900">
@@ -1176,7 +1599,7 @@ function ApplicationDetailContent() {
                   </div>
                   សកម្មភាពរហ័ស
                 </h3>
-                
+
                 <div className="space-y-4">
                   {/* Edit Action */}
                   <Link
@@ -1259,7 +1682,7 @@ function ApplicationDetailContent() {
                   បដិសេធពាក្យសុំ
                 </h3>
               </div>
-              
+
               <div className="mb-6">
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
                   មូលហេតុបដិសេធ

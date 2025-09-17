@@ -132,7 +132,7 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           icon={UserIcon}
         />
 
-        <SelectField
+        {/* <SelectField
           label="ភេទ"
           name="sex"
           value={formValues.sex}
@@ -141,9 +141,9 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           placeholder="សូមជ្រើសរើស"
           icon={UserIcon}
           required
-        />
+        /> */}
 
-        <SelectField
+        {/* <SelectField
           label="ស្ថានភាពគ្រួសារ"
           name="marital_status"
           value={formValues.marital_status}
@@ -152,7 +152,7 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           placeholder="សូមជ្រើសរើស"
           icon={UserIcon}
           required
-        />
+        /> */}
 
         <FormField
           label="មន្រ្តី ទទួលបន្ទុក"

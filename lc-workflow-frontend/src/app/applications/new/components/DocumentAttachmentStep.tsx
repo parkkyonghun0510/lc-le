@@ -8,9 +8,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { DocumentType, DocumentTypeInfo } from '../types';
 import { File as ApiFile } from '@/types/models';
-import { useUploadFile } from '@/hooks/useFiles';
+import { useUploadFile, useCreateFolder, useFolders } from '@/hooks/useFiles';
 import { CameraCapture } from '@/components/CameraCapture';
 import { isMobileDevice, getDeviceInfo, DeviceInfo } from '@/utils/deviceDetection';
+import { toast } from 'react-hot-toast';
 
 // Utility function to format file sizes
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -26,8 +27,6 @@ interface DocumentAttachmentStepProps {
   applicationId?: string;
 }
 
-
-
 export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
   applicationId,
 }) => {
@@ -37,10 +36,8 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
   const docDefs = [
     { id: 'borrower_photo', label: 'រូបថតអ្នកខ្ចី', role: 'borrower' },
     { id: 'borrower_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (មុខ)', role: 'borrower' },
-    // { id: 'borrower_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកខ្ចី (ក្រោយ)', role: 'borrower' },
     { id: 'guarantor_photo', label: 'រូបថតអ្នកធានា', role: 'guarantor' },
     { id: 'guarantor_nid_front', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (មុខ)', role: 'guarantor' },
-    // { id: 'guarantor_nid_back', label: 'អត្តសញ្ញាណប័ណ្ណ អ្នកធានា (ក្រោយ)', role: 'guarantor' },
     { id: 'driver_license', label: 'បណ្ណបើកបរ', role: 'borrower' },
     { id: 'passport', label: 'លិខិតឆ្លងដែន', role: 'borrower' },
     { id: 'business_license', label: 'អាជ្ញាបណ្ណអាជីវកម្ម', role: 'borrower' },
@@ -58,9 +55,13 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
   const [selectedDocs, setSelectedDocs] = useState<Record<string, boolean>>({});
   const [docFiles, setDocFiles] = useState<Record<string, File[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, ApiFile[]>>({});
   
-  // Upload hook
+  // Upload and folder hooks
   const uploadFileMutation = useUploadFile();
+  const createFolderMutation = useCreateFolder();
+  const { data: foldersData, refetch: refetchFolders } = useFolders({ application_id: applicationId });
+  const folders = foldersData?.items || [];
   
   // Detect device on mount
   useEffect(() => {
@@ -71,43 +72,338 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
     detectDevice();
   }, []);
   
+  // Get or create folder for document role
+  const getOrCreateFolder = async (role: string): Promise<string | undefined> => {
+    if (!applicationId) return undefined;
+    
+    // Map roles to folder names
+    const folderNames = {
+      borrower: 'Borrower Documents',
+      guarantor: 'Guarantor Documents', 
+      collateral: 'Collateral Documents'
+    };
+    
+    const folderName = folderNames[role as keyof typeof folderNames];
+    if (!folderName) return undefined;
+    
+    // Check if folder already exists
+    // Check if folder already exists
+    const existingFolder = folders.find(f => f.name === folderName && f.application_id === applicationId);
+    if (existingFolder) {
+      console.log(`Using existing folder: ${folderName} (${existingFolder.id})`);
+      return existingFolder.id;
+    }
+    
+    // Create new folder
+    try {
+      console.log(`Creating new folder: ${folderName} for application: ${applicationId}`);
+      const newFolder = await createFolderMutation.mutateAsync({
+        name: folderName,
+        application_id: applicationId
+      });
+      
+      // Small delay to ensure backend processing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refetch folders to get the updated list
+      await refetchFolders();
+      
+      // Refetch folders to get the updated list
+      await refetchFolders();
+      
+      console.log(`Created folder: ${folderName} (${newFolder.id})`);
+      toast.success(`Created folder: ${folderName}`);
+      return newFolder.id;
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+      toast.error(`Failed to create folder: ${folderName}`);
+      return undefined;
+    }
+  };
+
   // Handle camera capture
   const handleCameraCapture = (docId: string) => {
     setCurrentDocType(docId);
     setShowCamera(true);
   };
   
+  // Handle file upload from input
+  const handleFileUpload = async (files: File[], docType: string) => {
+    if (!applicationId) {
+      toast.error('Application ID is required for file upload');
+      return;
+    }
+    
+    // Get document definition to determine role
+    const docDef = docDefs.find(d => d.id === docType);
+    if (!docDef) {
+      toast.error('Invalid document type');
+      return;
+    }
+    
+    // Get or create folder for this document role
+    // Get or create folder for this document role
+    const folderId = await getOrCreateFolder(docDef.role);
+    
+    for (const file of files) {
+      const key = `${docType}-${Date.now()}-${file.name}`;
+      
+      try {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name} is not a valid image file`);
+          continue;
+        }
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} is too large. Maximum size is 10MB`);
+          continue;
+        }
+        
+        // Set initial progress
+        setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+        
+        // Upload the file with folder ID
+        // Upload the file with folder ID
+        const uploadedFile = await uploadFileMutation.mutateAsync({
+          file,
+          applicationId,
+          folderId,
+          documentType: 'photos',
+          fieldName: docType,
+          onProgress: (progress) => {
+            setUploadProgress(prev => ({ ...prev, [key]: progress }));
+          },
+        });
+        
+        // Add to doc files and uploaded files after successful upload
+        setDocFiles(prev => ({
+          ...prev,
+          [docType]: [...(prev[docType] || []), file]
+        }));
+        
+        setUploadedFiles(prev => ({
+          ...prev,
+          [docType]: [...(prev[docType] || []), uploadedFile]
+        }));
+        
+        toast.success(`${file.name} uploaded successfully to ${docDef.role} folder`);
+        
+        // Clear progress after successful upload
+        setTimeout(() => {
+          setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[key];
+            return newProgress;
+          });
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Upload failed:', error);
+        toast.error(`Failed to upload ${file.name}`);
+        
+        // Remove failed upload from progress
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[key];
+          return newProgress;
+        });
+      }
+    }
+  };
+
   // Handle captured image
   const handleImageCaptured = async (capture: { blob: Blob; dataUrl: string; file: File }) => {
     if (!currentDocType) return;
     
-    // Add to doc files
-    setDocFiles(prev => ({
-      ...prev,
-      [currentDocType]: [...(prev[currentDocType] || []), capture.file]
-    }));
+    const key = `${currentDocType}-${Date.now()}-${capture.file.name}`;
     
-    // Upload the file
-    const key = `${currentDocType}-${docFiles[currentDocType]?.length || 0}-${capture.file.name}`;
     try {
-      await uploadFileMutation.mutateAsync({
+      if (!applicationId) {
+        toast.error('Application ID is required for file upload');
+        return;
+      }
+      
+      // Get document definition to determine role
+      const docDef = docDefs.find(d => d.id === currentDocType);
+      if (!docDef) {
+        toast.error('Invalid document type');
+        return;
+      }
+      
+      // Get or create folder for this document role
+      // Get or create folder for this document role
+      const folderId = await getOrCreateFolder(docDef.role);
+      
+      // Set initial progress
+      setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+      
+      // Upload the file with folder ID
+      // Upload the file with folder ID
+      const uploadedFile = await uploadFileMutation.mutateAsync({
         file: capture.file,
         applicationId,
+        folderId,
         documentType: 'photos',
+        fieldName: currentDocType,
         onProgress: (progress) => {
           setUploadProgress(prev => ({ ...prev, [key]: progress }));
         },
       });
+      
+      // Add to doc files and uploaded files after successful upload
+      setDocFiles(prev => ({
+        ...prev,
+        [currentDocType]: [...(prev[currentDocType] || []), capture.file]
+      }));
+      
+      setUploadedFiles(prev => ({
+        ...prev,
+        [currentDocType]: [...(prev[currentDocType] || []), uploadedFile]
+      }));
+      
+      toast.success(`Photo captured and uploaded successfully to ${docDef.role} folder`);
+      
+      // Clear progress after successful upload
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[key];
+          return newProgress;
+        });
+      }, 2000);
+      
     } catch (error) {
       console.error('Upload failed:', error);
+      toast.error('Failed to upload captured photo');
+      
+      // Remove failed upload from progress
+      setUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[key];
+        return newProgress;
+      });
     }
     
     setShowCamera(false);
     setCurrentDocType(null);
   };
+
+  const renderDocumentSection = (title: string, role: string) => (
+    <div>
+      <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">{title}</h4>
+      <div className="space-y-3">
+        {docDefs.filter(d => d.role === role).map((def) => (
+          <div key={def.id} className="space-y-2">
+            <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
+              <input
+                type="checkbox"
+                checked={selectedDocs[def.id] || false}
+                onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
+            </label>
+            {selectedDocs[def.id] && (
+              <div className="ml-6 space-y-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {deviceInfo?.isMobile ? (
+                     deviceInfo?.hasCamera ? (
+                       // Mobile with camera: Camera-only mode
+                       <div className="flex-1">
+                         <button
+                           type="button"
+                           onClick={() => handleCameraCapture(def.id)}
+                           className="w-full p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 flex items-center justify-center gap-2"
+                         >
+                           <CameraIcon className="w-4 h-4" />
+                           <span>Take Photo</span>
+                         </button>
+                         <p className="text-xs text-gray-500 mt-1 text-center">
+                           Camera capture only on mobile devices
+                         </p>
+                       </div>
+                     ) : (
+                       // Mobile without camera: Show message
+                       <div className="flex-1 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                         <div className="flex items-center gap-2 text-yellow-800">
+                           <DevicePhoneMobileIcon className="w-5 h-5" />
+                           <span className="text-sm font-medium">Camera Required</span>
+                         </div>
+                         <p className="text-xs text-yellow-700 mt-1">
+                           Please enable camera access or use a desktop device to upload files.
+                         </p>
+                       </div>
+                     )
+                   ) : (
+                    // Desktop: File upload with optional camera
+                    <>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length > 0) {
+                            handleFileUpload(files, def.id);
+                          }
+                        }}
+                        className="flex-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {deviceInfo?.hasCamera && (
+                        <button
+                          type="button"
+                          onClick={() => handleCameraCapture(def.id)}
+                          className="flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 text-sm font-medium min-w-[120px]"
+                        >
+                          <CameraIcon className="w-4 h-4 mr-2" />
+                          Camera
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                {/* Upload Progress */}
+                {Object.entries(uploadProgress).filter(([key]) => key.startsWith(def.id)).map(([key, progress]) => (
+                  <div key={key} className="text-xs">
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span className="truncate max-w-[70%]" title={key}>Uploading...</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded">
+                      <div className="h-2 bg-blue-600 rounded transition-all duration-300" style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Uploaded Files */}
+                {uploadedFiles[def.id] && uploadedFiles[def.id].length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                      Uploaded Files ({uploadedFiles[def.id].length}):
+                    </p>
+                    {uploadedFiles[def.id].map((file, idx) => (
+                      <div key={file.id} className="text-xs flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                        <span className="truncate max-w-[70%]" title={file.original_filename}>
+                          {file.original_filename}
+                        </span>
+                        <span className="text-green-600 dark:text-green-400">✓</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-8">
-
       {/* Document Upload Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
@@ -123,247 +419,13 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
         </div>
         <div className="p-6 space-y-6">
           {/* Borrower Documents */}
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">ឯកសារអ្នកខ្ចី</h4>
-            <div className="space-y-3">
-              {docDefs.filter(d => d.role === 'borrower').map((def) => (
-                <div key={def.id} className="space-y-2">
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocs[def.id] || false}
-                      onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
-                  </label>
-                  {selectedDocs[def.id] && (
-                    <div className="ml-6 space-y-2">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {deviceInfo?.isMobile ? (
-                           deviceInfo?.hasCamera ? (
-                             // Mobile with camera: Camera-only mode
-                             <div className="flex-1">
-                               <button
-                                 type="button"
-                                 onClick={() => handleCameraCapture(def.id)}
-                                 className="w-full p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 flex items-center justify-center gap-2"
-                               >
-                                 <CameraIcon className="w-4 h-4" />
-                                 <span>Take Photo</span>
-                               </button>
-                               <p className="text-xs text-gray-500 mt-1 text-center">
-                                 Camera capture only on mobile devices
-                               </p>
-                             </div>
-                           ) : (
-                             // Mobile without camera: Show message
-                             <div className="flex-1 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                               <div className="flex items-center gap-2 text-yellow-800">
-                                 <DevicePhoneMobileIcon className="w-5 h-5" />
-                                 <span className="text-sm font-medium">Camera Required</span>
-                               </div>
-                               <p className="text-xs text-yellow-700 mt-1">
-                                 Please enable camera access or use a desktop device to upload files.
-                               </p>
-                             </div>
-                           )
-                         ) : (
-                          // Desktop: File upload with optional camera
-                          <>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={(e) => {
-                                const files = Array.from(e.target.files || []);
-                                setDocFiles(prev => ({ ...prev, [def.id]: files as File[] }));
-                              }}
-                              className="flex-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            />
-                            {deviceInfo?.hasCamera && (
-                              <button
-                                type="button"
-                                onClick={() => handleCameraCapture(def.id)}
-                                className="flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 text-sm font-medium min-w-[120px]"
-                              >
-                                <CameraIcon className="w-4 h-4 mr-2" />
-                                Camera
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      {Array.isArray(docFiles[def.id]) && docFiles[def.id].length > 0 && (
-                        <div className="space-y-2">
-                          {docFiles[def.id].map((file, idx) => {
-                            const key = `${def.id}-${idx}-${file.name}`;
-                            const progress = uploadProgress[key] ?? 0;
-                            return (
-                              <div key={key} className="text-xs">
-                                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                                  <span className="truncate max-w-[70%]" title={file.name}>{file.name}</span>
-                                  <span>{progress}%</span>
-                                </div>
-                                <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded">
-                                  <div className="h-2 bg-blue-600 rounded transition-all duration-300" style={{ width: `${progress}%` }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          {renderDocumentSection('ឯកសារអ្នកខ្ចី', 'borrower')}
 
           {/* Guarantor Documents */}
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">ឯកសារអ្នកធានា</h4>
-            <div className="space-y-3">
-              {docDefs.filter(d => d.role === 'guarantor').map((def) => (
-                <div key={def.id} className="space-y-2">
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocs[def.id] || false}
-                      onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
-                  </label>
-                  {selectedDocs[def.id] && (
-                    <div className="ml-6">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {deviceInfo?.isMobile ? (
-                           deviceInfo?.hasCamera ? (
-                             // Mobile with camera: Camera-only mode
-                             <div className="flex-1">
-                               <button
-                                 type="button"
-                                 onClick={() => handleCameraCapture(def.id)}
-                                 className="w-full p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 flex items-center justify-center gap-2"
-                               >
-                                 <CameraIcon className="w-4 h-4" />
-                                 <span>Take Photo</span>
-                               </button>
-                               <p className="text-xs text-gray-500 mt-1 text-center">
-                                 Camera capture only on mobile devices
-                               </p>
-                             </div>
-                           ) : (
-                             // Mobile without camera: Show message
-                             <div className="flex-1 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                               <div className="flex items-center gap-2 text-yellow-800">
-                                 <DevicePhoneMobileIcon className="w-5 h-5" />
-                                 <span className="text-sm font-medium">Camera Required</span>
-                               </div>
-                               <p className="text-xs text-yellow-700 mt-1">
-                                 Please enable camera access or use a desktop device to upload files.
-                               </p>
-                             </div>
-                           )
-                         ) : (
-                          // Desktop: File upload with optional camera
-                          <>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={(e) => {
-                                const files = Array.from(e.target.files || []);
-                                setDocFiles(prev => ({ ...prev, [def.id]: files }));
-                              }}
-                              className="flex-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            />
-                            {deviceInfo?.hasCamera && (
-                              <button
-                                type="button"
-                                onClick={() => handleCameraCapture(def.id)}
-                                className="flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 text-sm font-medium min-w-[120px]"
-                              >
-                                <CameraIcon className="w-4 h-4 mr-2" />
-                                Camera
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          {renderDocumentSection('ឯកសារអ្នកធានា', 'guarantor')}
 
           {/* Collateral Documents */}
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">ឯកសារបញ្ចាំ</h4>
-            <div className="space-y-3">
-              {docDefs.filter(d => d.role === 'collateral').map((def) => (
-                <div key={def.id} className="space-y-2">
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocs[def.id] || false}
-                      onChange={(e) => setSelectedDocs(prev => ({ ...prev, [def.id]: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{def.label}</span>
-                  </label>
-                  {selectedDocs[def.id] && (
-                    <div className="ml-6">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {deviceInfo?.isMobile && deviceInfo?.hasCamera ? (
-                          // Mobile: Camera-only mode
-                          <div className="flex-1">
-                            <button
-                              type="button"
-                              onClick={() => handleCameraCapture(def.id)}
-                              className="w-full p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 flex items-center justify-center gap-2"
-                            >
-                              <CameraIcon className="w-4 h-4" />
-                              <span>Take Photo</span>
-                            </button>
-                            <p className="text-xs text-gray-500 mt-1 text-center">
-                              Camera capture only on mobile devices
-                            </p>
-                          </div>
-                        ) : (
-                          // Desktop: File upload with optional camera
-                          <>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={(e) => {
-                                const files = Array.from(e.target.files || []);
-                                setDocFiles(prev => ({ ...prev, [def.id]: files }));
-                              }}
-                              className="flex-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            />
-                            {deviceInfo?.hasCamera && (
-                              <button
-                                type="button"
-                                onClick={() => handleCameraCapture(def.id)}
-                                className="flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200 text-sm font-medium min-w-[120px]"
-                              >
-                                <CameraIcon className="w-4 h-4 mr-2" />
-                                Camera
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          {renderDocumentSection('ឯកសារបញ្ចាំ', 'collateral')}
         </div>
       </div>
       

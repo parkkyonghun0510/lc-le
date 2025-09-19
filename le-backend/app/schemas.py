@@ -10,7 +10,12 @@ from .workflow import WorkflowStatus, WorkflowStatusUpdate, WorkflowStatusRespon
 
 # Base schemas
 class BaseSchema(BaseModel):
-    model_config = {"from_attributes": True, "extra": "ignore"}
+    model_config = {
+        "from_attributes": True, 
+        "extra": "ignore",
+        "arbitrary_types_allowed": True,
+        "json_schema_serialization_defaults_required": False
+    }
 
 # User schemas
 class UserBase(BaseSchema):

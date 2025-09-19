@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import uvicorn
 import os
+import warnings
 from dotenv import load_dotenv
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -14,6 +15,9 @@ from app.routers import settings as settings_router
 from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
 from app.middleware.database_middleware import DatabaseConnectionMiddleware
+
+# Suppress Pydantic JSON schema warnings for non-serializable defaults
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic.json_schema")
 
 load_dotenv()
 
@@ -38,7 +42,9 @@ app = FastAPI(
     title="LC Work Flow API",
     description="Backend API for LC Work Flow application",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Configure OpenAPI schema generation to handle non-serializable defaults gracefully
+    generate_unique_id_function=lambda route: f"{route.tags[0]}-{route.name}" if route.tags else route.name
 )
 
 # Behind Railway's proxy, trust all hosts for forwarded headers

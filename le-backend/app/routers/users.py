@@ -77,8 +77,20 @@ async def create_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
-            selectinload(User.portfolio),
-            selectinload(User.line_manager),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
         )
         .where(User.id == db_user.id)
     )
@@ -108,8 +120,20 @@ async def list_users(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
-            selectinload(User.portfolio),
-            selectinload(User.line_manager),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
         )
     )
     
@@ -178,8 +202,20 @@ async def get_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
-            selectinload(User.portfolio),
-            selectinload(User.line_manager),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
         )
         .where(User.id == user_id)
     )
@@ -190,6 +226,39 @@ async def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+    
+    # Ensure all relationships are loaded before validation
+    # Access relationships to trigger loading if not already loaded
+    if user.department:
+        _ = user.department
+    if user.branch:
+        _ = user.branch
+    if user.position:
+        _ = user.position
+    if user.portfolio:
+        _ = user.portfolio
+        if user.portfolio.position:
+            _ = user.portfolio.position
+        if user.portfolio.department:
+            _ = user.portfolio.department
+        if user.portfolio.branch:
+            _ = user.portfolio.branch
+        if user.portfolio.portfolio:
+            _ = user.portfolio.portfolio
+        if user.portfolio.line_manager:
+            _ = user.portfolio.line_manager
+    if user.line_manager:
+        _ = user.line_manager
+        if user.line_manager.position:
+            _ = user.line_manager.position
+        if user.line_manager.department:
+            _ = user.line_manager.department
+        if user.line_manager.branch:
+            _ = user.line_manager.branch
+        if user.line_manager.portfolio:
+            _ = user.line_manager.portfolio
+        if user.line_manager.line_manager:
+            _ = user.line_manager.line_manager
     
     return UserResponse.model_validate(user)
 
@@ -212,8 +281,20 @@ async def update_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
-            selectinload(User.portfolio),
-            selectinload(User.line_manager),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
         )
         .where(User.id == user_id)
     )
@@ -247,8 +328,40 @@ async def update_user(
         setattr(user, field, value)
     
     await db.commit()
-    await db.refresh(user)
-    return UserResponse.model_validate(user)
+    # Re-fetch with relationships eagerly loaded
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == user.id)
+    )
+    user_loaded = result.scalar_one_or_none()
+    
+    # Ensure all relationships are loaded before validation
+    _ = user_loaded.department
+    _ = user_loaded.branch
+    _ = user_loaded.position
+    _ = user_loaded.portfolio
+    _ = user_loaded.line_manager
+    
+    return UserResponse.model_validate(user_loaded)
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def patch_user(
@@ -269,8 +382,20 @@ async def patch_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
-            selectinload(User.portfolio),
-            selectinload(User.line_manager),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
         )
         .where(User.id == user_id)
     )
@@ -310,8 +435,40 @@ async def patch_user(
         setattr(user, field, value)
     
     await db.commit()
-    await db.refresh(user)
-    return UserResponse.model_validate(user)
+    # Re-fetch with relationships eagerly loaded
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == user.id)
+    )
+    user_loaded = result.scalar_one_or_none()
+    
+    # Ensure all relationships are loaded before validation
+    _ = user_loaded.department
+    _ = user_loaded.branch
+    _ = user_loaded.position
+    _ = user_loaded.portfolio
+    _ = user_loaded.line_manager
+    
+    return UserResponse.model_validate(user_loaded)
 
 @router.delete("/{user_id}")
 async def delete_user(
@@ -343,8 +500,43 @@ async def delete_user(
 from fastapi import Body
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return UserResponse.from_orm(current_user)
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    # Ensure all relationships are loaded before validation
+    _ = user.department
+    _ = user.branch
+    _ = user.position
+    _ = user.portfolio
+    _ = user.line_manager
+    
+    return UserResponse.model_validate(user)
 
 @router.patch("/me", response_model=UserResponse)
 async def patch_me(
@@ -385,8 +577,40 @@ async def patch_me(
     for field, value in update_data.items():
         setattr(user, field, value)
     await db.commit()
-    await db.refresh(user)
-    return UserResponse.from_orm(user)
+    # Re-fetch with relationships eagerly loaded
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == user.id)
+    )
+    user_loaded = result.scalar_one_or_none()
+    
+    # Ensure all relationships are loaded before validation
+    _ = user_loaded.department
+    _ = user_loaded.branch
+    _ = user_loaded.position
+    _ = user_loaded.portfolio
+    _ = user_loaded.line_manager
+    
+    return UserResponse.model_validate(user_loaded)
 
 @router.put("/me", response_model=UserResponse)
 async def put_me(
@@ -427,5 +651,37 @@ async def put_me(
     for field, value in update_data.items():
         setattr(user, field, value)
     await db.commit()
-    await db.refresh(user)
-    return UserResponse.from_orm(user)
+    # Re-fetch with relationships eagerly loaded
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == user.id)
+    )
+    user_loaded = result.scalar_one_or_none()
+    
+    # Ensure all relationships are loaded before validation
+    _ = user_loaded.department
+    _ = user_loaded.branch
+    _ = user_loaded.position
+    _ = user_loaded.portfolio
+    _ = user_loaded.line_manager
+    
+    return UserResponse.model_validate(user_loaded)

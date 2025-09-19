@@ -132,6 +132,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     result = await db.execute(stmt)
     user_with_rels = result.scalar_one_or_none()
     
+    # Ensure all relationships are loaded before validation
+    _ = user_with_rels.department
+    _ = user_with_rels.branch
+    _ = user_with_rels.position
+    
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -181,6 +186,11 @@ async def refresh_token(
     )
     new_refresh_token = create_refresh_token(data={"sub": user.username})
     
+    # Ensure all relationships are loaded before validation
+    _ = user.department
+    _ = user.branch
+    _ = user.position
+    
     return TokenResponse(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
@@ -192,6 +202,10 @@ async def refresh_token(
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     # current_user already has department and branch eagerly loaded
+    # Ensure all relationships are loaded before validation
+    _ = current_user.department
+    _ = current_user.branch
+    _ = current_user.position
     return UserResponse.model_validate(current_user)
 
 @router.get("/setup-required")
@@ -255,4 +269,10 @@ async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)
     )
     result = await db.execute(stmt)
     db_user_loaded = result.scalar_one_or_none()
+    
+    # Ensure all relationships are loaded before validation
+    _ = db_user_loaded.department
+    _ = db_user_loaded.branch
+    _ = db_user_loaded.position
+    
     return UserResponse.model_validate(db_user_loaded)

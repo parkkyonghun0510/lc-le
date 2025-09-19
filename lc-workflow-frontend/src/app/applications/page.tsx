@@ -5,8 +5,8 @@ import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplications, useDeleteApplication } from '@/hooks/useApplications';
 import { useAuth } from '@/hooks/useAuth';
-import { 
-  DocumentTextIcon, 
+import {
+  DocumentTextIcon,
   PlusIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -40,39 +40,39 @@ import type { CustomerApplication, WorkflowStatus } from '@/types/models';
 import { useProductTypes } from '@/hooks/useEnums';
 
 const workflowStatusConfig = {
-  PO_CREATED: { 
-    label: 'បានបង្កើត', 
-    color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400', 
+  PO_CREATED: {
+    label: 'បានបង្កើត',
+    color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400',
     icon: DocumentTextIcon,
     khmer: 'បានបង្កើត'
   },
-  USER_COMPLETED: { 
-    label: 'អតិថិជនបានបំពេញ', 
-    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400', 
+  USER_COMPLETED: {
+    label: 'អតិថិជនបានបំពេញ',
+    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400',
     icon: CheckCircleIcon,
     khmer: 'អតិថិជនបានបំពេញ'
   },
-  TELLER_PROCESSING: { 
-    label: 'កំពុងដំណើរការ', 
-    color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-400', 
+  TELLER_PROCESSING: {
+    label: 'កំពុងដំណើរការ',
+    color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-400',
     icon: ClockIcon,
     khmer: 'កំពុងដំណើរការ'
   },
-  MANAGER_REVIEW: { 
-    label: 'កំពុងពិនិត្យ', 
-    color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-400', 
+  MANAGER_REVIEW: {
+    label: 'កំពុងពិនិត្យ',
+    color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-400',
     icon: UserIcon,
     khmer: 'កំពុងពិនិត្យ'
   },
-  APPROVED: { 
-    label: 'អនុម័ត', 
-    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400', 
+  APPROVED: {
+    label: 'អនុម័ត',
+    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400',
     icon: CheckCircleIcon,
     khmer: 'អនុម័ត'
   },
-  REJECTED: { 
-    label: 'បដិសេធ', 
-    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400', 
+  REJECTED: {
+    label: 'បដិសេធ',
+    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400',
     icon: XCircleIcon,
     khmer: 'បដិសេធ'
   }
@@ -109,14 +109,14 @@ function ApplicationsContent() {
       // Managers see applications ready for review
       return { ...baseFilters, workflow_status: workflowStatusFilter || 'TELLER_PROCESSING' as WorkflowStatus };
     }
-    
+
     return baseFilters;
   };
 
-  const { 
-    data: applicationsData, 
-    isLoading, 
-    error 
+  const {
+    data: applicationsData,
+    isLoading,
+    error
   } = useApplications(getRoleBasedFilters());
 
   const deleteApplicationMutation = useDeleteApplication();
@@ -213,7 +213,7 @@ function ApplicationsContent() {
   const getWorkflowStatusBadge = (workflowStatus: WorkflowStatus) => {
     const config = workflowStatusConfig[workflowStatus] || workflowStatusConfig.PO_CREATED;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${config.color}`}>
         <Icon className="w-3 h-3 mr-1" />
@@ -224,7 +224,7 @@ function ApplicationsContent() {
 
   const getLoanPurposeText = (purposes: string[] | null | undefined) => {
     if (!purposes || purposes.length === 0) return 'មិនបានបញ្ជាក់';
-    
+
     const purposeMap: { [key: string]: string } = {
       'commerce': 'អាជីវកម្ម',
       'agriculture': 'កសិកម្ម',
@@ -234,7 +234,7 @@ function ApplicationsContent() {
       'medical': 'វេជ្ជសាស្ត្រ',
       'other': 'ផ្សេងៗ'
     };
-    
+
     return purposes.map(p => purposeMap[p] || p).join(', ');
   };
 
@@ -256,48 +256,54 @@ function ApplicationsContent() {
       <Layout>
         <div className="space-y-6">
           {/* Header */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
-                <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 rounded-2xl">
-                  <DocumentTextIcon className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              {/* Title Section */}
+              <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-6">
+                <div className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 rounded-xl lg:rounded-2xl flex-shrink-0">
+                  <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div>
-                  <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">ការគ្រប់គ្រងកម្ចីប្រាក់</h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-lg">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 leading-tight">
+                    ការគ្រប់គ្រងកម្ចីប្រាក់
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base lg:text-lg leading-relaxed">
                     គ្រប់គ្រងនិងតាមដានពាក្យសុំកម្ចីរបស់អតិថិជន
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-xl p-1.5">
+
+              {/* Actions Section */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                {/* View Mode Toggle */}
+                <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-xl p-1.5 w-full sm:w-auto">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'grid'
-                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
+                    className={`flex-1 sm:flex-none p-2 sm:p-3 rounded-lg transition-all duration-200 ${viewMode === 'grid'
+                      ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
                   >
-                    <Squares2X2Icon className="w-5 h-5" />
+                    <Squares2X2Icon className="w-4 h-4 sm:w-5 sm:h-5 mx-auto" />
                   </button>
                   <button
                     onClick={() => setViewMode('table')}
-                    className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'table'
-                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
+                    className={`flex-1 sm:flex-none p-2 sm:p-3 rounded-lg transition-all duration-200 ${viewMode === 'table'
+                      ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
                   >
-                    <ListBulletIcon className="w-5 h-5" />
+                    <ListBulletIcon className="w-4 h-4 sm:w-5 sm:h-5 mx-auto" />
                   </button>
                 </div>
+
+                {/* Create Button */}
                 <Link
                   href="/applications/new"
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                  className="inline-flex items-center justify-center px-4 sm:px-6 lg:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 text-sm sm:text-base font-medium"
                 >
-                  <PlusIcon className="w-5 h-5 mr-3" />
-                  បង្កើតពាក្យសុំថ្មី
+                  <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" />
+                  <span className="whitespace-nowrap">បង្កើតពាក្យសុំថ្មី</span>
                 </Link>
               </div>
             </div>
@@ -328,9 +334,9 @@ function ApplicationsContent() {
                   className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 >
                   <option value="">ស្ថានភាពទាំងអស់</option>
-                    {Object.entries(workflowStatusConfig).map(([key, config]) => (
-                      <option key={key} value={key}>{config.khmer}</option>
-                    ))}
+                  {Object.entries(workflowStatusConfig).map(([key, config]) => (
+                    <option key={key} value={key}>{config.khmer}</option>
+                  ))}
                 </select>
               </div>
 
@@ -346,39 +352,39 @@ function ApplicationsContent() {
 
             {/* Advanced Filters */}
             {showFilters && (
-              <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-600">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+              <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-gray-200 dark:border-gray-600">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 sm:mb-4">
                       ចំនួនទឹកប្រាក់
                     </label>
-                    <div className="flex space-x-4">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                       <input
                         type="number"
                         placeholder="ពី"
-                        className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-500 dark:placeholder-gray-400"
+                        className="flex-1 px-3 sm:px-4 py-3 sm:py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm sm:text-base"
                       />
                       <input
                         type="number"
                         placeholder="ដល់"
-                        className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-500 dark:placeholder-gray-400"
+                        className="flex-1 px-3 sm:px-4 py-3 sm:py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-500 dark:placeholder-gray-400 text-sm sm:text-base"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 sm:mb-4">
                       កាលបរិច្ឆេទបង្កើត
                     </label>
                     <input
                       type="date"
-                      className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full px-3 sm:px-4 py-3 sm:py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 sm:mb-4">
                       មន្ត្រីទទួលបន្ទុក
                     </label>
-                    <select className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
+                    <select className="w-full px-3 sm:px-4 py-3 sm:py-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base">
                       <option value="">ទាំងអស់</option>
                       {/* Add officer options */}
                     </select>
@@ -390,11 +396,10 @@ function ApplicationsContent() {
 
           {/* Applications Grid or Table */}
           {isLoading ? (
-            <div className={`grid gap-8 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3' 
-                : 'grid-cols-1'
-            }`}>
+            <div className={`grid gap-8 ${viewMode === 'grid'
+              ? 'grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3'
+              : 'grid-cols-1'
+              }`}>
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
                   <div className="flex items-start space-x-4">
@@ -564,11 +569,10 @@ function ApplicationsContent() {
               </div>
             </div>
           ) : (
-            <div className={`grid gap-8 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3' 
-                : 'grid-cols-1'
-            }`}>
+            <div className={`grid gap-8 ${viewMode === 'grid'
+              ? 'grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3'
+              : 'grid-cols-1'
+              }`}>
               {applications.map((application) => (
                 <div key={application.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-600 group overflow-hidden">
                   <div className="flex items-start justify-between mb-0">
@@ -634,7 +638,7 @@ function ApplicationsContent() {
                         <div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ចំនួនទឹកប្រាក់</p>
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {application.requested_amount 
+                            {application.requested_amount
                               ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
                               : 'មិនបានបញ្ជាក់'
                             }
@@ -723,7 +727,7 @@ function ApplicationsContent() {
                           className=""
                         />
                       </div>
-                      
+
                       {/* Document count */}
                       {application.documents && application.documents.length > 0 && viewMode === 'grid' && (
                         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-600 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-500">
@@ -768,11 +772,10 @@ function ApplicationsContent() {
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className={`px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                          page === pageNum
-                            ? 'text-white bg-blue-600 shadow-lg'
-                            : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 hover:shadow-md'
-                        }`}
+                        className={`px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${page === pageNum
+                          ? 'text-white bg-blue-600 shadow-lg'
+                          : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 hover:shadow-md'
+                          }`}
                       >
                         {pageNum}
                       </button>

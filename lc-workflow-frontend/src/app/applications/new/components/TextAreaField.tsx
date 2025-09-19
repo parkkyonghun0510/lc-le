@@ -28,9 +28,9 @@ export const TextAreaField: React.FC<TextAreaFieldProps> = ({
   className = '',
 }) => {
   const baseTextAreaClasses = `
-    w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+    w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent 
     transition-all duration-200 resize-none hover:border-gray-400 dark:hover:border-gray-500
-    dark:bg-gray-700 dark:text-white
+    dark:bg-gray-700 dark:text-white text-sm sm:text-base
     ${error ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'}
     ${disabled ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
     ${className}
@@ -38,7 +38,7 @@ export const TextAreaField: React.FC<TextAreaFieldProps> = ({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <textarea

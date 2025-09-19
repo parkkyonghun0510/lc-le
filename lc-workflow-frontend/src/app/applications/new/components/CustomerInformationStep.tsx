@@ -55,8 +55,8 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <FormField
           label="ឈ្មោះជាភាសាខ្មែរ"
           name="full_name_khmer"

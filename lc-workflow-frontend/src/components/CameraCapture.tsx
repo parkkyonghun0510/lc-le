@@ -36,6 +36,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   } = useCamera();
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedData, setCapturedData] = useState<CameraCaptureType | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const isMobile = isMobileDevice();
 
@@ -51,6 +52,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     if (!isOpen) {
       stopCamera();
       setCapturedImage(null);
+      setCapturedData(null); // Clear captured data on close
     }
   }, [isOpen, stopCamera]);
 
@@ -69,6 +71,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       const capture = await capturePhoto();
       if (capture) {
         setCapturedImage(capture.dataUrl);
+        setCapturedData(capture); // Store the complete capture data
       }
     } catch (error) {
       console.error('Failed to capture photo:', error);
@@ -78,17 +81,16 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   };
 
   const handleConfirmCapture = async () => {
-    if (!capturedImage) return;
+    if (!capturedImage || !capturedData) return;
     
-    const capture = await capturePhoto();
-    if (capture) {
-      onCapture(capture);
-      onClose();
-    }
+    // Use the already captured data instead of capturing again
+    onCapture(capturedData);
+    onClose();
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setCapturedData(null); // Clear the captured data as well
   };
 
   const handleSwitchCamera = async () => {

@@ -8,6 +8,7 @@ import { formatBytes } from '@/lib/utils';
 import { CameraCapture } from '@/components/CameraCapture';
 import { isMobileDevice, getDeviceInfo, DeviceInfo } from '@/utils/deviceDetection';
 import { CameraCapture as CameraCaptureType } from '@/hooks/useCamera';
+import MobileFileUpload from './MobileFileUpload';
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -151,6 +152,18 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
   const allCompleted = files.length > 0 && files.every(f => f.status === 'completed');
   const hasFiles = files.length > 0;
   const hasPendingFiles = files.some(f => f.status === 'pending');
+
+  // Use mobile upload component on mobile devices
+  if (deviceInfo?.isMobile) {
+    return (
+      <MobileFileUpload
+        isOpen={isOpen}
+        onClose={handleClose}
+        applicationId={applicationId}
+        documentType={documentType}
+      />
+    );
+  }
 
   if (!isOpen) return null;
 

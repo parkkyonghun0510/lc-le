@@ -13,46 +13,103 @@ from app.models import File, User, CustomerApplication, Folder
 from app.schemas import FileCreate, FileResponse, PaginatedResponse, FileFinalize
 from app.routers.auth import get_current_user
 from app.services.minio_service import minio_service
-from app.services.folder_service import get_or_create_application_folder_structure
+from app.services.folder_service import (
+    get_or_create_application_folder_structure,
+    get_folder_for_document_type,
+    FolderOrganizationConfig
+)
+from app.services.parameter_validation_service import UploadParameterValidator, ParameterLogger
 from app.core.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
 @router.post("/upload", response_model=FileResponse)
 async def upload_file(
     file: UploadFile = File(),
+    # Form data parameters (primary)
     application_id: Optional[str] = Form(None),
-    folder_id: Optional[str] = Form(None), # This can now be used to specify a sub-folder
+    folder_id: Optional[str] = Form(None),
     document_type: Optional[str] = Form(None),
     field_name: Optional[str] = Form(None),
+    # Query parameters (fallback for backward compatibility)
+    query_application_id: Optional[str] = Query(None, alias="application_id"),
+    query_folder_id: Optional[str] = Query(None, alias="folder_id"),
+    query_document_type: Optional[str] = Query(None, alias="document_type"),
+    query_field_name: Optional[str] = Query(None, alias="field_name"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
-    # Convert string parameters to UUID if provided
-    application_uuid = None
-    folder_uuid = None
+    # Generate correlation ID for request tracking
+    correlation_id = str(uuid.uuid4())
     
-    if application_id:
-        try:
-            application_uuid = UUID(application_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid application_id format"
-            )
+    logger.info(f"File upload request started [correlation_id: {correlation_id}]")
     
-    if folder_id:
-        try:
-            folder_uuid = UUID(folder_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid folder_id format"
-            )
+    # Log received parameters
+    ParameterLogger.log_parameter_processing(
+        stage="received",
+        params={
+            "form_data": {
+                "application_id": application_id,
+                "folder_id": folder_id,
+                "document_type": document_type,
+                "field_name": field_name
+            },
+            "query_params": {
+                "application_id": query_application_id,
+                "folder_id": query_folder_id,
+                "document_type": query_document_type,
+                "field_name": query_field_name
+            },
+            "file": {
+                "filename": file.filename,
+                "content_type": file.content_type,
+                "size": getattr(file, 'size', 'unknown')
+            }
+        },
+        correlation_id=correlation_id
+    )
     
-    # Debug logging to track parameters
-    print(f"Upload parameters received: application_id={application_id}, folder_id={folder_id}")
-    print(f"Converted UUIDs: application_uuid={application_uuid}, folder_uuid={folder_uuid}")
+    # Validate and convert parameters using the new validation service
+    try:
+        validated_params = await UploadParameterValidator.validate_upload_parameters(
+            application_id=application_id,
+            folder_id=folder_id,
+            document_type=document_type,
+            field_name=field_name,
+            query_application_id=query_application_id,
+            query_folder_id=query_folder_id,
+            query_document_type=query_document_type,
+            query_field_name=query_field_name
+        )
+        
+        # Log validated parameters
+        ParameterLogger.log_parameter_processing(
+            stage="validated",
+            params={
+                "application_id": str(validated_params.application_id) if validated_params.application_id else None,
+                "folder_id": str(validated_params.folder_id) if validated_params.folder_id else None,
+                "document_type": validated_params.document_type,
+                "field_name": validated_params.field_name
+            },
+            correlation_id=correlation_id
+        )
+        
+    except HTTPException as e:
+        logger.error(f"Parameter validation failed [correlation_id: {correlation_id}]: {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during parameter validation [correlation_id: {correlation_id}]: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal error during parameter validation"
+        )
+    
+    # Extract validated UUIDs for backward compatibility with existing code
+    application_uuid = validated_params.application_id
+    folder_uuid = validated_params.folder_id
     
     # Validate file presence and filename
     if not file.filename:
@@ -96,15 +153,54 @@ async def upload_file(
     
     # If application_id is provided, ensure folder structure exists
     if application_uuid:
-        folder_ids = await get_or_create_application_folder_structure(db, application_uuid)
+        logger.debug(f"Creating/retrieving folder structure for application {application_uuid} [correlation_id: {correlation_id}]")
         
-        # If a specific document_type is given, use its folder
-        if document_type and document_type in folder_ids:
-            folder_uuid = folder_ids[document_type]
-        # If no specific type, but a folder_id is passed, use it (optional)
-        elif not folder_uuid:
-            # Default to parent application folder if no specific folder is chosen
-            folder_uuid = folder_ids.get("parent_id")
+        # If a specific document_type is provided, use the new document type-based organization
+        if validated_params.document_type:
+            if FolderOrganizationConfig.is_valid_document_type(validated_params.document_type):
+                # Use the new document type-based folder organization
+                document_folder_id = await get_folder_for_document_type(
+                    db, application_uuid, validated_params.document_type
+                )
+                if document_folder_id:
+                    original_folder_uuid = folder_uuid
+                    folder_uuid = document_folder_id
+                    logger.info(
+                        f"Using document type-based folder [correlation_id: {correlation_id}]: "
+                        f"document_type={validated_params.document_type}, "
+                        f"folder_id={folder_uuid} (was: {original_folder_uuid})"
+                    )
+                else:
+                    logger.warning(
+                        f"Failed to create folder for document type [correlation_id: {correlation_id}]: "
+                        f"document_type={validated_params.document_type}"
+                    )
+            else:
+                logger.warning(
+                    f"Invalid document type provided [correlation_id: {correlation_id}]: "
+                    f"document_type={validated_params.document_type}"
+                )
+        
+        # If no document type or document type failed, fall back to legacy system
+        if not folder_uuid:
+            folder_ids = await get_or_create_application_folder_structure(db, application_uuid)
+            logger.debug(f"Available folder structure [correlation_id: {correlation_id}]: {folder_ids}")
+            
+            # Check if document_type maps to a legacy folder name
+            if validated_params.document_type and validated_params.document_type in folder_ids:
+                folder_uuid = folder_ids[validated_params.document_type]
+                logger.info(
+                    f"Using legacy folder mapping [correlation_id: {correlation_id}]: "
+                    f"document_type={validated_params.document_type}, "
+                    f"folder_id={folder_uuid}"
+                )
+            else:
+                # Default to parent application folder if no specific folder is chosen
+                folder_uuid = folder_ids.get("parent_id")
+                logger.info(
+                    f"Using default parent folder [correlation_id: {correlation_id}]: "
+                    f"folder_id={folder_uuid}"
+                )
 
     # Authorization: if attaching to application, ensure user can access it
     if application_uuid is not None:
@@ -199,15 +295,29 @@ async def upload_file(
             storage_prefix = f"{storage_prefix}/{role_segment}"
 
     # Upload to MinIO with error handling
+    logger.debug(
+        f"Uploading file to MinIO [correlation_id: {correlation_id}]: "
+        f"filename={sanitized_filename}, size={len(content)}, "
+        f"content_type={file.content_type}, prefix={storage_prefix}"
+    )
+    
     try:
         object_name = minio_service.upload_file(
             file_content=content,
             original_filename=sanitized_filename,
             content_type=file.content_type or "application/octet-stream",
             prefix=storage_prefix,
-            field_name=field_name
+            field_name=validated_params.field_name
+        )
+        logger.info(
+            f"File uploaded to MinIO successfully [correlation_id: {correlation_id}]: "
+            f"object_name={object_name}"
         )
     except Exception as e:
+        logger.error(
+            f"Failed to upload file to MinIO [correlation_id: {correlation_id}]: "
+            f"error={str(e)}, filename={sanitized_filename}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload file to storage: {str(e)}"
@@ -228,24 +338,58 @@ async def upload_file(
         )
         
         # Debug logging to verify file record creation
-        print(f"Creating file record with: application_id={application_uuid}, folder_id={folder_uuid}")
-        print(f"File record created: {db_file.id}, folder_id={db_file.folder_id}")
+        logger.debug(
+            f"Creating file record [correlation_id: {correlation_id}]: "
+            f"application_id={application_uuid}, folder_id={folder_uuid}, "
+            f"filename={db_file.filename}, file_size={db_file.file_size}"
+        )
         
         db.add(db_file)
         await db.commit()
         await db.refresh(db_file)
         
+        logger.info(
+            f"File record created successfully [correlation_id: {correlation_id}]: "
+            f"file_id={db_file.id}, folder_id={db_file.folder_id}, "
+            f"application_id={db_file.application_id}"
+        )
+        
     except Exception as e:
+        logger.error(
+            f"Failed to save file record [correlation_id: {correlation_id}]: "
+            f"error={str(e)}, attempting cleanup"
+        )
+        
         # If database operation fails, try to clean up the uploaded file
         try:
             minio_service.delete_file(object_name)
-        except:
-            pass  # Ignore cleanup errors
+            logger.info(f"Successfully cleaned up MinIO file after database error [correlation_id: {correlation_id}]: {object_name}")
+        except Exception as cleanup_error:
+            logger.error(f"Failed to cleanup MinIO file after database error [correlation_id: {correlation_id}]: {cleanup_error}")
         
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save file record: {str(e)}"
         )
+    
+    # Log final success and parameter verification
+    logger.info(
+        f"File upload completed successfully [correlation_id: {correlation_id}]: "
+        f"file_id={db_file.id}, final_folder_id={db_file.folder_id}, "
+        f"final_application_id={db_file.application_id}, object_name={object_name}"
+    )
+    
+    # Log parameter processing completion
+    ParameterLogger.log_parameter_processing(
+        stage="completed",
+        params={
+            "file_id": str(db_file.id),
+            "final_application_id": str(db_file.application_id) if db_file.application_id else None,
+            "final_folder_id": str(db_file.folder_id) if db_file.folder_id else None,
+            "object_name": object_name
+        },
+        correlation_id=correlation_id
+    )
     
     return FileResponse.from_orm(db_file)
 
@@ -435,9 +579,10 @@ async def delete_file(
     # Delete from MinIO
     try:
         minio_service.delete_file(file.file_path)
+        logger.info(f"Successfully deleted file from MinIO: {file.file_path}")
     except Exception as e:
         # Log error but don't fail the request
-        print(f"Error deleting file from MinIO: {e}")
+        logger.error(f"Error deleting file from MinIO: {e}, file_path: {file.file_path}")
     
     await db.delete(file)
     await db.commit()

@@ -390,46 +390,46 @@ const NewApplicationPage = () => {
   return (
     <ProtectedRoute>
       <Layout>
-        <div className="min-h-screen  dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
             {/* Enhanced Header with Visual Elements */}
-            <div className="mb-12 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mb-8 sm:mb-10 lg:mb-12 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl sm:rounded-2xl shadow-lg mb-4 sm:mb-6">
+                <svg className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-bold dark:from-white dark:to-gray-300 bg-clip-text mb-3">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3 leading-tight px-4">
                 ពាក្យស្នើសុំដាក់បញ្ចាំ និងប្រាកិភោគដោយអនុប្បទាន
               </h1>
             </div>
 
             {/* Enhanced Step Indicator Container */}
-            <div className="mb-10">
+            <div className="mb-6 sm:mb-8 lg:mb-10">
               <StepIndicator steps={steps} activeStep={activeStep} />
             </div>
 
             {/* Enhanced Form Content Container */}
             <div className="relative">
-              {/* Background decoration */}
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-3xl transform rotate-1"></div>
-              <div className="absolute inset-0 bg-gradient-to-l from-purple-600/5 to-pink-600/5 rounded-3xl transform -rotate-1"></div>
+              {/* Background decoration - hidden on mobile for better performance */}
+              <div className="hidden sm:block absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-2xl sm:rounded-3xl transform rotate-1"></div>
+              <div className="hidden sm:block absolute inset-0 bg-gradient-to-l from-purple-600/5 to-pink-600/5 rounded-2xl sm:rounded-3xl transform -rotate-1"></div>
 
               {/* Main form container */}
-              <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/50 p-8 lg:p-12 mb-10">
+              <div className="relative bg-white dark:bg-gray-800 sm:bg-white/80 sm:dark:bg-gray-800/80 sm:backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-2xl border border-gray-200 dark:border-gray-700 sm:border-white/20 sm:dark:border-gray-700/50 p-4 sm:p-6 lg:p-8 xl:p-12 mb-6 sm:mb-8 lg:mb-10">
                 {/* Step content with enhanced spacing */}
                 <div className="relative z-10">
                   {renderStepContent(activeStep)}
                 </div>
 
-                {/* Subtle inner glow effect */}
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+                {/* Subtle inner glow effect - hidden on mobile */}
+                <div className="hidden sm:block absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
               </div>
             </div>
 
             {/* Enhanced Navigation Container */}
             <div className="relative">
-              <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-lg rounded-2xl shadow-xl border border-white/30 dark:border-gray-700/30 p-6">
+              <div className="bg-white dark:bg-gray-800 sm:bg-white/60 sm:dark:bg-gray-800/60 sm:backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl border border-gray-200 dark:border-gray-700 sm:border-white/30 sm:dark:border-gray-700/30 p-4 sm:p-6">
                 <StepNavigation
                   activeStep={activeStep}
                   steps={steps}
@@ -442,8 +442,8 @@ const NewApplicationPage = () => {
               </div>
             </div>
 
-            {/* Floating progress indicator */}
-            <div className="fixed bottom-6 right-6 z-50">
+            {/* Floating progress indicator - hidden on mobile, shown as fixed on larger screens */}
+            <div className="hidden sm:block fixed bottom-6 right-6 z-50">
               <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-full shadow-2xl border border-white/30 dark:border-gray-700/30 p-3">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 rounded-full bg-blue-600"></div>

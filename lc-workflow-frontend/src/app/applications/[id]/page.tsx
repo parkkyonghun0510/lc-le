@@ -37,6 +37,7 @@ import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import { formatCurrency, formatDateDOB, formatDate } from '@/lib/utils';
 import { CurrencyProvider, useFormatCurrency } from '@/contexts/CurrencyContext';
 import Link from 'next/link';
+import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
 
 
 const statusConfig = {
@@ -119,9 +120,9 @@ function ApplicationDetailContent() {
   const files: ApiFile[] = allFilesData?.items || [];
   
   // Debug logging
-  console.log('Fetching files for application:', applicationId);
-  console.log('Application files:', files.length, files);
-  console.log('Application folders:', appFolders.length, appFolders);
+  // console.log('Fetching files for application:', applicationId);
+  // console.log('Application files:', files.length, files);
+  // console.log('Application folders:', appFolders.length, appFolders);
   
   // Add refresh button for testing
   const handleRefreshFiles = () => {
@@ -133,18 +134,8 @@ function ApplicationDetailContent() {
   const [previewList, setPreviewList] = useState<ApiFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   // TODO: Replace with static options or new data source
-  const productTypes = {
-    data: [],
-    isLoading: false,
-    error: null,
-    getLabel: (value: string | null | undefined) => value || null
-  };
-  const idCardTypes = {
-    data: [],
-    isLoading: false,
-    error: null,
-    getLabel: (value: string | null | undefined) => value || null
-  };
+  const productType = useProductTypes();
+  const idCartType = useIDCardTypes();
 
   const isImageFile = (f: ApiFile) => {
     const byMime = typeof f.mime_type === 'string' && f.mime_type.toLowerCase().startsWith('image/');
@@ -286,32 +277,33 @@ function ApplicationDetailContent() {
       <Layout>
         <div className="space-y-6">
           {/* Header */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 hover:shadow-xl transition-all duration-300">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0">
+              {/* Back button and title section */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                 <button
                   onClick={() => router.back()}
-                  className="group flex items-center px-4 py-2.5 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:shadow-md hover:-translate-x-0.5"
+                  className="group flex items-center px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg sm:rounded-xl transition-all duration-200 hover:shadow-md hover:-translate-x-0.5 w-fit"
                 >
-                  <ArrowLeftIcon className="h-5 w-5 mr-2 group-hover:-translate-x-0.5 transition-transform duration-200" />
-                  <span className="font-medium">Back</span>
+                  <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 group-hover:-translate-x-0.5 transition-transform duration-200" />
+                  <span className="font-medium text-sm sm:text-base">Back</span>
                 </button>
 
-                <div className="flex items-center space-x-4 pl-6 border-l border-gray-200 dark:border-gray-600">
-                  <div className="relative">
-                    <div className="p-4 bg-gradient-to-br from-primary-100 via-primary-50 to-blue-100 dark:from-primary-900/50 dark:via-primary-800/30 dark:to-blue-800/50 rounded-2xl shadow-inner">
-                      <UserIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                <div className="flex items-center space-x-3 sm:space-x-4 sm:pl-6 sm:border-l border-gray-200 dark:border-gray-600">
+                  <div className="relative flex-shrink-0">
+                    <div className="p-3 sm:p-4 bg-gradient-to-br from-primary-100 via-primary-50 to-blue-100 dark:from-primary-900/50 dark:via-primary-800/30 dark:to-blue-800/50 rounded-xl sm:rounded-2xl shadow-inner">
+                      <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600 dark:text-primary-400" />
                     </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-green-400 to-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-br from-green-400 to-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
                   </div>
 
-                  <div className="space-y-1">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white leading-tight truncate">
                       {application.full_name_khmer || application.full_name_latin || 'ពាក្យសុំកម្ចី'}
                     </h1>
                     <div className="flex items-center text-gray-500 dark:text-gray-400">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      <span className="font-medium text-sm">
+                      <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                      <span className="font-medium text-xs sm:text-sm truncate">
                         កាលបរិច្ឆេទបង្កើត: {formatDate(application.created_at)}
                       </span>
                     </div>
@@ -319,23 +311,24 @@ function ApplicationDetailContent() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-4">
+              {/* Status and actions section */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                 {/* Enhanced Status Badge */}
-                <div className={`relative inline-flex items-center px-5 py-3 rounded-2xl border-2 ${config.color} shadow-lg backdrop-blur-sm`}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-2xl"></div>
-                  <StatusIcon className="w-5 h-5 mr-3 relative z-10" />
+                <div className={`relative inline-flex items-center justify-center sm:justify-start px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl border-2 ${config.color} shadow-lg backdrop-blur-sm w-full sm:w-auto`}>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-xl sm:rounded-2xl"></div>
+                  <StatusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 relative z-10 flex-shrink-0" />
                   <span className="font-semibold text-sm relative z-10">{config.khmer}</span>
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-current rounded-full opacity-60 animate-pulse"></div>
+                  <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-current rounded-full opacity-60 animate-pulse"></div>
                 </div>
 
                 {/* Enhanced Action Buttons */}
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                   {canEdit && (
                     <Link
                       href={`/applications/${applicationId}/edit`}
-                      className="group inline-flex items-center px-5 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-200 rounded-xl hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-500 transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 border border-gray-200 dark:border-gray-600"
+                      className="group inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-200 rounded-lg sm:rounded-xl hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-600 dark:hover:to-gray-500 transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 border border-gray-200 dark:border-gray-600 text-sm sm:text-base"
                     >
-                      <PencilIcon className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-200" />
+                      <PencilIcon className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-200 flex-shrink-0" />
                       <span className="font-medium">កែប្រែ</span>
                     </Link>
                   )}
@@ -344,16 +337,16 @@ function ApplicationDetailContent() {
                     <button
                       onClick={handleSubmit}
                       disabled={submitMutation.isPending}
-                      className="group inline-flex items-center px-5 py-3 bg-gradient-to-r from-primary-600 to-blue-600 dark:from-primary-500 dark:to-blue-500 text-white rounded-xl hover:from-primary-700 hover:to-blue-700 dark:hover:from-primary-600 dark:hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-md"
+                      className="group inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-primary-600 to-blue-600 dark:from-primary-500 dark:to-blue-500 text-white rounded-lg sm:rounded-xl hover:from-primary-700 hover:to-blue-700 dark:hover:from-primary-600 dark:hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-md text-sm sm:text-base"
                     >
                       {submitMutation.isPending ? (
                         <>
-                          <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" />
                           <span className="font-medium">កំពុងដាក់ស្នើ...</span>
                         </>
                       ) : (
                         <>
-                          <DocumentTextIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" />
+                          <DocumentTextIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
                           <span className="font-medium">ដាក់ស្នើ</span>
                         </>
                       )}
@@ -361,29 +354,29 @@ function ApplicationDetailContent() {
                   )}
 
                   {canApprove && (
-                    <div className="flex space-x-3">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <button
                         onClick={handleApprove}
                         disabled={approveMutation.isPending}
-                        className="group inline-flex items-center px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-500 dark:to-emerald-500 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 dark:hover:from-green-600 dark:hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-md"
+                        className="group inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-500 dark:to-emerald-500 text-white rounded-lg sm:rounded-xl hover:from-green-700 hover:to-emerald-700 dark:hover:from-green-600 dark:hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-md text-sm sm:text-base"
                       >
                         {approveMutation.isPending ? (
                           <>
-                            <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" />
                             <span className="font-medium">កំពុងអនុម័ត...</span>
                           </>
                         ) : (
                           <>
-                            <CheckCircleIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" />
+                            <CheckCircleIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
                             <span className="font-medium">អនុម័ត</span>
                           </>
                         )}
                       </button>
                       <button
                         onClick={() => setShowRejectModal(true)}
-                        className="group inline-flex items-center px-5 py-3 bg-gradient-to-r from-red-600 to-rose-600 dark:from-red-500 dark:to-rose-500 text-white rounded-xl hover:from-red-700 hover:to-rose-700 dark:hover:from-red-600 dark:hover:to-rose-600 transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-md"
+                        className="group inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-red-600 to-rose-600 dark:from-red-500 dark:to-rose-500 text-white rounded-lg sm:rounded-xl hover:from-red-700 hover:to-rose-700 dark:hover:from-red-600 dark:hover:to-rose-600 transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-md text-sm sm:text-base"
                       >
-                        <XCircleIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" />
+                        <XCircleIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
                         <span className="font-medium">បដិសេធ</span>
                       </button>
                     </div>
@@ -394,18 +387,18 @@ function ApplicationDetailContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Customer Information */}
-            <div className="bg-white dark:bg-gray-800 mt-4 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
-              <div className="px-8 py-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-600">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                    <UserIcon className="w-7 h-7 text-white" />
+            <div className="bg-white dark:bg-gray-800 mt-4 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+              <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-600">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl shadow-lg flex-shrink-0">
+                    <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white truncate">
                       Customer Information
                     </h2>
                     <p className="text-base text-blue-600 dark:text-blue-400 font-medium">
@@ -479,7 +472,7 @@ function ApplicationDetailContent() {
                             <div className="h-1 w-1 bg-orange-400 rounded-full"></div>
                           </div>
                           <p className="text-xs text-orange-600 dark:text-orange-400 mb-3 font-medium">ប្រភេទអត្តសញ្ញាណប័ណ្ណ</p>
-                          <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{idCardTypes.getLabel(application.id_card_type) || 'មិនបានបញ្ជាក់'}</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{idCartType.getLabel(application.id_card_type) || 'មិនបានបញ្ជាក់'}</p>
                         </div>
                       </div>
                     </div>
@@ -592,7 +585,7 @@ function ApplicationDetailContent() {
                           </div>
                           <p className="text-xs text-purple-600 dark:text-purple-400 mb-3 font-medium">ប្រភេទផលិតផល</p>
                           <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
-                            {productTypes.getLabel(application.product_type) || 'មិនបានបញ្ជាក់'}
+                            {productType.getLabel(application.product_type) || 'មិនបានបញ្ជាក់'}
                           </p>
                         </div>
                       </div>
@@ -621,7 +614,7 @@ function ApplicationDetailContent() {
                       </div>
                     </div>
 
-                    <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                    {/* <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
                       <div className="flex items-start space-x-4">
                         <div className="p-3 bg-indigo-500 rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
                           <DocumentTextIcon className="w-5 h-5 text-white" />
@@ -653,7 +646,7 @@ function ApplicationDetailContent() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
 
                     {application.purpose_details && (
                       <div className="group relative p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-indigo-900/20 dark:to-blue-800/20 rounded-2xl border border-indigo-200 dark:border-indigo-700/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
@@ -668,9 +661,12 @@ function ApplicationDetailContent() {
                             </div>
                             <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3 font-medium">ព័ត៌មានលម្អិតអំពីគោលបំណង</p>
                             <div className="flex flex-wrap gap-2">
-                              <p>
-                                {application.purpose_details}
-                              </p>
+                              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            {application?.purpose_details
+                              ? application.purpose_details
+                              : 'មិនបានបញ្ជាក់'
+                            }
+                          </p>
                             </div>
                           </div>
                         </div>

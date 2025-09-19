@@ -20,7 +20,7 @@ export interface DeviceInfo {
  * Detects if the current device is a mobile device
  */
 export const isMobileDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   
   const userAgent = navigator.userAgent;
   
@@ -57,7 +57,7 @@ export const isMobileDevice = (): boolean => {
  * Detects if the current device is a tablet
  */
 export const isTabletDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   
   const userAgent = navigator.userAgent.toLowerCase();
   const tabletRegex = /ipad|android(?!.*mobile)|tablet/i;
@@ -123,7 +123,7 @@ export const getDeviceInfo = async (): Promise<DeviceInfo> => {
     platform,
     screenWidth: typeof window !== 'undefined' ? window.innerWidth : 0,
     screenHeight: typeof window !== 'undefined' ? window.innerHeight : 0,
-    touchSupport: typeof window !== 'undefined' ? ('ontouchstart' in window || (navigator.maxTouchPoints > 0)) : false,
+    touchSupport: typeof window !== 'undefined' && typeof navigator !== 'undefined' ? ('ontouchstart' in window || (navigator.maxTouchPoints > 0)) : false,
     browser
   };
 };

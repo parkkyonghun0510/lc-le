@@ -1,7 +1,7 @@
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError, DisconnectionError, OperationalError
 from typing import Dict, Any
 import traceback
 from datetime import datetime, timezone
@@ -182,6 +182,28 @@ async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JS
             ],
             status_code=status.HTTP_409_CONFLICT
         )
+    
+    # Handle connection errors specifically
+    from sqlalchemy.exc import DisconnectionError, OperationalError
+    if isinstance(exc, (DisconnectionError, OperationalError)):
+        error_message = str(exc.orig) if hasattr(exc, 'orig') else str(exc)
+        
+        # Check for specific connection-related error messages
+        if any(keyword in error_message.lower() for keyword in ['connection', 'closed', 'timeout', 'network']):
+            return create_error_response(
+                error_code="DATABASE_CONNECTION_ERROR",
+                message="Database connection temporarily unavailable",
+                details={
+                    "error_type": type(exc).__name__,
+                    "connection_error": error_message
+                },
+                suggestions=[
+                    "Please try again in a few moments",
+                    "The database connection is being restored",
+                    "Contact support if the problem persists"
+                ],
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
     
     # Generic database error
     return create_error_response(

@@ -1,8 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.exc import DisconnectionError, OperationalError
 from typing import AsyncGenerator, Optional
 import redis
+import asyncio
+import logging
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Convert psycopg2 URL to asyncpg URL for Railway compatibility
 def get_async_database_url(url: str) -> str:
@@ -22,7 +27,13 @@ if "postgresql" in async_database_url:
 engine = create_async_engine(
     async_database_url, 
     echo=settings.DEBUG,
-    connect_args=connect_args
+    connect_args=connect_args,
+    # Connection pool settings for better reliability
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=3600,  # Recycle connections every hour
+    pool_pre_ping=True,  # Validate connections before use
 )
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -30,11 +41,31 @@ class Base(DeclarativeBase):
     pass
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
+    max_retries = 3
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
         try:
-            yield session
-        finally:
-            await session.close()
+            async with AsyncSessionLocal() as session:
+                try:
+                    yield session
+                except Exception as e:
+                    await session.rollback()
+                    raise
+                finally:
+                    await session.close()
+            break  # Success, exit retry loop
+        except (DisconnectionError, OperationalError) as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error(f"Database connection failed after {max_retries} attempts: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"Unexpected database error: {e}")
+            raise
 
 
 # Redis configuration

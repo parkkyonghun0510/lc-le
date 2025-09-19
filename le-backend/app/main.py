@@ -13,6 +13,7 @@ from app.routers import folders, customers, enums, selfies, validation, account_
 from app.routers import settings as settings_router
 from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
+from app.middleware.database_middleware import DatabaseConnectionMiddleware
 
 load_dotenv()
 
@@ -42,6 +43,9 @@ app = FastAPI(
 
 # Behind Railway's proxy, trust all hosts for forwarded headers
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
+# Add database connection middleware
+app.add_middleware(DatabaseConnectionMiddleware, max_reconnect_attempts=3)
 
 # Configure CORS
 app.add_middleware(
@@ -85,25 +89,27 @@ async def health_check() -> dict:
 
 @app.get("/api/v1/health")
 async def api_health_check() -> dict:
+    from app.core.database_health import check_database_health
+    
     try:
-        # Test database connectivity
-        from sqlalchemy import text
-        async with engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
+        db_health = await check_database_health()
+        
         return {
-            "status": "healthy", 
+            "status": "healthy" if db_health["status"] == "healthy" else "degraded",
             "service": "lc-workflow-api",
-            "database": "connected"
+            "database": db_health,
+            "timestamp": db_health["timestamp"]
         }
     except Exception as e:
-        # Return healthy status even if database is unavailable
-        # This allows Railway health check to pass while database is starting
+        # Return degraded status if health check fails
         return {
-            "status": "healthy",
+            "status": "degraded",
             "service": "lc-workflow-api", 
-            "database": "disconnected",
-            "warning": "Database not available, but service is running",
-            "error": str(e)
+            "database": {
+                "status": "unhealthy",
+                "error": str(e)
+            },
+            "warning": "Database health check failed, but service is running"
         }
 
 if __name__ == "__main__":

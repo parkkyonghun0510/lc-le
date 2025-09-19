@@ -192,6 +192,42 @@ export default function UserDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Management Information */}
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Management Structure</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {user.portfolio && (
+                    <div className="flex items-center space-x-3">
+                      <UserIcon className="h-5 w-5 text-blue-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Portfolio Manager</p>
+                        <p className="text-sm text-blue-600">
+                          {user.portfolio.first_name} {user.portfolio.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">@{user.portfolio.username}</p>
+                      </div>
+                    </div>
+                  )}
+                  {user.line_manager && (
+                    <div className="flex items-center space-x-3">
+                      <UserIcon className="h-5 w-5 text-green-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Line Manager</p>
+                        <p className="text-sm text-green-600">
+                          {user.line_manager.first_name} {user.line_manager.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">@{user.line_manager.username}</p>
+                      </div>
+                    </div>
+                  )}
+                  {!user.portfolio && !user.line_manager && (
+                    <div className="col-span-2 text-center py-4">
+                      <p className="text-sm text-gray-500">No management assignments</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Account Information */}

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
@@ -21,6 +22,83 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/")
+async def get_folders(
+    parent_id: Optional[UUID] = Query(None),
+    application_id: Optional[UUID] = Query(None),
+    page: Optional[int] = Query(None),
+    size: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get folders with optional filtering by parent_id and/or application_id
+    Returns paginated response if page/size provided, otherwise returns simple array
+    """
+    query = select(Folder).options(selectinload(Folder.files))
+    
+    # Apply filters
+    if parent_id:
+        query = query.where(Folder.parent_id == parent_id)
+    if application_id:
+        query = query.where(Folder.application_id == application_id)
+        
+        # Check permissions for application
+        app_query = await db.execute(
+            select(CustomerApplication).where(CustomerApplication.id == application_id)
+        )
+        application = app_query.scalar_one_or_none()
+        
+        if not application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Application not found"
+            )
+        
+        if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access this application"
+            )
+    
+    query = query.order_by(Folder.parent_id.asc(), Folder.name.asc())
+    
+    # Handle pagination if requested
+    if page is not None and size is not None:
+        # Get total count
+        count_query = select(func.count(Folder.id))
+        if parent_id:
+            count_query = count_query.where(Folder.parent_id == parent_id)
+        if application_id:
+            count_query = count_query.where(Folder.application_id == application_id)
+        
+        total_result = await db.execute(count_query)
+        total = total_result.scalar_one()
+        
+        # Apply pagination
+        offset = (page - 1) * size
+        query = query.offset(offset).limit(size)
+        
+        folders_result = await db.execute(query)
+        folders = folders_result.scalars().all()
+        
+        folder_responses = [FolderResponse.from_orm(folder) for folder in folders]
+        
+        return {
+            "items": folder_responses,
+            "total": total,
+            "page": page,
+            "size": size,
+            "pages": (total + size - 1) // size
+        }
+    else:
+        # Return simple array
+        folders_result = await db.execute(query)
+        folders = folders_result.scalars().all()
+        
+        return [FolderResponse.from_orm(folder) for folder in folders]
 
 
 @router.get("/document-types", response_model=Dict[str, List[str]])

@@ -174,7 +174,36 @@ const folderApi = {
     if (params.parent_id) searchParams.append('parent_id', params.parent_id);
     if (params.application_id) searchParams.append('application_id', params.application_id);
     
-    return apiClient.get(`/folders/?${searchParams.toString()}`);
+    const response = await apiClient.get(`/folders/?${searchParams.toString()}`);
+    
+    // If response is an array (non-paginated), convert to paginated format
+    if (Array.isArray(response)) {
+      return {
+        items: response.map((folder: any) => ({
+          ...folder,
+          type: 'folder' as const,
+          file_count: folder.file_count || 0
+        })),
+        total: response.length,
+        page: 1,
+        size: response.length,
+        pages: 1
+      };
+    }
+    
+    // If response is already paginated, just add the type field
+    const paginatedResponse = response as PaginatedResponse<any>;
+    return {
+      items: paginatedResponse.items.map((folder: any) => ({
+        ...folder,
+        type: 'folder' as const,
+        file_count: folder.file_count || 0
+      })),
+      total: paginatedResponse.total,
+      page: paginatedResponse.page,
+      size: paginatedResponse.size,
+      pages: paginatedResponse.pages
+    };
   },
   
   getFolder: async (id: string): Promise<Folder> => {

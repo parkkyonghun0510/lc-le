@@ -26,6 +26,11 @@ export interface User extends BaseModel {
   // Position relations
   position_id?: string | null;
   position?: Position | null;
+  // Portfolio and line manager relations
+  portfolio_id?: string | null;
+  line_manager_id?: string | null;
+  portfolio?: User | null;
+  line_manager?: User | null;
   profile_image_url?: string;
   last_login_at?: string;
   employee_id?: string;
@@ -157,6 +162,8 @@ export interface UserCreate {
   position_id?: string;
   department_id?: string;
   branch_id?: string;
+  portfolio_id?: string;
+  line_manager_id?: string;
   profile_image_url?: string;
   employee_id?: string;
 }
@@ -173,6 +180,8 @@ export interface UserUpdate {
   department_id?: string;
   position_id?: string;
   branch_id?: string;
+  portfolio_id?: string;
+  line_manager_id?: string;
   profile_image_url?: string;
   employee_id?: string;
 }

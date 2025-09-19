@@ -14,6 +14,31 @@ from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
+async def validate_branch_assignments(db: AsyncSession, user_branch_id: Optional[UUID], portfolio_id: Optional[UUID], line_manager_id: Optional[UUID]):
+    """Validate that portfolio and line managers are from the same branch as the user"""
+    if not user_branch_id:
+        return  # No branch assigned, skip validation
+    
+    # Check portfolio manager
+    if portfolio_id:
+        result = await db.execute(select(User).where(User.id == portfolio_id))
+        portfolio_manager = result.scalar_one_or_none()
+        if portfolio_manager and portfolio_manager.branch_id != user_branch_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Portfolio manager must be from the same branch"
+            )
+    
+    # Check line manager
+    if line_manager_id:
+        result = await db.execute(select(User).where(User.id == line_manager_id))
+        line_manager = result.scalar_one_or_none()
+        if line_manager and line_manager.branch_id != user_branch_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Line manager must be from the same branch"
+            )
+
 @router.post("/", response_model=UserResponse)
 async def create_user(
     user: UserCreate,
@@ -36,6 +61,9 @@ async def create_user(
             detail=str(e)
         )
     
+    # Validate branch-based assignments
+    await validate_branch_assignments(db, user.branch_id, user.portfolio_id, user.line_manager_id)
+    
     db_user = User(
         **user.dict(exclude={"password"}),
         password_hash=get_password_hash(user.password)
@@ -49,6 +77,8 @@ async def create_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
         )
         .where(User.id == db_user.id)
     )
@@ -58,6 +88,7 @@ async def create_user(
 @router.get("/", response_model=PaginatedResponse)
 async def list_users(
     role: Optional[str] = Query(None, description="Filter by role"),
+    branch_id: Optional[str] = Query(None, description="Filter by branch"),
     search: Optional[str] = Query(None, description="Search in username, email, or name"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=1000),
@@ -77,11 +108,16 @@ async def list_users(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
         )
     )
     
     if role:
         query = query.where(User.role == role)
+    
+    if branch_id:
+        query = query.where(User.branch_id == branch_id)
     
     if search:
         search_term = f"%{search}%"
@@ -96,6 +132,8 @@ async def list_users(
     count_query = select(func.count()).select_from(User)
     if role:
         count_query = count_query.where(User.role == role)
+    if branch_id:
+        count_query = count_query.where(User.branch_id == branch_id)
     if search:
         search_term = f"%{search}%"
         count_query = count_query.where(
@@ -140,6 +178,8 @@ async def get_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
         )
         .where(User.id == user_id)
     )
@@ -172,6 +212,8 @@ async def update_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
         )
         .where(User.id == user_id)
     )
@@ -227,6 +269,8 @@ async def patch_user(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
         )
         .where(User.id == user_id)
     )
@@ -250,6 +294,12 @@ async def patch_user(
                  status_code=status.HTTP_400_BAD_REQUEST,
                  detail=str(e)
              )
+    
+    # Validate branch-based assignments
+    branch_id = update_data.get('branch_id', user.branch_id)
+    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
+    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
+    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
     
     # Handle password update
     if 'password' in update_data and update_data['password']:
@@ -321,6 +371,12 @@ async def patch_me(
                 detail=str(e)
             )
     
+    # Validate branch-based assignments for profile updates
+    branch_id = update_data.get('branch_id', user.branch_id)
+    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
+    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
+    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
+    
     # Handle password update
     if 'password' in update_data and update_data['password']:
         update_data['password_hash'] = get_password_hash(update_data['password'])
@@ -356,6 +412,12 @@ async def put_me(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e)
             )
+    
+    # Validate branch-based assignments for profile updates
+    branch_id = update_data.get('branch_id', user.branch_id)
+    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
+    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
+    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
     
     # Handle password update
     if 'password' in update_data and update_data['password']:

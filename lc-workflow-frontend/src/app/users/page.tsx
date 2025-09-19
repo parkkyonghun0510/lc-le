@@ -229,6 +229,12 @@ export default function UsersPage() {
                         Department
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Portfolio Manager
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Line Manager
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -272,6 +278,34 @@ export default function UsersPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {user.department_id ? (
                             departmentsData?.items?.find(d => d.id === user.department_id)?.name || 'Unknown'
+                          ) : (
+                            <span className="text-gray-400">Not assigned</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.portfolio ? (
+                            <div>
+                              <span className="text-blue-600">
+                                {user.portfolio.first_name} {user.portfolio.last_name}
+                              </span>
+                              {user.portfolio.branch_id !== user.branch_id && (
+                                <div className="text-xs text-orange-500">Different branch</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">Not assigned</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.line_manager ? (
+                            <div>
+                              <span className="text-green-600">
+                                {user.line_manager.first_name} {user.line_manager.last_name}
+                              </span>
+                              {user.line_manager.branch_id !== user.branch_id && (
+                                <div className="text-xs text-orange-500">Different branch</div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-gray-400">Not assigned</span>
                           )}

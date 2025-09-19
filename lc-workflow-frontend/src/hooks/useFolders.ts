@@ -40,12 +40,19 @@ const folderApi = {
     parent_id?: string;
     application_id?: string;
   } = {}): Promise<Folder[]> => {
-    const searchParams = new URLSearchParams();
-    if (params.parent_id) searchParams.append('parent_id', params.parent_id);
-    if (params.application_id) searchParams.append('application_id', params.application_id);
-
     try {
-      return await apiClient.get<Folder[]>(`/folders/?${searchParams.toString()}`);
+      const searchParams = new URLSearchParams();
+      if (params.parent_id) searchParams.append('parent_id', params.parent_id);
+      if (params.application_id) searchParams.append('application_id', params.application_id);
+      
+      const response = await apiClient.get<any[]>(`/folders/?${searchParams.toString()}`);
+      
+      // Transform backend response to match frontend interface
+      return response.map((folder: any) => ({
+        ...folder,
+        type: 'folder' as const,
+        file_count: folder.file_count || 0
+      }));
     } catch (error: any) {
       // Fallback to mock if backend endpoint is missing
       return [

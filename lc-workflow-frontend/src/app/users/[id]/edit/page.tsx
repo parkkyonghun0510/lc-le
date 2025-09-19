@@ -11,18 +11,13 @@ import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { usePositions } from '@/hooks/usePositions';
+import { useUsers } from '@/hooks/useUsers';
 
 export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
   
-  const { data: user, isLoading } = useUser(userId);
-  const updateUser = useUpdateUser(userId);
-  const { data: departmentsData } = useDepartments({ size: 100 });
-  const { data: branchesData } = useBranches({ size: 100 });
-  const { data: positionsData } = usePositions({ size: 100 });
-
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<UserUpdate>({
     username: '',
@@ -36,26 +31,37 @@ export default function EditUserPage() {
     is_active: true,
     employee_id: '',
     position_id: '',
-
-
+    portfolio_id: '',
+    line_manager_id: '',
   });
+
+  const { data: user, isLoading } = useUser(userId);
+  const updateUser = useUpdateUser(userId);
+  const { data: departmentsData } = useDepartments({ size: 100 });
+  const { data: branchesData } = useBranches({ size: 100 });
+  const { data: positionsData } = usePositions({ size: 100 });
+  const { data: usersData } = useUsers({ 
+    size: 100,
+    branch_id: formData.branch_id || undefined // Filter by selected branch
+  }); // For portfolio and line manager dropdowns
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
       setFormData({
-        username: user.username,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
+        username: user.username || '',
+        email: user.email || '',
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
         phone_number: user.phone_number || '',
-        role: user.role,
+        role: user.role || 'officer',
         department_id: user.department_id || '',
         branch_id: user.branch_id || '',
         position_id: user.position_id || '',
-
-        is_active: user.is_active,
+        portfolio_id: user.portfolio_id || '',
+        line_manager_id: user.line_manager_id || '',
+        is_active: user.is_active ?? true,
         employee_id: user.employee_id || '',
       });
     }
@@ -112,7 +118,8 @@ export default function EditUserPage() {
       is_active: formData.is_active,
       employee_id: formData.employee_id || undefined,
       position_id: formData.position_id || undefined,
-
+      portfolio_id: formData.portfolio_id || undefined,
+      line_manager_id: formData.line_manager_id || undefined,
       phone_number: formData.phone_number || undefined,
     };
     if (!submitData.employee_id || !/^\d{4}$/.test(submitData.employee_id)) {
@@ -127,14 +134,48 @@ export default function EditUserPage() {
       onSuccess: () => {
         router.push('/users');
       },
+      onError: (error: any) => {
+        // Handle branch validation errors specifically
+        const errorMessage = error.response?.data?.detail || 'Failed to update user';
+        if (errorMessage.includes('same branch')) {
+          setErrors(prev => ({
+            ...prev,
+            portfolio_id: errorMessage.includes('Portfolio') ? errorMessage : '',
+            line_manager_id: errorMessage.includes('Line') ? errorMessage : ''
+          }));
+        }
+      },
     });
   };
 
   const handleInputChange = (field: keyof UserUpdate, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // If branch changes, clear portfolio and line manager selections
+      if (field === 'branch_id') {
+        newData.portfolio_id = '';
+        newData.line_manager_id = '';
+      }
+      
+      return newData;
+    });
     if (errors[field as string]) {
       setErrors(prev => ({ ...prev, [field as string]: '' }));
     }
+  };
+
+  // Filter users by selected branch for portfolio and line manager dropdowns
+  const getFilteredManagers = () => {
+    if (!formData.branch_id || !usersData?.items) {
+      return [];
+    }
+    
+    return usersData.items.filter(user => 
+      (user.role === 'manager' || user.role === 'admin') && 
+      user.branch_id === formData.branch_id &&
+      user.id !== userId // Exclude the current user from being their own manager
+    );
   };
 
   if (isLoading) {
@@ -206,7 +247,7 @@ export default function EditUserPage() {
                     type="text"
                     maxLength={4}
                     pattern="\d{4}"
-                    value={formData.employee_id}
+                    value={formData.employee_id || ''}
                     onChange={(e) => handleInputChange('employee_id', e.target.value.replace(/[^\d]/g, '').slice(0, 4))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g. 1234"
@@ -218,7 +259,7 @@ export default function EditUserPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.username}
+                    value={formData.username || ''}
                     onChange={(e) => handleInputChange('username', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.username ? 'border-red-300' : 'border-gray-300'
@@ -236,7 +277,7 @@ export default function EditUserPage() {
                   </label>
                   <input
                     type="email"
-                    value={formData.email}
+                    value={formData.email || ''}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.email ? 'border-red-300' : 'border-gray-300'
@@ -254,7 +295,7 @@ export default function EditUserPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.first_name}
+                    value={formData.first_name || ''}
                     onChange={(e) => handleInputChange('first_name', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.first_name ? 'border-red-300' : 'border-gray-300'
@@ -272,7 +313,7 @@ export default function EditUserPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.last_name}
+                    value={formData.last_name || ''}
                     onChange={(e) => handleInputChange('last_name', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.last_name ? 'border-red-300' : 'border-gray-300'
@@ -290,7 +331,7 @@ export default function EditUserPage() {
                   </label>
                   <input
                     type="tel"
-                    value={formData.phone_number}
+                    value={formData.phone_number || ''}
                     onChange={(e) => handleInputChange('phone_number', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.phone_number ? 'border-red-300' : 'border-gray-300'
@@ -341,13 +382,13 @@ export default function EditUserPage() {
             {/* Role and Assignment */}
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Role and Assignment</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Role *
                   </label>
                   <select
-                    value={formData.role}
+                    value={formData.role || 'officer'}
                     onChange={(e) => handleInputChange('role', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
@@ -362,7 +403,7 @@ export default function EditUserPage() {
                     Department
                   </label>
                   <select
-                    value={formData.department_id}
+                    value={formData.department_id || ''}
                     onChange={(e) => handleInputChange('department_id', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
@@ -380,7 +421,7 @@ export default function EditUserPage() {
                     Branch
                   </label>
                   <select
-                    value={formData.branch_id}
+                    value={formData.branch_id || ''}
                     onChange={(e) => handleInputChange('branch_id', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
@@ -398,7 +439,7 @@ export default function EditUserPage() {
                       Positions
                     </label>
                     <select
-                      value={formData.position_id}
+                      value={formData.position_id || ''}
                       onChange={(e) => handleInputChange('position_id', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -413,6 +454,70 @@ export default function EditUserPage() {
               </div>
             </div>
 
+            {/* Portfolio and Management */}
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Portfolio and Management</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Portfolio Manager
+                  </label>
+                  <select
+                    value={formData.portfolio_id || ''}
+                    onChange={(e) => handleInputChange('portfolio_id', e.target.value)}
+                    disabled={!formData.branch_id}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!formData.branch_id ? 'Select Branch First' : 'Select Portfolio Manager'}
+                    </option>
+                    {getFilteredManagers().map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name} ({user.username})
+                      </option>
+                    ))}
+                  </select>
+                  {!formData.branch_id && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Please select a branch to see available portfolio managers
+                    </p>
+                  )}
+                  {errors.portfolio_id && (
+                    <p className="mt-1 text-sm text-red-600">{errors.portfolio_id}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Line Manager
+                  </label>
+                  <select
+                    value={formData.line_manager_id || ''}
+                    onChange={(e) => handleInputChange('line_manager_id', e.target.value)}
+                    disabled={!formData.branch_id}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!formData.branch_id ? 'Select Branch First' : 'Select Line Manager'}
+                    </option>
+                    {getFilteredManagers().map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name} ({user.username})
+                      </option>
+                    ))}
+                  </select>
+                  {!formData.branch_id && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Please select a branch to see available line managers
+                    </p>
+                  )}
+                  {errors.line_manager_id && (
+                    <p className="mt-1 text-sm text-red-600">{errors.line_manager_id}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Status */}
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Status</h3>
@@ -420,7 +525,7 @@ export default function EditUserPage() {
                 <input
                   type="checkbox"
                   id="is_active"
-                  checked={formData.is_active}
+                  checked={formData.is_active ?? true}
                   onChange={(e) => handleInputChange('is_active', e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />

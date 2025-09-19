@@ -259,7 +259,7 @@ function ApplicationDetailContent() {
       data: {
         approved_amount: application?.requested_amount || 0,
         approved_term: application?.desired_loan_term || 12,
-        interest_rate: 1.5 // Default interest rate
+        interest_rate: 0 // Default interest rate
       }
     });
   };

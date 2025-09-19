@@ -22,6 +22,9 @@ class User(Base):
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id'))
     # New: position reference (nullable, indexed via migration)
     position_id = Column(UUID(as_uuid=True), ForeignKey('positions.id'), nullable=True)
+    # New: portfolio and line manager references
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    line_manager_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
     profile_image_url = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -31,6 +34,12 @@ class User(Base):
     department = relationship("Department", back_populates="users", foreign_keys=[department_id])
     branch = relationship("Branch", back_populates="users", foreign_keys=[branch_id])
     position = relationship("Position", back_populates="users", foreign_keys=[position_id])
+    # Portfolio and line manager relationships
+    portfolio = relationship("User", remote_side="User.id", foreign_keys=[portfolio_id])
+    line_manager = relationship("User", remote_side="User.id", foreign_keys=[line_manager_id])
+    # Reverse relationships for portfolio and line management
+    portfolio_members = relationship("User", foreign_keys="User.portfolio_id", back_populates="portfolio")
+    direct_reports = relationship("User", foreign_keys="User.line_manager_id", back_populates="line_manager")
     applications = relationship("CustomerApplication", back_populates="user", foreign_keys="CustomerApplication.user_id")
     uploaded_files = relationship("File", back_populates="uploaded_by_user")
 

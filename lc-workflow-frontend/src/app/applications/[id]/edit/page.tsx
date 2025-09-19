@@ -8,6 +8,8 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplication, useUpdateApplication } from '@/hooks/useApplications';
 import { useUploadFile } from '@/hooks/useFiles';
 import { toast } from 'react-hot-toast';
+import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
+
 
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
 import {
@@ -77,10 +79,8 @@ export default function EditApplicationPage() {
 
   const { data: application, isLoading, error } = useApplication(applicationId);
   // TODO: Replace with static options or new data source
-  const idCardTypes: Array<{ key: string; value: string; value_khmer?: string }> = [];
-  const isLoadingIdCardTypes = false;
-  const productTypes: Array<{ key: string; value: string; value_khmer?: string }> = [];
-  const isLoadingProductTypes = false;
+  const { data: idCardTypes, isLoading: isLoadingIdCardTypes } = useIDCardTypes();
+  const { data: productTypes, isLoading: isLoadingProductTypes } = useProductTypes();
   const updateMutation = useUpdateApplication();
   const uploadMutation = useUploadFile();
 
@@ -385,13 +385,13 @@ export default function EditApplicationPage() {
                             >
                               <option value="">ជ្រើសរើសប្រភេទប័ណ្ណ</option>
                               {idCardTypes?.map((type) => (
-                                <option key={type.value} value={type.value}>{type.value_khmer || type.value}</option>
+                                <option key={type.value} value={type.value}>{type.label || type.value}</option>
                               ))}
                             </select>
                           </div>
                           <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {idCardTypes?.find(type => type.value === formData.id_card_type)?.value_khmer ||
+                              {idCardTypes?.find(type => type.value === formData.id_card_type)?.label_khmer ||
                                 idCardTypes?.find(type => type.value === formData.id_card_type)?.value || 'លេខប័ណ្ណ'}
                             </label>
                             <input
@@ -488,7 +488,7 @@ export default function EditApplicationPage() {
                               <option value="">ជ្រើសរើសប្រភេទផលិតផល</option>
                               {productTypes?.map((type) => (
                                 <option key={type.value} value={type.value}>
-                                  {type.value_khmer || type.value}
+                                  {type.label || type.value}
                                 </option>
                               ))}
                             </select>

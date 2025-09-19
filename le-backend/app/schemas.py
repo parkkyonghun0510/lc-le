@@ -27,6 +27,9 @@ class UserBase(BaseSchema):
     employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
     # Position FK (optional for compatibility)
     position_id: Optional[UUID] = None
+    # Portfolio and line manager references
+    portfolio_id: Optional[UUID] = None
+    line_manager_id: Optional[UUID] = None
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
@@ -46,6 +49,8 @@ class UserUpdate(BaseSchema):
     profile_image_url: Optional[str] = None
     employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
     position_id: Optional[UUID] = None
+    portfolio_id: Optional[UUID] = None
+    line_manager_id: Optional[UUID] = None
 
 # Position schemas
 class PositionBase(BaseSchema):
@@ -76,6 +81,9 @@ class UserResponse(UserBase):
     branch: Optional['BranchResponse'] = None
     # Replace prior string placeholder with nested position
     position: Optional['Position'] = None
+    # Portfolio and line manager relationships
+    portfolio: Optional['UserResponse'] = None
+    line_manager: Optional['UserResponse'] = None
 
 class UserLogin(BaseSchema):
     username: str
@@ -627,6 +635,21 @@ class FolderResponse(FolderBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    file_count: int = 0
+    
+    @classmethod
+    def from_orm(cls, folder):
+        """Create FolderResponse from Folder model with computed file_count"""
+        data = {
+            'id': folder.id,
+            'name': folder.name,
+            'parent_id': folder.parent_id,
+            'application_id': folder.application_id,
+            'created_at': folder.created_at,
+            'updated_at': folder.updated_at,
+            'file_count': len(folder.files) if hasattr(folder, 'files') and folder.files else 0
+        }
+        return cls(**data)
 
 # Selfie capture and validation schemas for Flutter app
 class SelfieType(str, Enum):

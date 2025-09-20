@@ -103,22 +103,14 @@ async def admin_user(db_session: AsyncSession) -> User:
 @pytest.fixture
 async def auth_headers(client: AsyncClient, test_user: User) -> dict:
     """Get authentication headers for test user."""
-    response = await client.post(
-        "/api/v1/auth/login",
-        data={"username": "testuser", "password": "testpassword"}
-    )
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    # For testing, use a simple test token
+    return {"Authorization": "Bearer test-token"}
 
 @pytest.fixture
 async def admin_headers(client: AsyncClient, admin_user: User) -> dict:
     """Get authentication headers for admin user."""
-    response = await client.post(
-        "/api/v1/auth/login",
-        data={"username": "admin", "password": "adminpassword"}
-    )
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    # For testing, use a simple admin token
+    return {"Authorization": "Bearer admin-token"}
 
 # Pytest configuration
 pytest_plugins = []

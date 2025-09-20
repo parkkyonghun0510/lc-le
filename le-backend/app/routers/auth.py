@@ -126,6 +126,20 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
         )
         .where(User.id == user.id)
     )
@@ -136,6 +150,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     _ = user_with_rels.department
     _ = user_with_rels.branch
     _ = user_with_rels.position
+    _ = user_with_rels.portfolio
+    _ = user_with_rels.line_manager
     
     return TokenResponse(
         access_token=access_token,

@@ -9,6 +9,9 @@ import { CameraCapture } from '@/components/CameraCapture';
 import { isMobileDevice, getDeviceInfo, DeviceInfo } from '@/utils/deviceDetection';
 import { CameraCapture as CameraCaptureType } from '@/hooks/useCamera';
 import MobileFileUpload from './MobileFileUpload';
+import { ProgressIndicator } from '@/components/ui/ProgressIndicator';
+import { toastManager } from '@/lib/toastManager';
+import { uploadStatusTracker, UploadEvent } from '@/lib/uploadStatusTracker';
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -20,8 +23,11 @@ interface FileUploadModalProps {
 interface FileWithProgress {
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'completed' | 'error';
+  status: 'pending' | 'uploading' | 'completed' | 'error' | 'paused' | 'cancelled';
   error?: string;
+  uploadId?: string;
+  retryCount?: number;
+  maxRetries?: number;
 }
 
 export default function FileUploadModal({ isOpen, onClose, applicationId, documentType }: FileUploadModalProps) {
@@ -29,6 +35,7 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
   const [showCamera, setShowCamera] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [fieldName, setFieldName] = useState<string>('');
+  const [networkStatus, setNetworkStatus] = useState({ isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true });
   const uploadFileMutation = useUploadFile();
 
   // Get device info on component mount
@@ -40,12 +47,66 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
     fetchDeviceInfo();
   }, []);
 
+  // Monitor network status
+  useEffect(() => {
+    const updateNetworkStatus = () => {
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      setNetworkStatus({ isOnline });
+      
+      if (!isOnline) {
+        toastManager.networkOffline();
+      }
+    };
+
+    updateNetworkStatus();
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
+    return () => {
+      window.removeEventListener('online', updateNetworkStatus);
+      window.removeEventListener('offline', updateNetworkStatus);
+    };
+  }, []);
+
+  // Listen for upload status changes
+  useEffect(() => {
+    const handleUploadEvent = (event: UploadEvent) => {
+      setFiles(prevFiles => 
+        prevFiles.map(file => {
+          if (file.uploadId === event.uploadId) {
+            const uploadStatus = uploadStatusTracker.getUpload(event.uploadId);
+            if (uploadStatus) {
+              return {
+                ...file,
+                progress: uploadStatus.progress,
+                status: uploadStatus.status as any,
+                error: uploadStatus.error,
+                retryCount: uploadStatus.retryCount,
+                maxRetries: uploadStatus.maxRetries,
+              };
+            }
+          }
+          return file;
+        })
+      );
+    };
+
+    const removeListener = uploadStatusTracker.addEventListener(handleUploadEvent);
+    return removeListener;
+  }, []);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
-      file,
-      progress: 0,
-      status: 'pending' as const,
-    }));
+    const newFiles = acceptedFiles.map(file => {
+      const uploadId = `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      return {
+        file,
+        progress: 0,
+        status: 'pending' as const,
+        uploadId,
+        retryCount: 0,
+        maxRetries: 3,
+      };
+    });
     setFiles(prev => [...prev, ...newFiles]);
   }, []);
 
@@ -69,8 +130,19 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
   };
 
   const uploadFile = async (fileWithProgress: FileWithProgress, index: number) => {
+    if (!fileWithProgress.uploadId) return;
+
+    // Check network status
+    if (!networkStatus.isOnline) {
+      toastManager.fileUploadQueued(fileWithProgress.file.name);
+      setFiles(prev => prev.map((f, i) => 
+        i === index ? { ...f, status: 'pending', error: 'Queued for upload when online' } : f
+      ));
+      return;
+    }
+
     setFiles(prev => prev.map((f, i) => 
-      i === index ? { ...f, status: 'uploading' } : f
+      i === index ? { ...f, status: 'uploading', error: undefined } : f
     ));
 
     try {
@@ -90,14 +162,44 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
         i === index ? { ...f, status: 'completed', progress: 100 } : f
       ));
     } catch (error: any) {
+      const errorMessage = error.message || 'Upload failed';
       setFiles(prev => prev.map((f, i) => 
         i === index ? { 
           ...f, 
           status: 'error', 
-          error: error.message || 'Upload failed' 
+          error: errorMessage,
+          retryCount: (f.retryCount || 0) + 1
         } : f
       ));
     }
+  };
+
+  const retryUpload = async (index: number) => {
+    const fileWithProgress = files[index];
+    if (!fileWithProgress || !fileWithProgress.uploadId) return;
+
+    // Reset status and retry
+    setFiles(prev => prev.map((f, i) => 
+      i === index ? { 
+        ...f, 
+        status: 'pending', 
+        error: undefined, 
+        progress: 0 
+      } : f
+    ));
+
+    await uploadFile(fileWithProgress, index);
+  };
+
+  const cancelUpload = (index: number) => {
+    const fileWithProgress = files[index];
+    if (fileWithProgress?.uploadId) {
+      uploadStatusTracker.cancelUpload(fileWithProgress.uploadId);
+    }
+    
+    setFiles(prev => prev.map((f, i) => 
+      i === index ? { ...f, status: 'cancelled' } : f
+    ));
   };
 
   const uploadAllFiles = async () => {
@@ -252,60 +354,53 @@ export default function FileUploadModal({ isOpen, onClose, applicationId, docume
               </h3>
               <div className="space-y-4">
                 {files.map((fileWithProgress, index) => (
-                  <div
-                    key={index}
-                    className="group flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    <div className="flex items-center flex-1 min-w-0">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-xl mr-3 flex-shrink-0">
-                        <DocumentIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
-                          {fileWithProgress.file.name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                          {formatBytes(fileWithProgress.file.size)}
-                        </p>
-                        {fileWithProgress.status === 'uploading' && (
-                          <div className="mt-3">
-                            <div className="bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
-                              <div
-                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-300"
-                                style={{ width: `${fileWithProgress.progress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                              {fileWithProgress.progress}% uploaded
-                            </p>
-                          </div>
+                  <div key={index} className="mb-4 last:mb-0">
+                    <ProgressIndicator
+                      progress={fileWithProgress.progress}
+                      status={fileWithProgress.status}
+                      filename={fileWithProgress.file.name}
+                      fileSize={fileWithProgress.file.size}
+                      error={fileWithProgress.error}
+                      onCancel={fileWithProgress.status === 'uploading' || fileWithProgress.status === 'paused'
+                        ? () => cancelUpload(index)
+                        : undefined}
+                      onRetry={fileWithProgress.status === 'error' && 
+                               (fileWithProgress.retryCount || 0) < (fileWithProgress.maxRetries || 3)
+                        ? () => retryUpload(index)
+                        : undefined}
+                      className="w-full"
+                    />
+                    
+                    {/* Additional actions */}
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {fileWithProgress.retryCount && fileWithProgress.retryCount > 0 && (
+                          <span>Retry {fileWithProgress.retryCount}/{fileWithProgress.maxRetries}</span>
                         )}
-                        {fileWithProgress.status === 'error' && (
-                          <p className="text-sm text-red-600 dark:text-red-400 mt-2 font-medium">
-                            {fileWithProgress.error}
-                          </p>
+                        {!networkStatus.isOnline && fileWithProgress.status === 'pending' && (
+                          <span className="text-yellow-600 dark:text-yellow-400">Queued (offline)</span>
                         )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 ml-4">
-                      {fileWithProgress.status === 'completed' && (
-                        <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 text-sm font-semibold rounded-lg">
-                          ✓ Uploaded
-                        </span>
-                      )}
-                      {fileWithProgress.status === 'error' && (
-                        <span className="px-3 py-1.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 text-sm font-semibold rounded-lg">
-                          ✗ Failed
-                        </span>
-                      )}
-                      {fileWithProgress.status === 'pending' && (
-                        <button
-                          onClick={() => removeFile(index)}
-                          className="px-3 py-1.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 text-sm font-medium rounded-lg transition-colors duration-200"
-                        >
-                          Remove
-                        </button>
-                      )}
+                      
+                      <div className="flex items-center gap-2">
+                        {fileWithProgress.status === 'pending' && (
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
+                        
+                        {(fileWithProgress.status === 'completed' || fileWithProgress.status === 'cancelled') && (
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

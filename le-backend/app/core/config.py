@@ -64,6 +64,16 @@ class Settings(BaseSettings):
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: str = "lax"
     
+    # File Security Settings
+    ENCRYPTION_MASTER_KEY: str = ""
+    ENCRYPTION_KEY_FILE: str = ""
+    YARA_RULES_PATH: str = ""
+    MALWARE_HASHES_FILE: str = ""
+    ENABLE_FILE_ENCRYPTION: bool = True
+    ENABLE_MALWARE_SCANNING: bool = True
+    ENABLE_ACCESS_CONTROL: bool = True
+    ENABLE_AUDIT_LOGGING: bool = True
+    
     # Environment variables from podman-compose.yml
     MINIO_ENDPOINT: str = ""
     MINIO_ACCESS_KEY: str = ""

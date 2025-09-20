@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc, func
@@ -19,8 +19,13 @@ from app.services.folder_service import (
     FolderOrganizationConfig
 )
 from app.services.parameter_validation_service import UploadParameterValidator, ParameterLogger
+from app.services.malware_scanner_service import scan_file_for_malware
+from app.services.encryption_service import encrypt_sensitive_file, decrypt_file_content, EncryptionMetadata
+from app.services.file_audit_service import get_file_audit_service, extract_client_info
+from app.services.file_access_control_service import get_file_access_control_service, FilePermission
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.exceptions import SecurityError
 
 logger = get_logger(__name__)
 
@@ -28,6 +33,7 @@ router = APIRouter()
 
 @router.post("/upload", response_model=FileResponse)
 async def upload_file(
+    request: Request,
     file: UploadFile = File(),
     # Form data parameters (primary)
     application_id: Optional[str] = Form(None),
@@ -234,6 +240,13 @@ async def upload_file(
             detail=f"Failed to read file content: {str(e)}"
         )
     
+    # Get client information for audit logging
+    client_info = extract_client_info(request)
+    
+    # Initialize security services
+    audit_service = await get_file_audit_service(db)
+    access_control_service = await get_file_access_control_service(db)
+    
     # Validate file is not empty
     if len(content) == 0:
         raise HTTPException(
@@ -280,6 +293,43 @@ async def upload_file(
                 detail="File appears to be corrupted or is not a valid image file. Please select a different file."
             )
     
+    # Security Enhancement: Malware scanning
+    logger.info(f"Starting malware scan for file: {sanitized_filename} [correlation_id: {correlation_id}]")
+    try:
+        scan_result = await scan_file_for_malware(content, sanitized_filename, file.content_type)
+        
+        if not scan_result.is_safe:
+            logger.warning(
+                f"Malware detected in file {sanitized_filename} [correlation_id: {correlation_id}]: "
+                f"threats={scan_result.threats_found}"
+            )
+            
+            # Log security event
+            await audit_service.log_malware_scan(
+                file_id=uuid.uuid4(),  # Temporary ID for logging
+                user_id=current_user.id,
+                filename=sanitized_filename,
+                scan_result=scan_result.__dict__,
+                **client_info
+            )
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File rejected due to security concerns: {', '.join(scan_result.threats_found)}"
+            )
+        
+        logger.info(
+            f"Malware scan completed successfully: {sanitized_filename} - CLEAN "
+            f"[correlation_id: {correlation_id}] (duration: {scan_result.scan_duration:.2f}s)"
+        )
+        
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        logger.error(f"Malware scanning failed for {sanitized_filename}: {e}")
+        # Continue with upload but log the error
+        scan_result = None
+    
     # Build storage prefix for logical organization
     storage_prefix = None
     if application_uuid is not None:
@@ -294,16 +344,50 @@ async def upload_file(
         if role_segment:
             storage_prefix = f"{storage_prefix}/{role_segment}"
 
+    # Security Enhancement: File encryption for sensitive documents
+    logger.info(f"Checking if file requires encryption: {sanitized_filename} [correlation_id: {correlation_id}]")
+    try:
+        encryption_result = await encrypt_sensitive_file(
+            content, sanitized_filename, file.content_type
+        )
+        
+        if encryption_result.success:
+            if encryption_result.metadata.algorithm != "none":
+                logger.info(
+                    f"File encrypted: {sanitized_filename} [correlation_id: {correlation_id}] "
+                    f"(algorithm: {encryption_result.metadata.algorithm})"
+                )
+                # Use encrypted content for upload
+                upload_content = encryption_result.encrypted_data
+                encryption_metadata = encryption_result.metadata
+            else:
+                logger.debug(f"File does not require encryption: {sanitized_filename}")
+                upload_content = content
+                encryption_metadata = encryption_result.metadata
+        else:
+            logger.error(f"Encryption failed for {sanitized_filename}: {encryption_result.error_message}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"File encryption failed: {encryption_result.error_message}"
+            )
+    except Exception as e:
+        logger.error(f"Encryption process failed for {sanitized_filename}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File security processing failed: {str(e)}"
+        )
+    
     # Upload to MinIO with error handling
     logger.debug(
         f"Uploading file to MinIO [correlation_id: {correlation_id}]: "
-        f"filename={sanitized_filename}, size={len(content)}, "
-        f"content_type={file.content_type}, prefix={storage_prefix}"
+        f"filename={sanitized_filename}, size={len(upload_content)}, "
+        f"content_type={file.content_type}, prefix={storage_prefix}, "
+        f"encrypted={encryption_metadata.algorithm != 'none'}"
     )
     
     try:
         object_name = minio_service.upload_file(
-            file_content=content,
+            file_content=upload_content,
             original_filename=sanitized_filename,
             content_type=file.content_type or "application/octet-stream",
             prefix=storage_prefix,
@@ -323,19 +407,29 @@ async def upload_file(
             detail=f"Failed to upload file to storage: {str(e)}"
         )
     
-    # Create file record with proper error handling
+    # Create file record with proper error handling and encryption metadata
     try:
+        # Store encryption metadata in file record (you may need to add these fields to the File model)
+        file_metadata = {
+            "encryption": encryption_metadata.to_dict() if encryption_metadata else None,
+            "scan_result": scan_result.__dict__ if scan_result else None,
+            "upload_correlation_id": correlation_id
+        }
+        
         db_file = File(
             filename=os.path.basename(object_name),
             original_filename=file.filename,  # Keep original for display
             display_name=file.filename,  # Set display name from original filename
             file_path=object_name,  # Store MinIO object name with prefix
-            file_size=len(content),
+            file_size=len(content),  # Store original file size
             mime_type=file.content_type or "application/octet-stream",
             uploaded_by=current_user.id,
             application_id=application_uuid,
             folder_id=folder_uuid
         )
+        
+        # Note: In a full implementation, you would add encryption_metadata and security_metadata 
+        # columns to the File model to store this information
         
         # Debug logging to verify file record creation
         logger.debug(
@@ -353,6 +447,88 @@ async def upload_file(
             f"file_id={db_file.id}, folder_id={db_file.folder_id}, "
             f"application_id={db_file.application_id}"
         )
+        
+        # Data Consistency: Invalidate caches and send real-time updates
+        try:
+            from app.services.cache_invalidation_service import invalidate_file_cache, InvalidationReason
+            from app.services.realtime_update_service import notify_file_uploaded
+            
+            # Invalidate file and folder caches
+            await invalidate_file_cache(
+                file_id=str(db_file.id),
+                folder_id=str(db_file.folder_id) if db_file.folder_id else None,
+                application_id=str(db_file.application_id) if db_file.application_id else None,
+                reason=InvalidationReason.CREATE
+            )
+            
+            # Send real-time update notification
+            await notify_file_uploaded(
+                file_id=str(db_file.id),
+                file_data={
+                    "filename": db_file.filename,
+                    "original_filename": db_file.original_filename,
+                    "file_size": db_file.file_size,
+                    "mime_type": db_file.mime_type,
+                    "uploaded_by": str(db_file.uploaded_by)
+                },
+                folder_id=str(db_file.folder_id) if db_file.folder_id else None,
+                application_id=str(db_file.application_id) if db_file.application_id else None,
+                user_id=str(current_user.id)
+            )
+            
+            logger.debug(f"Cache invalidation and real-time updates sent [correlation_id: {correlation_id}]")
+            
+        except Exception as cache_error:
+            logger.error(f"Cache invalidation failed [correlation_id: {correlation_id}]: {cache_error}")
+            # Don't fail the upload due to cache invalidation errors
+        
+        # Security Enhancement: Comprehensive audit logging
+        try:
+            await audit_service.log_file_upload(
+                file_id=db_file.id,
+                user_id=current_user.id,
+                filename=sanitized_filename,
+                file_size=len(content),
+                content_type=file.content_type or "application/octet-stream",
+                application_id=application_uuid,
+                folder_id=folder_uuid,
+                upload_method="direct",
+                scan_result=scan_result.__dict__ if scan_result else None,
+                encryption_status=encryption_metadata.to_dict() if encryption_metadata else None,
+                metadata={
+                    "correlation_id": correlation_id,
+                    "document_type": validated_params.document_type,
+                    "field_name": validated_params.field_name,
+                    "storage_prefix": storage_prefix
+                },
+                **client_info
+            )
+            
+            # Log encryption operation if file was encrypted
+            if encryption_metadata and encryption_metadata.algorithm != "none":
+                await audit_service.log_file_encryption(
+                    file_id=db_file.id,
+                    user_id=current_user.id,
+                    filename=sanitized_filename,
+                    encryption_algorithm=encryption_metadata.algorithm,
+                    key_id=encryption_metadata.key_id,
+                    encryption_reason="automatic_sensitive_file",
+                    **client_info
+                )
+            
+            # Log malware scan if performed
+            if scan_result:
+                await audit_service.log_malware_scan(
+                    file_id=db_file.id,
+                    user_id=current_user.id,
+                    filename=sanitized_filename,
+                    scan_result=scan_result.__dict__,
+                    **client_info
+                )
+                
+        except Exception as audit_error:
+            logger.error(f"Audit logging failed [correlation_id: {correlation_id}]: {audit_error}")
+            # Don't fail the upload due to audit logging errors
         
     except Exception as e:
         logger.error(
@@ -554,6 +730,7 @@ async def get_file(
 
 @router.delete("/{file_id}")
 async def delete_file(
+    request: Request,
     file_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -569,12 +746,42 @@ async def delete_file(
             detail="File not found"
         )
     
-    # Check permissions
-    if current_user.role not in ["admin", "manager"] and file.uploaded_by != current_user.id:
+    # Security Enhancement: Access control for deletion
+    client_info = extract_client_info(request)
+    access_control_service = await get_file_access_control_service(db)
+    audit_service = await get_file_audit_service(db)
+    
+    # Check delete permission
+    access_result = await access_control_service.check_access(
+        user=current_user,
+        file=file,
+        permission=FilePermission.DELETE,
+        **client_info
+    )
+    
+    if not access_result.is_allowed:
+        # Log access denial
+        await audit_service.log_file_access_attempt(
+            file_id=file.id,
+            user_id=current_user.id,
+            operation="delete",
+            access_granted=False,
+            denial_reason=access_result.reason,
+            **client_info
+        )
+        
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this file"
+            detail=f"Access denied: {access_result.reason}"
         )
+    
+    # Store file information for audit logging before deletion
+    file_info = {
+        "filename": file.filename,
+        "file_path": file.file_path,
+        "file_size": file.file_size,
+        "mime_type": file.mime_type
+    }
     
     # Delete from MinIO
     try:
@@ -584,13 +791,59 @@ async def delete_file(
         # Log error but don't fail the request
         logger.error(f"Error deleting file from MinIO: {e}, file_path: {file.file_path}")
     
+    # Store file metadata for cache invalidation
+    file_folder_id = str(file.folder_id) if file.folder_id else None
+    file_application_id = str(file.application_id) if file.application_id else None
+    
+    # Delete from database
     await db.delete(file)
     await db.commit()
+    
+    # Data Consistency: Invalidate caches and send real-time updates
+    try:
+        from app.services.cache_invalidation_service import invalidate_file_cache, InvalidationReason
+        from app.services.realtime_update_service import notify_file_deleted
+        
+        # Invalidate file and folder caches
+        await invalidate_file_cache(
+            file_id=str(file_id),
+            folder_id=file_folder_id,
+            application_id=file_application_id,
+            reason=InvalidationReason.DELETE
+        )
+        
+        # Send real-time update notification
+        await notify_file_deleted(
+            file_id=str(file_id),
+            folder_id=file_folder_id,
+            application_id=file_application_id,
+            user_id=str(current_user.id)
+        )
+        
+        logger.debug(f"Cache invalidation and real-time updates sent for deleted file: {file_id}")
+        
+    except Exception as cache_error:
+        logger.error(f"Cache invalidation failed for file deletion {file_id}: {cache_error}")
+        # Don't fail the deletion due to cache invalidation errors
+    
+    # Log file deletion
+    try:
+        await audit_service.log_file_deletion(
+            file_id=file_id,
+            user_id=current_user.id,
+            filename=file_info["filename"],
+            file_path=file_info["file_path"],
+            deletion_reason="user_requested",
+            **client_info
+        )
+    except Exception as audit_error:
+        logger.error(f"Failed to log file deletion: {audit_error}")
     
     return {"message": "File deleted successfully"}
 
 @router.get("/{file_id}/download")
 async def download_file(
+    request: Request,
     file_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -606,18 +859,62 @@ async def download_file(
             detail="File not found"
         )
     
-    # Check permissions
-    if current_user.role != "admin" and file.uploaded_by != current_user.id:
+    # Security Enhancement: Granular access control
+    client_info = extract_client_info(request)
+    access_control_service = await get_file_access_control_service(db)
+    audit_service = await get_file_audit_service(db)
+    
+    # Check download permission
+    access_result = await access_control_service.check_access(
+        user=current_user,
+        file=file,
+        permission=FilePermission.DOWNLOAD,
+        **client_info
+    )
+    
+    if not access_result.is_allowed:
+        # Log access denial
+        await audit_service.log_file_access_attempt(
+            file_id=file.id,
+            user_id=current_user.id,
+            operation="download",
+            access_granted=False,
+            denial_reason=access_result.reason,
+            **client_info
+        )
+        
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this file"
+            detail=f"Access denied: {access_result.reason}"
         )
+    
+    # Handle conditional access
+    if access_result.is_conditional:
+        logger.warning(
+            f"Conditional access for file download: user={current_user.id}, "
+            f"file={file.id}, conditions={access_result.conditions}"
+        )
+        # In a full implementation, you would handle conditions like 2FA, manager approval, etc.
+        # For now, we'll allow but log the conditions
     
     try:
         # Generate presigned URL for MinIO
         download_url = minio_service.get_file_url(file.file_path)
+        
+        # Log successful download access
+        await audit_service.log_file_download(
+            file_id=file.id,
+            user_id=current_user.id,
+            filename=file.filename,
+            download_method="presigned_url",
+            access_granted=True,
+            **client_info
+        )
+        
         return {"download_url": download_url}
+        
     except Exception as e:
+        logger.error(f"Error generating download URL for file {file.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating download URL: {str(e)}"

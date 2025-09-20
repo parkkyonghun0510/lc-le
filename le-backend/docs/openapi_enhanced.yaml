@@ -1,0 +1,1185 @@
+openapi: 3.0.3
+info:
+  title: LC Workflow API - Enhanced
+  description: |
+    Enhanced LC Workflow API with comprehensive system stability improvements, 
+    security features, monitoring capabilities, and data synchronization.
+    
+    ## Features
+    
+    - **Enhanced File Management**: Secure file upload with malware scanning and encryption
+    - **Folder Organization**: Automatic document organization by type
+    - **Health Monitoring**: Comprehensive system health checks and metrics
+    - **Data Synchronization**: Real-time updates and cache management
+    - **Security**: Advanced authentication, authorization, and audit logging
+    - **Feature Flags**: Gradual rollout and A/B testing capabilities
+    
+    ## Authentication
+    
+    All endpoints require JWT authentication unless specified otherwise.
+    Include the token in the Authorization header: `Bearer <token>`
+    
+    ## Error Handling
+    
+    The API uses standardized error responses with correlation IDs for tracking.
+    All errors include suggested actions and detailed information.
+    
+    ## Rate Limiting
+    
+    - File Upload: 100 requests/hour per user
+    - General API: 1000 requests/hour per user
+    - Health Checks: 60 requests/minute (no user limit)
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api-support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.example.com/api/v1
+    description: Production server
+  - url: https://staging-api.example.com/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # File Management Endpoints
+  /files/upload:
+    post:
+      tags:
+        - Files
+      summary: Upload file with enhanced security
+      description: |
+        Upload a file with comprehensive security features including:
+        - Malware scanning
+        - File type validation
+        - Automatic encryption for sensitive documents
+        - Document type-based folder organization
+        - Comprehensive audit logging
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                application_id:
+                  type: string
+                  format: uuid
+                  description: Application ID to associate file with
+                folder_id:
+                  type: string
+                  format: uuid
+                  description: Specific folder ID
+                document_type:
+                  type: string
+                  enum:
+                    - borrower_photo
+                    - borrower_id_card
+                    - borrower_family_book
+                    - guarantor_photo
+                    - guarantor_id_card
+                    - land_title
+                    - property_valuation
+                    - business_license
+                  description: Document type for automatic organization
+                field_name:
+                  type: string
+                  description: Field name for form association
+              required:
+                - file
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileResponse'
+        '400':
+          description: Bad request (validation error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '415':
+          description: Unsupported file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /files/{file_id}:
+    get:
+      tags:
+        - Files
+      summary: Get file information
+      description: Retrieve file metadata and secure download URL
+      operationId: getFile
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileResponse'
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Files
+      summary: Delete file
+      description: Delete file with confirmation and cleanup
+      operationId: deleteFile
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  deleted_file_id:
+                    type: string
+                    format: uuid
+                  cleanup_performed:
+                    type: boolean
+
+  /files/{file_id}/download:
+    get:
+      tags:
+        - Files
+      summary: Download file
+      description: Download file with secure, time-limited URL
+      operationId: downloadFile
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '302':
+          description: Redirect to secure download URL
+        '404':
+          description: File not found
+
+  # Folder Management Endpoints
+  /folders/:
+    get:
+      tags:
+        - Folders
+      summary: Get folders
+      description: Retrieve folders with filtering and pagination
+      operationId: getFolders
+      parameters:
+        - name: parent_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by parent folder
+        - name: application_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by application
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Page number for pagination
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Items per page
+      responses:
+        '200':
+          description: Folders retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/FolderResponse'
+                  - $ref: '#/components/schemas/PaginatedFolderResponse'
+
+    post:
+      tags:
+        - Folders
+      summary: Create folder
+      description: Create a new folder
+      operationId: createFolder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FolderCreateRequest'
+      responses:
+        '201':
+          description: Folder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderResponse'
+
+  /folders/document-types:
+    get:
+      tags:
+        - Folders
+      summary: Get document types
+      description: Get available document types for automatic organization
+      operationId: getDocumentTypes
+      responses:
+        '200':
+          description: Document types retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  borrower:
+                    type: array
+                    items:
+                      type: string
+                  guarantor:
+                    type: array
+                    items:
+                      type: string
+                  collateral:
+                    type: array
+                    items:
+                      type: string
+
+  /folders/application/{application_id}/hierarchy:
+    get:
+      tags:
+        - Folders
+      summary: Get application folder hierarchy
+      description: Get complete folder structure for an application
+      operationId: getApplicationFolderHierarchy
+      parameters:
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Folder hierarchy retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderHierarchyResponse'
+
+  # Health Monitoring Endpoints
+  /monitoring/health/comprehensive:
+    get:
+      tags:
+        - Monitoring
+      summary: Comprehensive health check
+      description: Perform detailed system health check including all components
+      operationId: comprehensiveHealthCheck
+      responses:
+        '200':
+          description: Health check completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComprehensiveHealthResponse'
+        '503':
+          description: Service unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthErrorResponse'
+
+  /monitoring/health/quick:
+    get:
+      tags:
+        - Monitoring
+      summary: Quick health check
+      description: Lightweight health check for load balancers
+      operationId: quickHealthCheck
+      security: []  # No authentication required
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuickHealthResponse'
+
+  /monitoring/metrics/dashboard:
+    get:
+      tags:
+        - Monitoring
+      summary: Get dashboard metrics
+      description: Get metrics formatted for dashboard display
+      operationId: getDashboardMetrics
+      responses:
+        '200':
+          description: Metrics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardMetricsResponse'
+
+  /monitoring/alerts/active:
+    get:
+      tags:
+        - Monitoring
+      summary: Get active alerts
+      description: Retrieve active system alerts
+      operationId: getActiveAlerts
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, warning, info]
+          description: Filter by severity
+      responses:
+        '200':
+          description: Active alerts retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveAlertsResponse'
+
+  /monitoring/alerts/{alert_id}/acknowledge:
+    post:
+      tags:
+        - Monitoring
+      summary: Acknowledge alert
+      description: Acknowledge an active alert
+      operationId: acknowledgeAlert
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  acknowledged_by:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # Data Synchronization Endpoints
+  /data-sync/cache/invalidate:
+    post:
+      tags:
+        - Data Sync
+      summary: Invalidate cache
+      description: Manually invalidate cache for specific scope
+      operationId: invalidateCache
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CacheInvalidationRequest'
+      responses:
+        '200':
+          description: Cache invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheInvalidationResponse'
+
+  /data-sync/realtime/connect:
+    post:
+      tags:
+        - Data Sync
+      summary: Create real-time connection
+      description: Create real-time update connection for SSE
+      operationId: createRealtimeConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SSEConnectionRequest'
+      responses:
+        '200':
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSEConnectionResponse'
+
+  /data-sync/realtime/stream/{connection_id}:
+    get:
+      tags:
+        - Data Sync
+      summary: Real-time stream
+      description: Server-Sent Events stream for real-time updates
+      operationId: realtimeStream
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /data-sync/verification/run:
+    post:
+      tags:
+        - Data Sync
+      summary: Run data verification
+      description: Run data synchronization verification
+      operationId: runDataVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '200':
+          description: Verification completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResponse'
+
+  # Feature Flags Endpoints
+  /feature-flags/:
+    get:
+      tags:
+        - Feature Flags
+      summary: Get all feature flags
+      description: Get all feature flags (admin only)
+      operationId: getAllFeatureFlags
+      parameters:
+        - name: enabled_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Return only enabled flags
+        - name: flag_type
+          in: query
+          schema:
+            type: string
+          description: Filter by flag type
+      responses:
+        '200':
+          description: Feature flags retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureFlagResponse'
+
+    post:
+      tags:
+        - Feature Flags
+      summary: Create feature flag
+      description: Create a new feature flag (admin only)
+      operationId: createFeatureFlag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagRequest'
+      responses:
+        '201':
+          description: Feature flag created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlagResponse'
+
+  /feature-flags/{flag_name}:
+    get:
+      tags:
+        - Feature Flags
+      summary: Get feature flag
+      description: Get a specific feature flag (admin only)
+      operationId: getFeatureFlag
+      parameters:
+        - name: flag_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Feature flag retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlagResponse'
+
+    put:
+      tags:
+        - Feature Flags
+      summary: Update feature flag
+      description: Update an existing feature flag (admin only)
+      operationId: updateFeatureFlag
+      parameters:
+        - name: flag_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagUpdateRequest'
+      responses:
+        '200':
+          description: Feature flag updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlagResponse'
+
+  /feature-flags/{flag_name}/check:
+    get:
+      tags:
+        - Feature Flags
+      summary: Check feature flag
+      description: Check if a feature flag is enabled for a user
+      operationId: checkFeatureFlag
+      parameters:
+        - name: flag_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+          description: User ID to check flag for
+      responses:
+        '200':
+          description: Flag status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flag_name:
+                    type: string
+                  user_id:
+                    type: string
+                  user_role:
+                    type: string
+                  enabled:
+                    type: boolean
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # File Management Schemas
+    FileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        original_filename:
+          type: string
+        display_name:
+          type: string
+        file_path:
+          type: string
+        file_size:
+          type: integer
+        mime_type:
+          type: string
+        uploaded_by:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+          nullable: true
+        folder_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        download_url:
+          type: string
+          format: uri
+          description: Secure download URL (when applicable)
+
+    # Folder Management Schemas
+    FolderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        application_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileResponse'
+
+    FolderCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        application_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    PaginatedFolderResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FolderResponse'
+        total:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+        pages:
+          type: integer
+
+    FolderHierarchyResponse:
+      type: object
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        root_folder:
+          $ref: '#/components/schemas/FolderNode'
+        total_folders:
+          type: integer
+        total_files:
+          type: integer
+
+    FolderNode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        files_count:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/FolderNode'
+
+    # Health Monitoring Schemas
+    ComprehensiveHealthResponse:
+      type: object
+      properties:
+        overall_status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        check_duration_ms:
+          type: number
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthComponent'
+        metrics:
+          $ref: '#/components/schemas/SystemMetrics'
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+
+    HealthComponent:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        message:
+          type: string
+        details:
+          type: object
+        response_time_ms:
+          type: number
+        last_check:
+          type: string
+          format: date-time
+
+    SystemMetrics:
+      type: object
+      properties:
+        total_files:
+          type: integer
+        total_folders:
+          type: integer
+        total_applications:
+          type: integer
+        total_users:
+          type: integer
+        storage_usage_bytes:
+          type: integer
+        database_connections:
+          type: integer
+        uptime_seconds:
+          type: integer
+        memory_usage_mb:
+          type: number
+        cpu_usage_percent:
+          type: number
+
+    QuickHealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        database:
+          type: string
+        cached:
+          type: boolean
+        age_minutes:
+          type: number
+
+    HealthErrorResponse:
+      type: object
+      properties:
+        overall_status:
+          type: string
+          enum: [unhealthy]
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    DashboardMetricsResponse:
+      type: object
+      properties:
+        dashboard:
+          type: object
+          properties:
+            overview:
+              type: object
+              properties:
+                total_operations:
+                  type: integer
+                successful_operations:
+                  type: integer
+                failed_operations:
+                  type: integer
+                success_rate:
+                  type: number
+            recent_activity:
+              type: object
+        performance:
+          type: object
+          properties:
+            average_response_time_ms:
+              type: number
+            slowest_operations:
+              type: array
+              items:
+                type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        component:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        acknowledgments:
+          type: array
+          items:
+            type: string
+        details:
+          type: object
+
+    ActiveAlertsResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        total_active:
+          type: integer
+        severity_filter:
+          type: string
+          nullable: true
+
+    # Data Synchronization Schemas
+    CacheInvalidationRequest:
+      type: object
+      required:
+        - scope
+      properties:
+        scope:
+          type: string
+          enum: [files, folders, applications, users]
+        reason:
+          type: string
+          default: manual_refresh
+        entity_id:
+          type: string
+          nullable: true
+        related_ids:
+          type: array
+          items:
+            type: string
+
+    CacheInvalidationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        scope:
+          type: string
+        reason:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    SSEConnectionRequest:
+      type: object
+      properties:
+        subscribed_scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        application_filters:
+          type: array
+          items:
+            type: string
+          nullable: true
+
+    SSEConnectionResponse:
+      type: object
+      properties:
+        connection_id:
+          type: string
+        user_id:
+          type: string
+        subscribed_scopes:
+          type: array
+          items:
+            type: string
+        application_filters:
+          type: array
+          items:
+            type: string
+
+    VerificationRequest:
+      type: object
+      properties:
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        application_id:
+          type: string
+          nullable: true
+        auto_fix:
+          type: boolean
+          default: false
+
+    VerificationResponse:
+      type: object
+      properties:
+        verification_results:
+          type: object
+        auto_fix_results:
+          type: object
+        total_issues:
+          type: integer
+        critical_issues:
+          type: integer
+        auto_fixable_issues:
+          type: integer
+        requested_by:
+          type: string
+
+    # Feature Flags Schemas
+    FeatureFlagRequest:
+      type: object
+      required:
+        - name
+        - description
+        - flag_type
+        - rollout_strategy
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        flag_type:
+          type: string
+          enum: [boolean, percentage, user_list, role_based, date_range]
+        enabled:
+          type: boolean
+          default: false
+        rollout_strategy:
+          type: string
+          enum: [all_users, percentage_based, user_whitelist, role_based, gradual_rollout]
+        rollout_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+          default: 0
+        user_whitelist:
+          type: array
+          items:
+            type: string
+        role_whitelist:
+          type: array
+          items:
+            type: string
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+
+    FeatureFlagUpdateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        enabled:
+          type: boolean
+        rollout_strategy:
+          type: string
+        rollout_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        user_whitelist:
+          type: array
+          items:
+            type: string
+        role_whitelist:
+          type: array
+          items:
+            type: string
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+
+    FeatureFlagResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        flag_type:
+          type: string
+        enabled:
+          type: boolean
+        rollout_strategy:
+          type: string
+        rollout_percentage:
+          type: number
+        user_whitelist:
+          type: array
+          items:
+            type: string
+        role_whitelist:
+          type: array
+          items:
+            type: string
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # Error Response Schema
+    ErrorResponse:
+      type: object
+      properties:
+        error_type:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+        correlation_id:
+          type: string
+        suggested_actions:
+          type: array
+          items:
+            type: string
+          nullable: true
+        retry_after:
+          type: integer
+          nullable: true
+
+tags:
+  - name: Files
+    description: Enhanced file management with security features
+  - name: Folders
+    description: Folder organization and management
+  - name: Monitoring
+    description: System health monitoring and metrics
+  - name: Data Sync
+    description: Data synchronization and cache management
+  - name: Feature Flags
+    description: Feature flag management and evaluation

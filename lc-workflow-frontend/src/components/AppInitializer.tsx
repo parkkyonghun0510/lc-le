@@ -160,7 +160,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
         // Handle app visibility changes (for sync on focus)
         const handleVisibilityChange = () => {
-          if (!document.hidden && navigator.onLine && mounted) {
+          if (!document.hidden && typeof navigator !== 'undefined' && navigator.onLine && mounted) {
             // App became visible and we're online - sync data
             syncService.sync().catch(console.error);
           }

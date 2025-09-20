@@ -26,9 +26,14 @@ if models_path.exists():
     Position = parent_models.Position
     Folder = parent_models.Folder
     Selfie = parent_models.Selfie
+    UserActivity = parent_models.UserActivity
+    BulkOperation = parent_models.BulkOperation
+    UserStatusHistory = parent_models.UserStatusHistory
+    Notification = parent_models.Notification
 
 
 __all__ = [
     "AuditLog", "AuditEventType", "User", "Department", "Branch", 
-    "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie"
+    "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie",
+    "UserActivity", "BulkOperation", "UserStatusHistory", "Notification"
 ]

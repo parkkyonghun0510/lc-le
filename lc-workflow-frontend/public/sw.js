@@ -359,8 +359,8 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: data.body,
-    icon: '/icon-192x192.png',
-    badge: '/icon-72x72.png',
+    // icon: '/icon-192x192.png', // Removed until icons are created
+    // badge: '/icon-72x72.png', // Removed until icons are created
     tag: data.tag || 'default',
     data: data.data || {},
     actions: data.actions || [],

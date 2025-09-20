@@ -30,6 +30,24 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_login_at = Column(DateTime(timezone=True))
     
+    # Enhanced status management
+    status_reason = Column(String(100))  # Reason for current status
+    
+    # Activity tracking
+    last_activity_at = Column(DateTime(timezone=True))
+    login_count = Column(Integer, default=0)
+    failed_login_attempts = Column(Integer, default=0)
+    
+    # Lifecycle management
+    onboarding_completed = Column(Boolean, default=False)
+    onboarding_completed_at = Column(DateTime(timezone=True))
+    offboarding_initiated_at = Column(DateTime(timezone=True))
+    offboarding_completed_at = Column(DateTime(timezone=True))
+    
+    # Preferences
+    notification_preferences = Column(JSON)
+    ui_preferences = Column(JSON)
+    
     # Relationships
     department = relationship("Department", back_populates="users", foreign_keys=[department_id])
     branch = relationship("Branch", back_populates="users", foreign_keys=[branch_id])
@@ -42,6 +60,13 @@ class User(Base):
     direct_reports = relationship("User", foreign_keys="User.line_manager_id", back_populates="line_manager")
     applications = relationship("CustomerApplication", back_populates="user", foreign_keys="CustomerApplication.user_id")
     uploaded_files = relationship("File", back_populates="uploaded_by_user")
+    
+    # Enhanced user management relationships
+    activities = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
+    status_history = relationship("UserStatusHistory", back_populates="user", foreign_keys="UserStatusHistory.user_id", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    bulk_operations_performed = relationship("BulkOperation", back_populates="performer", foreign_keys="BulkOperation.performed_by")
+    status_changes_made = relationship("UserStatusHistory", back_populates="changed_by_user", foreign_keys="UserStatusHistory.changed_by")
 
 class Department(Base):
     __tablename__ = "departments"
@@ -280,6 +305,118 @@ class Folder(Base):
     parent = relationship("Folder", remote_side=[id], backref="children")
     files = relationship("File", back_populates="folder")
     application = relationship("CustomerApplication", foreign_keys=[application_id])
+
+class UserActivity(Base):
+    __tablename__ = "user_activities"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    activity_type = Column(String(50), nullable=False)  # login, logout, profile_update, password_change, data_access
+    details = Column(JSON)  # Additional activity details
+    ip_address = Column(String(45))  # IPv4 or IPv6
+    user_agent = Column(Text)
+    session_id = Column(String(255))  # Session identifier
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="activities", foreign_keys=[user_id])
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('ix_user_activities_user_id', 'user_id'),
+        Index('ix_user_activities_activity_type', 'activity_type'),
+        Index('ix_user_activities_created_at', 'created_at'),
+        Index('ix_user_activities_user_created', 'user_id', 'created_at'),
+    )
+
+
+class BulkOperation(Base):
+    __tablename__ = "bulk_operations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    operation_type = Column(String(50), nullable=False)  # import, export, bulk_update, bulk_status_change
+    performed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    target_criteria = Column(JSON)  # Filters used to select records
+    changes_applied = Column(JSON)  # What changes were made
+    total_records = Column(Integer, default=0)
+    successful_records = Column(Integer, default=0)
+    failed_records = Column(Integer, default=0)
+    error_details = Column(JSON)  # Detailed error information
+    status = Column(String(20), default='pending')  # pending, processing, completed, failed, cancelled
+    file_path = Column(String(500))  # For import/export files
+    progress_percentage = Column(Integer, default=0)  # Progress tracking
+    estimated_completion = Column(DateTime(timezone=True))  # Estimated completion time
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    
+    # Relationships
+    performer = relationship("User", back_populates="bulk_operations_performed", foreign_keys=[performed_by])
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('ix_bulk_operations_performed_by', 'performed_by'),
+        Index('ix_bulk_operations_operation_type', 'operation_type'),
+        Index('ix_bulk_operations_status', 'status'),
+        Index('ix_bulk_operations_created_at', 'created_at'),
+    )
+
+
+class UserStatusHistory(Base):
+    __tablename__ = "user_status_history"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    old_status = Column(String(20))  # Previous status
+    new_status = Column(String(20), nullable=False)  # New status
+    reason_code = Column(String(50))  # promotion, termination, suspension, activation, etc.
+    reason_comment = Column(Text)  # Additional explanation
+    changed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    changed_at = Column(DateTime(timezone=True), server_default=func.now())
+    effective_date = Column(DateTime(timezone=True))  # When the status change takes effect
+    
+    # Relationships
+    user = relationship("User", back_populates="status_history", foreign_keys=[user_id])
+    changed_by_user = relationship("User", back_populates="status_changes_made", foreign_keys=[changed_by])
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('ix_user_status_history_user_id', 'user_id'),
+        Index('ix_user_status_history_changed_by', 'changed_by'),
+        Index('ix_user_status_history_changed_at', 'changed_at'),
+        Index('ix_user_status_history_new_status', 'new_status'),
+    )
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    type = Column(String(50), nullable=False)  # user_created, status_changed, bulk_operation_complete, system_alert
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    data = Column(JSON)  # Additional notification data
+    priority = Column(String(20), default='normal')  # low, normal, high, urgent
+    is_read = Column(Boolean, default=False)
+    is_dismissed = Column(Boolean, default=False)
+    expires_at = Column(DateTime(timezone=True))  # Optional expiration
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    read_at = Column(DateTime(timezone=True))
+    dismissed_at = Column(DateTime(timezone=True))
+    
+    # Relationships
+    user = relationship("User", back_populates="notifications", foreign_keys=[user_id])
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('ix_notifications_user_id', 'user_id'),
+        Index('ix_notifications_type', 'type'),
+        Index('ix_notifications_is_read', 'is_read'),
+        Index('ix_notifications_created_at', 'created_at'),
+        Index('ix_notifications_user_unread', 'user_id', 'is_read'),
+    )
+
 
 class Selfie(Base):
     __tablename__ = "selfies"

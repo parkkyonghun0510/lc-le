@@ -25,18 +25,21 @@ export interface SyncStatus {
 class SyncService {
     private queryClient: QueryClient | null = null;
     private eventSource: EventSource | null = null;
-    private syncStatus: SyncStatus = {
-        isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-        lastSync: Date.now(),
-        pendingChanges: 0,
-        syncInProgress: false
-    };
+    private syncStatus: SyncStatus;
     private listeners: ((status: SyncStatus) => void)[] = [];
     private pendingEvents: SyncEvent[] = [];
     private retryTimeout: NodeJS.Timeout | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
 
     constructor() {
+        // Initialize syncStatus safely
+        this.syncStatus = {
+            isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+            lastSync: Date.now(),
+            pendingChanges: 0,
+            syncInProgress: false
+        };
+        
         this.setupNetworkListeners();
         this.setupVisibilityListener();
     }
@@ -246,14 +249,15 @@ class SyncService {
             if (typeof navigator === 'undefined') return;
             
             const wasOffline = !this.syncStatus.isOnline;
-            this.setSyncStatus({ isOnline: navigator.onLine });
+            const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+            this.setSyncStatus({ isOnline });
 
-            if (navigator.onLine && wasOffline) {
+            if (isOnline && wasOffline) {
                 // Back online - process pending events and sync
                 this.processPendingEvents();
                 this.checkForUpdates();
                 toast.success('Back online - syncing data...', { icon: '🌐' });
-            } else if (!navigator.onLine) {
+            } else if (!isOnline) {
                 toast.error('You are offline - changes will sync when reconnected', {
                     icon: '📡',
                     duration: 5000

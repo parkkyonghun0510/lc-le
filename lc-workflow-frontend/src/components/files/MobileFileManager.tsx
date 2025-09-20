@@ -79,7 +79,7 @@ export default function MobileFileManager({
       const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
       
       setNetworkStatus({
-        isOnline: navigator.onLine,
+        isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         effectiveType: connection?.effectiveType,
         downlink: connection?.downlink,
         rtt: connection?.rtt

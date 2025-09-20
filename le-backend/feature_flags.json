@@ -1,0 +1,260 @@
+{
+  "enhanced_malware_scanning": {
+    "name": "enhanced_malware_scanning",
+    "description": "Enhanced malware scanning with multiple engines",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "security",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026605+00:00",
+    "updated_at": "2025-09-20T04:19:29.026609+00:00"
+  },
+  "file_encryption": {
+    "name": "file_encryption",
+    "description": "Automatic encryption of sensitive files",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "security",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026614+00:00",
+    "updated_at": "2025-09-20T04:19:29.026615+00:00"
+  },
+  "comprehensive_audit_logging": {
+    "name": "comprehensive_audit_logging",
+    "description": "Detailed audit logging for all operations",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "security",
+      "priority": "medium"
+    },
+    "created_at": "2025-09-20T04:19:29.026618+00:00",
+    "updated_at": "2025-09-20T04:19:29.026619+00:00"
+  },
+  "advanced_health_monitoring": {
+    "name": "advanced_health_monitoring",
+    "description": "Comprehensive system health monitoring",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "monitoring",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026621+00:00",
+    "updated_at": "2025-09-20T04:19:29.026622+00:00"
+  },
+  "real_time_metrics": {
+    "name": "real_time_metrics",
+    "description": "Real-time metrics collection and reporting",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "monitoring",
+      "priority": "medium"
+    },
+    "created_at": "2025-09-20T04:19:29.026625+00:00",
+    "updated_at": "2025-09-20T04:19:29.026625+00:00"
+  },
+  "automated_alerting": {
+    "name": "automated_alerting",
+    "description": "Automated alerting for system issues",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "monitoring",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026627+00:00",
+    "updated_at": "2025-09-20T04:19:29.026628+00:00"
+  },
+  "real_time_updates": {
+    "name": "real_time_updates",
+    "description": "Real-time data synchronization updates",
+    "flag_type": "percentage",
+    "enabled": true,
+    "rollout_strategy": "percentage_based",
+    "rollout_percentage": 100.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "data_sync",
+      "priority": "medium"
+    },
+    "created_at": "2025-09-20T04:19:29.026631+00:00",
+    "updated_at": "2025-09-20T04:19:29.026632+00:00"
+  },
+  "automatic_cache_invalidation": {
+    "name": "automatic_cache_invalidation",
+    "description": "Automatic cache invalidation on data changes",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "data_sync",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026634+00:00",
+    "updated_at": "2025-09-20T04:19:29.026635+00:00"
+  },
+  "data_consistency_checks": {
+    "name": "data_consistency_checks",
+    "description": "Automated data consistency verification",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "data_sync",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026637+00:00",
+    "updated_at": "2025-09-20T04:19:29.026637+00:00"
+  },
+  "enhanced_error_responses": {
+    "name": "enhanced_error_responses",
+    "description": "Detailed error responses with correlation IDs",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "error_handling",
+      "priority": "high"
+    },
+    "created_at": "2025-09-20T04:19:29.026639+00:00",
+    "updated_at": "2025-09-20T04:19:29.026640+00:00"
+  },
+  "automatic_retry_logic": {
+    "name": "automatic_retry_logic",
+    "description": "Automatic retry logic for failed operations",
+    "flag_type": "boolean",
+    "enabled": true,
+    "rollout_strategy": "all_users",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "error_handling",
+      "priority": "medium"
+    },
+    "created_at": "2025-09-20T04:19:29.026642+00:00",
+    "updated_at": "2025-09-20T04:19:29.026643+00:00"
+  },
+  "advanced_file_validation": {
+    "name": "advanced_file_validation",
+    "description": "Advanced file content validation and analysis",
+    "flag_type": "percentage",
+    "enabled": false,
+    "rollout_strategy": "percentage_based",
+    "rollout_percentage": 10.0,
+    "user_whitelist": [],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "experimental",
+      "priority": "low"
+    },
+    "created_at": "2025-09-20T04:19:29.026645+00:00",
+    "updated_at": "2025-09-20T04:19:29.026646+00:00"
+  },
+  "ml_based_document_classification": {
+    "name": "ml_based_document_classification",
+    "description": "Machine learning based document classification",
+    "flag_type": "user_list",
+    "enabled": false,
+    "rollout_strategy": "user_whitelist",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [
+      "admin",
+      "test_user"
+    ],
+    "role_whitelist": [],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "experimental",
+      "priority": "low"
+    },
+    "created_at": "2025-09-20T04:19:29.026649+00:00",
+    "updated_at": "2025-09-20T04:19:29.026650+00:00"
+  },
+  "enhanced_folder_organization": {
+    "name": "enhanced_folder_organization",
+    "description": "AI-powered folder organization suggestions",
+    "flag_type": "role_based",
+    "enabled": false,
+    "rollout_strategy": "role_based",
+    "rollout_percentage": 0.0,
+    "user_whitelist": [],
+    "role_whitelist": [
+      "admin",
+      "manager"
+    ],
+    "start_date": null,
+    "end_date": null,
+    "metadata": {
+      "component": "experimental",
+      "priority": "low"
+    },
+    "created_at": "2025-09-20T04:19:29.026652+00:00",
+    "updated_at": "2025-09-20T04:19:29.026653+00:00"
+  }
+}

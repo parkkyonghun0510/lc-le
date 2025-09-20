@@ -4,6 +4,9 @@ import { File as ApiFile, PaginatedResponse, CustomerApplication, User } from '@
 import toast from 'react-hot-toast';
 import { handleApiError } from '@/lib/handleApiError';
 import { API_ORIGIN_FOR_LINKS } from '@/lib/api';
+import { toastManager } from '@/lib/toastManager';
+import { networkAwareRetry } from '@/lib/retryMechanism';
+import { uploadStatusTracker } from '@/lib/uploadStatusTracker';
 
 // Define Folder type based on backend schema
 export interface Folder {
@@ -334,7 +337,7 @@ export const useUploadFile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
+    mutationFn: async ({ 
       file, 
       applicationId, 
       onProgress,
@@ -348,7 +351,51 @@ export const useUploadFile = () => {
       folderId?: string;
       documentType?: 'photos' | 'references' | 'supporting_docs';
       fieldName?: string;
-    }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType, fieldName),
+    }) => {
+      const fileId = `${file.name}-${Date.now()}`;
+      
+      // Create upload status tracking
+      const uploadStatus = uploadStatusTracker.createUpload(
+        fileId,
+        file.name,
+        file.size
+      );
+
+      // Enhanced progress callback that updates both the component and tracker
+      const enhancedOnProgress = (progress: number) => {
+        const uploadedBytes = (progress / 100) * file.size;
+        uploadStatusTracker.updateProgress(fileId, uploadedBytes);
+        onProgress?.(progress);
+      };
+
+      // Start upload tracking
+      uploadStatusTracker.startUpload(fileId);
+
+      try {
+        // Use network-aware retry mechanism
+        const result = await networkAwareRetry.uploadWithNetworkRetry(
+          fileId,
+          file.name,
+          () => fileApi.uploadFile(file, applicationId, enhancedOnProgress, folderId, documentType, fieldName),
+          {
+            maxAttempts: 3,
+            onRetry: (attempt: number, error: any) => {
+              toastManager.fileUploadRetrying(file.name, attempt);
+            },
+          }
+        );
+
+        // Complete upload tracking
+        uploadStatusTracker.completeUpload(fileId);
+        
+        return result;
+      } catch (error) {
+        // Fail upload tracking
+        const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+        uploadStatusTracker.failUpload(fileId, errorMessage, true);
+        throw error;
+      }
+    },
     onSuccess: (data) => {
       // Invalidate multiple query keys to ensure all related data is refreshed
       queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
@@ -365,10 +412,11 @@ export const useUploadFile = () => {
         });
       }
       
-      toast.success('File uploaded successfully');
+      // Success is handled by uploadStatusTracker.completeUpload
     },
     onError: (error: any) => {
-      handleApiError(error, 'Failed to upload file');
+      // Error handling is managed by uploadStatusTracker.failUpload
+      console.error('Upload error:', error);
     },
   });
 };

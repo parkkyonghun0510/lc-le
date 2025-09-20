@@ -14,16 +14,18 @@ export interface ServiceWorkerStatus {
 class ServiceWorkerManager {
   private registration: ServiceWorkerRegistration | null = null;
   private listeners: ((status: ServiceWorkerStatus) => void)[] = [];
-  private status: ServiceWorkerStatus = {
-    isSupported: false,
-    isRegistered: false,
-    isOnline: navigator.onLine,
-    hasUpdate: false,
-    registration: null
-  };
+  private status: ServiceWorkerStatus;
 
   constructor() {
-    this.status.isSupported = typeof navigator !== 'undefined' && 'serviceWorker' in navigator;
+    // Initialize status object safely
+    this.status = {
+      isSupported: typeof navigator !== 'undefined' && 'serviceWorker' in navigator,
+      isRegistered: false,
+      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+      hasUpdate: false,
+      registration: null
+    };
+    
     this.setupNetworkListeners();
   }
 
@@ -268,7 +270,7 @@ class ServiceWorkerManager {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
     
     const updateOnlineStatus = () => {
-      this.status.isOnline = navigator.onLine;
+      this.status.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
       this.notifyListeners();
     };
 
@@ -405,7 +407,7 @@ export function isPWAInstallable(): boolean {
 }
 
 export function isOffline(): boolean {
-  return !navigator.onLine;
+  return typeof navigator !== 'undefined' ? !navigator.onLine : false;
 }
 
 export function getNetworkType(): string {

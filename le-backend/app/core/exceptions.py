@@ -235,6 +235,34 @@ class RateLimitError(BaseApplicationError):
             suggestions=suggestions
         )
 
+class SecurityError(BaseApplicationError):
+    """Exception for security-related errors"""
+    
+    def __init__(
+        self,
+        message: str,
+        security_context: Optional[Dict[str, Any]] = None,
+        threat_level: str = "medium"
+    ):
+        details = {
+            "security_context": security_context or {},
+            "threat_level": threat_level
+        }
+        
+        suggestions = [
+            "Please verify your credentials and try again",
+            "Contact security team if you believe this is an error",
+            "Ensure you have proper authorization for this operation"
+        ]
+        
+        super().__init__(
+            message=message,
+            error_code=ErrorCode.FORBIDDEN,
+            severity=ErrorSeverity.HIGH,
+            details=details,
+            suggestions=suggestions
+        )
+
 def create_http_exception(
     error: BaseApplicationError,
     status_code: Optional[int] = None

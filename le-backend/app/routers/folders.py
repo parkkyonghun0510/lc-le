@@ -401,6 +401,37 @@ async def create_folder(
         
         logger.info(f"Created new folder: {new_folder.name} for application {folder_data.application_id}")
         
+        # Data Consistency: Invalidate caches and send real-time updates
+        try:
+            from app.services.cache_invalidation_service import invalidate_folder_cache, InvalidationReason
+            from app.services.realtime_update_service import notify_folder_created
+            
+            # Invalidate folder caches
+            await invalidate_folder_cache(
+                folder_id=str(new_folder.id),
+                parent_id=str(new_folder.parent_id) if new_folder.parent_id else None,
+                application_id=str(new_folder.application_id) if new_folder.application_id else None,
+                reason=InvalidationReason.CREATE
+            )
+            
+            # Send real-time update notification
+            await notify_folder_created(
+                folder_id=str(new_folder.id),
+                folder_data={
+                    "name": new_folder.name,
+                    "created_at": new_folder.created_at.isoformat() if new_folder.created_at else None
+                },
+                parent_id=str(new_folder.parent_id) if new_folder.parent_id else None,
+                application_id=str(new_folder.application_id) if new_folder.application_id else None,
+                user_id=str(current_user.id)
+            )
+            
+            logger.debug(f"Cache invalidation and real-time updates sent for new folder: {new_folder.id}")
+            
+        except Exception as cache_error:
+            logger.error(f"Cache invalidation failed for folder creation {new_folder.id}: {cache_error}")
+            # Don't fail the creation due to cache invalidation errors
+        
         return FolderResponse.from_orm(new_folder)
         
     except Exception as e:
@@ -507,11 +538,45 @@ async def delete_folder(
             detail="Cannot delete folder that contains files or subfolders"
         )
     
+    # Store folder metadata for cache invalidation
+    folder_parent_id = str(folder.parent_id) if folder.parent_id else None
+    folder_application_id = str(folder.application_id) if folder.application_id else None
+    folder_name = folder.name
+    
     try:
         await db.delete(folder)
         await db.commit()
         
-        logger.info(f"Deleted folder: {folder.name}")
+        logger.info(f"Deleted folder: {folder_name}")
+        
+        # Data Consistency: Invalidate caches and send real-time updates
+        try:
+            from app.services.cache_invalidation_service import invalidate_folder_cache, InvalidationReason
+            from app.services.realtime_update_service import realtime_update_service, UpdateType
+            
+            # Invalidate folder caches
+            await invalidate_folder_cache(
+                folder_id=str(folder_id),
+                parent_id=folder_parent_id,
+                application_id=folder_application_id,
+                reason=InvalidationReason.DELETE
+            )
+            
+            # Send real-time update notification
+            await realtime_update_service.send_folder_update(
+                UpdateType.FOLDER_DELETED,
+                folder_id=str(folder_id),
+                folder_data={"name": folder_name, "deleted": True},
+                parent_id=folder_parent_id,
+                application_id=folder_application_id,
+                user_id=str(current_user.id)
+            )
+            
+            logger.debug(f"Cache invalidation and real-time updates sent for deleted folder: {folder_id}")
+            
+        except Exception as cache_error:
+            logger.error(f"Cache invalidation failed for folder deletion {folder_id}: {cache_error}")
+            # Don't fail the deletion due to cache invalidation errors
         
         return {"message": "Folder deleted successfully"}
         

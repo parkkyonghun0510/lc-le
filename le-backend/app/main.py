@@ -53,6 +53,10 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 # Add database connection middleware
 app.add_middleware(DatabaseConnectionMiddleware, max_reconnect_attempts=3)
 
+# Add metrics collection middleware
+from app.middleware.metrics_middleware import MetricsMiddleware
+app.add_middleware(MetricsMiddleware, collect_all_requests=False)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -81,6 +85,18 @@ app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
 app.include_router(account_validation.router, prefix="/api/v1", tags=["account-validation"])
+
+# Data synchronization and consistency router
+from app.routers import data_sync
+app.include_router(data_sync.router, prefix="/api/v1/data-sync", tags=["data-sync"])
+
+# Health monitoring and metrics router
+from app.routers import health_monitoring
+app.include_router(health_monitoring.router, prefix="/api/v1/monitoring", tags=["monitoring"])
+
+# Feature flags management router
+from app.routers import feature_flags
+app.include_router(feature_flags.router, prefix="/api/v1/feature-flags", tags=["feature-flags"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")

@@ -54,6 +54,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Hash a password."""
+    # Bcrypt has a maximum password length of 72 bytes
+    # Truncate if necessary to avoid errors
+    if len(password.encode('utf-8')) > 72:
+        password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
     return pwd_context.hash(password)
 
 def sanitize_filename(filename: str) -> str:

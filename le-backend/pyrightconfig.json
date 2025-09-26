@@ -1,0 +1,17 @@
+{
+    "venvPath": ".",
+    "venv": "venv",
+    "pythonVersion": "3.9",
+    "include": [
+        "app"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "venv",
+        "migrations",
+        "scripts"
+    ],
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "pythonPlatform": "Darwin"
+}

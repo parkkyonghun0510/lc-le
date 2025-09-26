@@ -6,10 +6,10 @@ from typing import List, Optional, Dict
 from uuid import UUID
 import uuid
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.models import File, User, CustomerApplication, Folder
+from app.models import File as FileModel, User, CustomerApplication, Folder
 from app.schemas import FileCreate, FileResponse, PaginatedResponse, FileFinalize
 from app.routers.auth import get_current_user
 from app.services.minio_service import minio_service
@@ -25,6 +25,22 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+# Helper function to populate file URLs
+def _populate_file_urls(file: FileModel, expires_in: int = 3600) -> FileResponse:
+    response = FileResponse.from_orm(file)
+    if minio_service.enabled:
+        try:
+            response.url = minio_service.get_file_url(file.file_path, expires=expires_in)
+            # TODO: Implement thumbnail generation and separate preview URL
+            response.preview_url = response.url  # For now, preview is same as full download
+            response.expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        except Exception as e:
+            logger.error(f"Failed to generate MinIO URL for file {file.id}: {e}")
+            response.url = None
+            response.preview_url = None
+            response.expires_at = None
+    return response
 
 @router.post("/upload", response_model=FileResponse)
 async def upload_file(
@@ -550,7 +566,7 @@ async def get_file(
             detail="Not authorized to access this file"
         )
     
-    return FileResponse.from_orm(file)
+    return _populate_file_urls(file)
 
 @router.delete("/{file_id}")
 async def delete_file(

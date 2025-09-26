@@ -596,6 +596,9 @@ class FileResponse(FileBase):
     application_id: Optional[UUID]
     folder_id: Optional[UUID] = None
     created_at: datetime
+    url: Optional[str] = None
+    preview_url: Optional[str] = None
+    expires_at: Optional[datetime] = None
 
 class FileFinalize(BaseSchema):
     object_name: str

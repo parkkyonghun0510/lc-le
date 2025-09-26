@@ -5,13 +5,13 @@ from sqlalchemy import and_, or_, desc, func, case
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 
 from app.database import get_db
 from app.models import CustomerApplication, User, Department, Branch
 from app.schemas import (
-    CustomerApplicationCreate, 
-    CustomerApplicationUpdate, 
+    CustomerApplicationCreate,
+    CustomerApplicationUpdate,
     CustomerApplicationResponse,
     PaginatedResponse,
     RejectionRequest,
@@ -23,6 +23,51 @@ from app.schemas import (
 from app.workflow import WorkflowValidator, WorkflowStatus
 from app.routers.auth import get_current_user
 from datetime import timezone
+
+from app.services.minio_service import minio_service
+
+DEFAULT_MINIO_URL_EXPIRES = 3600  # 1 hour
+
+def enrich_documents_with_minio_urls(documents: Optional[List[Dict[str, Any]]], expires: int = DEFAULT_MINIO_URL_EXPIRES) -> Optional[List[Dict[str, Any]]]:
+    if not documents:
+        return documents
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(seconds=expires)
+    for doc in documents:
+        object_name = doc.get("object_name")
+        if object_name:
+            try:
+                doc["url"] = minio_service.get_file_url(object_name, expires=expires)
+                doc["expires_at"] = expires_at
+            except Exception:
+                doc["url"] = None
+                doc["expires_at"] = None
+        else:
+            doc["url"] = None
+            doc["expires_at"] = None
+        preview_object_name = doc.get("preview_object_name") or doc.get("thumbnail_object_name") or doc.get("thumbnail")
+        if preview_object_name:
+            try:
+                doc["preview_url"] = minio_service.get_file_url(preview_object_name, expires=expires)
+            except Exception:
+                doc["preview_url"] = None
+        else:
+            doc["preview_url"] = None
+    return documents
+
+def enrich_application_response(app_data: Any, expires: int = DEFAULT_MINIO_URL_EXPIRES):
+    # app_data can be a dict, pydantic model, or list thereof
+    if isinstance(app_data, list):
+        for item in app_data:
+            enrich_application_response(item, expires)
+        return app_data
+    if hasattr(app_data, "documents"):
+        docs = getattr(app_data, "documents", None)
+        enriched = enrich_documents_with_minio_urls(docs, expires)
+        setattr(app_data, "documents", enriched)
+    elif isinstance(app_data, dict) and "documents" in app_data:
+        app_data["documents"] = enrich_documents_with_minio_urls(app_data.get("documents"), expires)
+    return app_data
 
 router = APIRouter()
 
@@ -42,7 +87,9 @@ async def create_application(
     db.add(db_application)
     await db.commit()
     await db.refresh(db_application)
-    return CustomerApplicationResponse.model_validate(db_application)
+    resp = CustomerApplicationResponse.model_validate(db_application)
+    enrich_application_response(resp)
+    return resp
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_applications(
@@ -144,7 +191,10 @@ async def list_applications(
     applications = result.scalars().all()
     
     return PaginatedResponse(
-        items=[CustomerApplicationResponse.model_validate(app) for app in applications],
+        items=[
+            enrich_application_response(CustomerApplicationResponse.model_validate(app))
+            for app in applications
+        ],
         total=total,
         page=page,
         size=size,
@@ -305,7 +355,9 @@ async def get_application(
                     detail="Not authorized to access this application"
                 )
     
-    return CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.model_validate(application)
+    enrich_application_response(resp)
+    return resp
 
 @router.put("/{application_id}", response_model=CustomerApplicationResponse)
 async def update_application(
@@ -411,7 +463,9 @@ async def update_application(
     
     await db.commit()
     await db.refresh(application)
-    return CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.model_validate(application)
+    enrich_application_response(resp)
+    return resp
 
 @router.delete("/{application_id}")
 async def delete_application(
@@ -528,7 +582,9 @@ async def submit_application(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.model_validate(application)
+    enrich_application_response(resp)
+    return resp
 
 class ApprovalRequest(BaseSchema):
     approved_amount: Optional[float] = None
@@ -590,7 +646,9 @@ async def approve_application(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.model_validate(application)
+    enrich_application_response(resp)
+    return resp
 
 @router.patch("/{application_id}/reject", response_model=CustomerApplicationResponse)
 async def reject_application(
@@ -677,8 +735,10 @@ async def get_application_relationships(
     department_manager = department.manager if department else None
     branch_manager = branch.manager if branch else None
     
+    app_resp = CustomerApplicationResponse.model_validate(application)
+    enrich_application_response(app_resp)
     return {
-        "application": CustomerApplicationResponse.model_validate(application),
+        "application": app_resp,
         "officer": {
             "id": officer.id,
             "first_name": officer.first_name,
@@ -1155,6 +1215,7 @@ async def transition_workflow(
         
         # Return extended response
         response_data = CustomerApplicationResponse.model_validate(updated_application)
+        enrich_application_response(response_data)
         return ApplicationWorkflowResponse(
             **response_data.model_dump(),
             workflow_info=workflow_info,

@@ -20,7 +20,18 @@ export interface User extends BaseModel {
   last_name: string;
   phone_number?: string;
   role: 'admin' | 'manager' | 'officer';
-  status: 'active' | 'inactive';
+  status: 'pending' | 'active' | 'inactive' | 'suspended' | 'archived';
+  // Enhanced status management fields
+  status_reason?: string;
+  status_changed_at?: string;
+  status_changed_by?: string;
+  // Activity tracking fields
+  last_activity_at?: string;
+  login_count?: number;
+  failed_login_attempts?: number;
+  // Lifecycle management fields
+  onboarding_completed?: boolean;
+  onboarding_completed_at?: string;
   department_id?: string;
   branch_id?: string;
   // Position relations
@@ -176,6 +187,8 @@ export interface UserUpdate {
   phone_number?: string;
   password?: string;
   role?: string;
+  status?: string;
+  status_reason?: string;
   is_active?: boolean;
   department_id?: string;
   position_id?: string;
@@ -185,6 +198,24 @@ export interface UserUpdate {
   profile_image_url?: string;
   employee_id?: string;
 }
+
+// User status management types
+export interface UserStatusChange {
+  status: string;
+  reason: string;
+}
+
+export interface UserStatusChangeResponse {
+  user_id: string;
+  old_status: string;
+  new_status: string;
+  reason: string;
+  changed_by: string;
+  changed_at: string;
+  allowed_transitions: string[];
+}
+
+export type UserStatus = 'pending' | 'active' | 'inactive' | 'suspended' | 'archived';
 
 export interface DepartmentCreate {
   name: string;
@@ -278,7 +309,7 @@ export type WorkflowStatus =
   | 'REJECTED';
 
 export type UserRole = 'admin' | 'manager' | 'officer';
-export type UserStatus = 'active' | 'inactive';
+
 
 // Workflow-related interfaces
 export interface WorkflowStatusInfo {

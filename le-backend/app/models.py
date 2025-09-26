@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Numeric, Date, JSON, BigInteger, Integer, Index
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text, Date, Numeric, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -18,6 +19,17 @@ class User(Base):
     employee_id = Column(String(4), unique=True, nullable=True, comment='4-digit HR employee ID')
     role = Column(String(20), nullable=False, default='officer')
     status = Column(String(20), nullable=False, default='active')
+    # Enhanced status management fields
+    status_reason = Column(String(100), nullable=True, comment='Reason for current status')
+    status_changed_at = Column(DateTime(timezone=True), nullable=True, comment='When status was last changed')
+    status_changed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, comment='User who changed the status')
+    # Activity tracking fields
+    last_activity_at = Column(DateTime(timezone=True), nullable=True, comment='Last recorded user activity')
+    login_count = Column(Integer, default=0, comment='Total number of logins')
+    failed_login_attempts = Column(Integer, default=0, comment='Consecutive failed login attempts')
+    # Lifecycle management fields
+    onboarding_completed = Column(Boolean, default=False, comment='Whether user onboarding is complete')
+    onboarding_completed_at = Column(DateTime(timezone=True), nullable=True, comment='When onboarding was completed')
     department_id = Column(UUID(as_uuid=True), ForeignKey('departments.id'))
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id'))
     # New: position reference (nullable, indexed via migration)
@@ -37,6 +49,8 @@ class User(Base):
     # Portfolio and line manager relationships
     portfolio = relationship("User", remote_side="User.id", foreign_keys=[portfolio_id])
     line_manager = relationship("User", remote_side="User.id", foreign_keys=[line_manager_id])
+    # Status change tracking relationship
+    status_changed_by_user = relationship("User", remote_side="User.id", foreign_keys=[status_changed_by])
     # Reverse relationships for portfolio and line management
     portfolio_members = relationship("User", foreign_keys="User.portfolio_id", back_populates="portfolio")
     direct_reports = relationship("User", foreign_keys="User.line_manager_id", back_populates="line_manager")
@@ -325,3 +339,23 @@ class Selfie(Base):
     file = relationship("File", foreign_keys=[file_id])
     captured_by = relationship("User", foreign_keys=[captured_by_user_id])
     validator = relationship("User", foreign_keys=[validated_by])
+
+class BulkOperation(Base):
+    __tablename__ = "bulk_operations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    operation_type = Column(String(50), nullable=False)  # status_update, import, export
+    performed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    target_criteria = Column(JSON)  # Filters used to select records
+    changes_applied = Column(JSON)  # What changes were made
+    total_records = Column(Integer, default=0)
+    successful_records = Column(Integer, default=0)
+    failed_records = Column(Integer, default=0)
+    error_details = Column(JSON)
+    status = Column(String(20), default='pending')  # pending, processing, completed, failed
+    file_path = Column(String(500))  # For import/export files
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True))
+    
+    # Relationships
+    performer = relationship("User", foreign_keys=[performed_by])

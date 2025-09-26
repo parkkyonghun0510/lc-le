@@ -51,6 +51,27 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager),
+                selectinload(User.status_changed_by_user),
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager),
+                selectinload(User.status_changed_by_user),
+            ),
+            selectinload(User.status_changed_by_user).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+            ),
         )
         .where(User.username == username)
     )
@@ -82,13 +103,34 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     except JWTError:
         raise credentials_exception
     
-    # Eager-load relationships for current user as well
+    # Eager-load relationships for current user with nested relationships
     stmt = (
         select(User)
         .options(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager),
+                selectinload(User.status_changed_by_user),
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager),
+                selectinload(User.status_changed_by_user),
+            ),
+            selectinload(User.status_changed_by_user).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+            ),
         )
         .where(User.username == username)
     )
@@ -126,6 +168,27 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager),
+                selectinload(User.status_changed_by_user),
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager),
+                selectinload(User.status_changed_by_user),
+            ),
+            selectinload(User.status_changed_by_user).options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+            ),
         )
         .where(User.id == user.id)
     )
@@ -136,13 +199,130 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     _ = user_with_rels.department
     _ = user_with_rels.branch
     _ = user_with_rels.position
+    _ = user_with_rels.portfolio
+    _ = user_with_rels.line_manager
+    _ = user_with_rels.status_changed_by_user
     
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-        user=UserResponse.model_validate(user_with_rels)
+        user=UserResponse(
+            id=user_with_rels.id,
+            username=user_with_rels.username,
+            email=user_with_rels.email,
+            first_name=user_with_rels.first_name,
+            last_name=user_with_rels.last_name,
+            phone_number=user_with_rels.phone_number,
+            employee_id=user_with_rels.employee_id,
+            role=user_with_rels.role,
+            status=user_with_rels.status,
+            status_reason=user_with_rels.status_reason,
+            status_changed_at=user_with_rels.status_changed_at,
+            status_changed_by=user_with_rels.status_changed_by,
+            last_activity_at=user_with_rels.last_activity_at,
+            login_count=user_with_rels.login_count,
+            failed_login_attempts=user_with_rels.failed_login_attempts,
+            onboarding_completed=user_with_rels.onboarding_completed,
+            onboarding_completed_at=user_with_rels.onboarding_completed_at,
+            created_at=user_with_rels.created_at,
+            updated_at=user_with_rels.updated_at,
+            last_login_at=user_with_rels.last_login_at,
+            department=user_with_rels.department,
+            branch=user_with_rels.branch,
+            position=user_with_rels.position,
+            # Manually construct portfolio to avoid deep nested loading issues
+            portfolio=UserResponse(
+                id=user_with_rels.portfolio.id,
+                username=user_with_rels.portfolio.username,
+                email=user_with_rels.portfolio.email,
+                first_name=user_with_rels.portfolio.first_name,
+                last_name=user_with_rels.portfolio.last_name,
+                phone_number=user_with_rels.portfolio.phone_number,
+                employee_id=user_with_rels.portfolio.employee_id,
+                role=user_with_rels.portfolio.role,
+                status=user_with_rels.portfolio.status,
+                status_reason=user_with_rels.portfolio.status_reason,
+                status_changed_at=user_with_rels.portfolio.status_changed_at,
+                status_changed_by=user_with_rels.portfolio.status_changed_by,
+                last_activity_at=user_with_rels.portfolio.last_activity_at,
+                login_count=user_with_rels.portfolio.login_count,
+                failed_login_attempts=user_with_rels.portfolio.failed_login_attempts,
+                onboarding_completed=user_with_rels.portfolio.onboarding_completed,
+                onboarding_completed_at=user_with_rels.portfolio.onboarding_completed_at,
+                created_at=user_with_rels.portfolio.created_at,
+                updated_at=user_with_rels.portfolio.updated_at,
+                last_login_at=user_with_rels.portfolio.last_login_at,
+                department=user_with_rels.portfolio.department,
+                branch=user_with_rels.portfolio.branch,
+                position=user_with_rels.portfolio.position,
+                # Stop nested relationships to avoid infinite recursion
+                portfolio=None,
+                line_manager=None,
+                status_changed_by_user=None,
+            ) if user_with_rels.portfolio else None,
+            # Manually construct line_manager to avoid deep nested loading issues
+            line_manager=UserResponse(
+                id=user_with_rels.line_manager.id,
+                username=user_with_rels.line_manager.username,
+                email=user_with_rels.line_manager.email,
+                first_name=user_with_rels.line_manager.first_name,
+                last_name=user_with_rels.line_manager.last_name,
+                phone_number=user_with_rels.line_manager.phone_number,
+                employee_id=user_with_rels.line_manager.employee_id,
+                role=user_with_rels.line_manager.role,
+                status=user_with_rels.line_manager.status,
+                status_reason=user_with_rels.line_manager.status_reason,
+                status_changed_at=user_with_rels.line_manager.status_changed_at,
+                status_changed_by=user_with_rels.line_manager.status_changed_by,
+                last_activity_at=user_with_rels.line_manager.last_activity_at,
+                login_count=user_with_rels.line_manager.login_count,
+                failed_login_attempts=user_with_rels.line_manager.failed_login_attempts,
+                onboarding_completed=user_with_rels.line_manager.onboarding_completed,
+                onboarding_completed_at=user_with_rels.line_manager.onboarding_completed_at,
+                created_at=user_with_rels.line_manager.created_at,
+                updated_at=user_with_rels.line_manager.updated_at,
+                last_login_at=user_with_rels.line_manager.last_login_at,
+                department=user_with_rels.line_manager.department,
+                branch=user_with_rels.line_manager.branch,
+                position=user_with_rels.line_manager.position,
+                # Stop nested relationships to avoid infinite recursion
+                portfolio=None,
+                line_manager=None,
+                status_changed_by_user=None,
+            ) if user_with_rels.line_manager else None,
+            # Manually construct status_changed_by_user to avoid deep nested loading issues
+            status_changed_by_user=UserResponse(
+                id=user_with_rels.status_changed_by_user.id,
+                username=user_with_rels.status_changed_by_user.username,
+                email=user_with_rels.status_changed_by_user.email,
+                first_name=user_with_rels.status_changed_by_user.first_name,
+                last_name=user_with_rels.status_changed_by_user.last_name,
+                phone_number=user_with_rels.status_changed_by_user.phone_number,
+                employee_id=user_with_rels.status_changed_by_user.employee_id,
+                role=user_with_rels.status_changed_by_user.role,
+                status=user_with_rels.status_changed_by_user.status,
+                status_reason=user_with_rels.status_changed_by_user.status_reason,
+                status_changed_at=user_with_rels.status_changed_by_user.status_changed_at,
+                status_changed_by=user_with_rels.status_changed_by_user.status_changed_by,
+                last_activity_at=user_with_rels.status_changed_by_user.last_activity_at,
+                login_count=user_with_rels.status_changed_by_user.login_count,
+                failed_login_attempts=user_with_rels.status_changed_by_user.failed_login_attempts,
+                onboarding_completed=user_with_rels.status_changed_by_user.onboarding_completed,
+                onboarding_completed_at=user_with_rels.status_changed_by_user.onboarding_completed_at,
+                created_at=user_with_rels.status_changed_by_user.created_at,
+                updated_at=user_with_rels.status_changed_by_user.updated_at,
+                last_login_at=user_with_rels.status_changed_by_user.last_login_at,
+                department=user_with_rels.status_changed_by_user.department,
+                branch=user_with_rels.status_changed_by_user.branch,
+                position=user_with_rels.status_changed_by_user.position,
+                # Stop nested relationships to avoid infinite recursion
+                portfolio=None,
+                line_manager=None,
+                status_changed_by_user=None,
+            ) if user_with_rels.status_changed_by_user else None,
+        )
     )
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -172,6 +352,9 @@ async def refresh_token(
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
+            selectinload(User.status_changed_by_user),
         )
         .where(User.username == username)
     )
@@ -190,6 +373,9 @@ async def refresh_token(
     _ = user.department
     _ = user.branch
     _ = user.position
+    _ = user.portfolio
+    _ = user.line_manager
+    _ = user.status_changed_by_user
     
     return TokenResponse(
         access_token=new_access_token,
@@ -201,12 +387,121 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
-    # current_user already has department and branch eagerly loaded
-    # Ensure all relationships are loaded before validation
-    _ = current_user.department
-    _ = current_user.branch
-    _ = current_user.position
-    return UserResponse.model_validate(current_user)
+    # current_user already has all relationships eagerly loaded
+    # Manually construct response to avoid infinite recursion in nested relationships
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        phone_number=current_user.phone_number,
+        employee_id=current_user.employee_id,
+        role=current_user.role,
+        status=current_user.status,
+        status_reason=current_user.status_reason,
+        status_changed_at=current_user.status_changed_at,
+        status_changed_by=current_user.status_changed_by,
+        last_activity_at=current_user.last_activity_at,
+        login_count=current_user.login_count,
+        failed_login_attempts=current_user.failed_login_attempts,
+        onboarding_completed=current_user.onboarding_completed,
+        onboarding_completed_at=current_user.onboarding_completed_at,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+        last_login_at=current_user.last_login_at,
+        department=current_user.department,
+        branch=current_user.branch,
+        position=current_user.position,
+        # Manually construct nested relationships to avoid deep recursion
+        portfolio=UserResponse(
+            id=current_user.portfolio.id,
+            username=current_user.portfolio.username,
+            email=current_user.portfolio.email,
+            first_name=current_user.portfolio.first_name,
+            last_name=current_user.portfolio.last_name,
+            phone_number=current_user.portfolio.phone_number,
+            employee_id=current_user.portfolio.employee_id,
+            role=current_user.portfolio.role,
+            status=current_user.portfolio.status,
+            status_reason=current_user.portfolio.status_reason,
+            status_changed_at=current_user.portfolio.status_changed_at,
+            status_changed_by=current_user.portfolio.status_changed_by,
+            last_activity_at=current_user.portfolio.last_activity_at,
+            login_count=current_user.portfolio.login_count,
+            failed_login_attempts=current_user.portfolio.failed_login_attempts,
+            onboarding_completed=current_user.portfolio.onboarding_completed,
+            onboarding_completed_at=current_user.portfolio.onboarding_completed_at,
+            created_at=current_user.portfolio.created_at,
+            updated_at=current_user.portfolio.updated_at,
+            last_login_at=current_user.portfolio.last_login_at,
+            department=current_user.portfolio.department,
+            branch=current_user.portfolio.branch,
+            position=current_user.portfolio.position,
+            # Stop nested relationships to avoid infinite recursion
+            portfolio=None,
+            line_manager=None,
+            status_changed_by_user=None,
+        ) if current_user.portfolio else None,
+        line_manager=UserResponse(
+            id=current_user.line_manager.id,
+            username=current_user.line_manager.username,
+            email=current_user.line_manager.email,
+            first_name=current_user.line_manager.first_name,
+            last_name=current_user.line_manager.last_name,
+            phone_number=current_user.line_manager.phone_number,
+            employee_id=current_user.line_manager.employee_id,
+            role=current_user.line_manager.role,
+            status=current_user.line_manager.status,
+            status_reason=current_user.line_manager.status_reason,
+            status_changed_at=current_user.line_manager.status_changed_at,
+            status_changed_by=current_user.line_manager.status_changed_by,
+            last_activity_at=current_user.line_manager.last_activity_at,
+            login_count=current_user.line_manager.login_count,
+            failed_login_attempts=current_user.line_manager.failed_login_attempts,
+            onboarding_completed=current_user.line_manager.onboarding_completed,
+            onboarding_completed_at=current_user.line_manager.onboarding_completed_at,
+            created_at=current_user.line_manager.created_at,
+            updated_at=current_user.line_manager.updated_at,
+            last_login_at=current_user.line_manager.last_login_at,
+            department=current_user.line_manager.department,
+            branch=current_user.line_manager.branch,
+            position=current_user.line_manager.position,
+            # Stop nested relationships to avoid infinite recursion
+            portfolio=None,
+            line_manager=None,
+            status_changed_by_user=None,
+        ) if current_user.line_manager else None,
+        status_changed_by_user=UserResponse(
+            id=current_user.status_changed_by_user.id,
+            username=current_user.status_changed_by_user.username,
+            email=current_user.status_changed_by_user.email,
+            first_name=current_user.status_changed_by_user.first_name,
+            last_name=current_user.status_changed_by_user.last_name,
+            phone_number=current_user.status_changed_by_user.phone_number,
+            employee_id=current_user.status_changed_by_user.employee_id,
+            role=current_user.status_changed_by_user.role,
+            status=current_user.status_changed_by_user.status,
+            status_reason=current_user.status_changed_by_user.status_reason,
+            status_changed_at=current_user.status_changed_by_user.status_changed_at,
+            status_changed_by=current_user.status_changed_by_user.status_changed_by,
+            last_activity_at=current_user.status_changed_by_user.last_activity_at,
+            login_count=current_user.status_changed_by_user.login_count,
+            failed_login_attempts=current_user.status_changed_by_user.failed_login_attempts,
+            onboarding_completed=current_user.status_changed_by_user.onboarding_completed,
+            onboarding_completed_at=current_user.status_changed_by_user.onboarding_completed_at,
+            created_at=current_user.status_changed_by_user.created_at,
+            updated_at=current_user.status_changed_by_user.updated_at,
+            last_login_at=current_user.status_changed_by_user.last_login_at,
+            department=current_user.status_changed_by_user.department,
+            branch=current_user.status_changed_by_user.branch,
+            position=current_user.status_changed_by_user.position,
+            # Stop nested relationships to avoid infinite recursion
+            portfolio=None,
+            line_manager=None,
+            status_changed_by_user=None,
+        ) if current_user.status_changed_by_user else None,
+    )
 
 @router.get("/setup-required")
 async def check_setup_required(db: AsyncSession = Depends(get_db)) -> dict:
@@ -264,6 +559,9 @@ async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)
             selectinload(User.department),
             selectinload(User.branch),
             selectinload(User.position),
+            selectinload(User.portfolio),
+            selectinload(User.line_manager),
+            selectinload(User.status_changed_by_user),
         )
         .where(User.id == db_user.id)
     )
@@ -274,5 +572,8 @@ async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)
     _ = db_user_loaded.department
     _ = db_user_loaded.branch
     _ = db_user_loaded.position
+    _ = db_user_loaded.portfolio
+    _ = db_user_loaded.line_manager
+    _ = db_user_loaded.status_changed_by_user
     
     return UserResponse.model_validate(db_user_loaded)

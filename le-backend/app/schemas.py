@@ -7,6 +7,7 @@ import re
 from uuid import UUID
 from enum import Enum
 from .workflow import WorkflowStatus, WorkflowStatusUpdate, WorkflowStatusResponse
+from .core.user_status import UserStatus, can_transition_status
 
 # Base schemas
 class BaseSchema(BaseModel):
@@ -35,6 +36,16 @@ class UserBase(BaseSchema):
     # Portfolio and line manager references
     portfolio_id: Optional[UUID] = None
     line_manager_id: Optional[UUID] = None
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate that status is one of the allowed values"""
+        try:
+            UserStatus(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid status: {v}. Must be one of: {", ".join([s.value for s in UserStatus])}')
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
@@ -48,7 +59,9 @@ class UserUpdate(BaseSchema):
     phone_number: Optional[str] = Field(None, max_length=20)
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = None
-    is_active: Optional[bool] = None
+    status: Optional[str] = None
+    status_reason: Optional[str] = Field(None, max_length=100)
+    is_active: Optional[bool] = None  # Kept for backward compatibility
     department_id: Optional[UUID] = None
     branch_id: Optional[UUID] = None
     profile_image_url: Optional[str] = None
@@ -56,6 +69,18 @@ class UserUpdate(BaseSchema):
     position_id: Optional[UUID] = None
     portfolio_id: Optional[UUID] = None
     line_manager_id: Optional[UUID] = None
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate that status is one of the allowed values"""
+        if v is None:
+            return v
+        try:
+            UserStatus(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid status: {v}. Must be one of: {", ".join([s.value for s in UserStatus])}')
 
 # Position schemas
 class PositionBase(BaseSchema):
@@ -81,6 +106,17 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime]
+    # Enhanced status management fields
+    status_reason: Optional[str] = None
+    status_changed_at: Optional[datetime] = None
+    status_changed_by: Optional[UUID] = None
+    # Activity tracking fields
+    last_activity_at: Optional[datetime] = None
+    login_count: int = 0
+    failed_login_attempts: int = 0
+    # Lifecycle management fields
+    onboarding_completed: bool = False
+    onboarding_completed_at: Optional[datetime] = None
     employee_id: Optional[str] = Field(None, max_length=4, pattern=r'^\d{4}$')
     department: Optional['DepartmentResponse'] = None
     branch: Optional['BranchResponse'] = None
@@ -89,10 +125,119 @@ class UserResponse(UserBase):
     # Portfolio and line manager relationships
     portfolio: Optional['UserResponse'] = None
     line_manager: Optional['UserResponse'] = None
+    # Status changed by user relationship
+    status_changed_by_user: Optional['UserResponse'] = None
 
 class UserLogin(BaseSchema):
     username: str
     password: str
+
+# User status management schemas
+class UserStatusChange(BaseSchema):
+    """Schema for changing user status"""
+    status: str = Field(..., description="New status for the user")
+    reason: str = Field(..., min_length=1, max_length=100, description="Reason for status change")
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate that status is one of the allowed values"""
+        try:
+            UserStatus(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid status: {v}. Must be one of: {", ".join([s.value for s in UserStatus])}')
+
+class UserStatusChangeResponse(BaseSchema):
+    """Response schema for status change operations"""
+    user_id: UUID
+    old_status: str
+    new_status: str
+    reason: str
+    changed_by: UUID
+    changed_at: datetime
+    allowed_transitions: List[str]
+
+# Bulk operations schemas
+class BulkStatusUpdate(BaseSchema):
+    """Schema for bulk status update operations"""
+    user_ids: List[UUID] = Field(..., min_length=1, max_length=100, description="List of user IDs to update")
+    status: str = Field(..., description="New status for selected users")
+    reason: str = Field(..., min_length=1, max_length=200, description="Reason for status change")
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate that status is one of the allowed values"""
+        try:
+            UserStatus(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid status: {v}. Must be one of: {", ".join([s.value for s in UserStatus])}')
+
+class BulkOperationResponse(BaseSchema):
+    """Response schema for bulk operations"""
+    operation_id: UUID
+    operation_type: str
+    total_records: int
+    successful_records: int
+    failed_records: int
+    status: str
+    errors: Optional[List[Dict[str, Any]]] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+class BulkStatusUpdateResponse(BaseSchema):
+    """Response schema for bulk status update operations"""
+    operation_id: UUID
+    total_users: int
+    successful_updates: int
+    failed_updates: int
+    status: str  # pending, processing, completed, failed
+    errors: Optional[List[Dict[str, Any]]] = None
+    updated_users: List[UserStatusChangeResponse] = []
+    failed_users: List[Dict[str, Any]] = []
+
+# CSV Import schemas
+class CSVImportRequest(BaseSchema):
+    """Schema for CSV import request"""
+    import_mode: str = Field(..., description="Import mode: 'create_only', 'update_only', or 'create_and_update'")
+    preview_only: bool = Field(default=False, description="If true, only validate and preview without importing")
+    
+    @field_validator('import_mode')
+    @classmethod
+    def validate_import_mode(cls, v):
+        """Validate import mode"""
+        valid_modes = ['create_only', 'update_only', 'create_and_update']
+        if v not in valid_modes:
+            raise ValueError(f"Invalid import mode: {v}. Must be one of: {', '.join(valid_modes)}")
+        return v
+
+class CSVImportRowResult(BaseSchema):
+    """Result for a single CSV row import"""
+    row_number: int
+    action: str  # 'created', 'updated', 'skipped', 'failed'
+    user_id: Optional[UUID] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    employee_id: Optional[str] = None
+    errors: List[str] = []
+    warnings: List[str] = []
+
+class CSVImportResponse(BaseSchema):
+    """Response schema for CSV import operations"""
+    operation_id: UUID
+    total_rows: int
+    successful_imports: int
+    failed_imports: int
+    skipped_rows: int
+    status: str  # pending, processing, completed, failed
+    preview_mode: bool
+    import_mode: str
+    results: List[CSVImportRowResult] = []
+    summary: Dict[str, Any] = {}
+    created_at: datetime
+    completed_at: Optional[datetime] = None
 
 # Department schemas
 class DepartmentBase(BaseSchema):

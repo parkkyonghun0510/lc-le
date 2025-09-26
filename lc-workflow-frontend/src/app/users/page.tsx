@@ -14,12 +14,23 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Users as UsersIcon
+  Users as UsersIcon,
+  Download,
+  Upload,
+  CheckSquare,
+  Square,
+  RotateCcw,
+  FileText,
+  AlertCircle,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import StatusIndicator from '@/components/ui/StatusIndicator';
+import { apiClient } from '@/lib/api';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -29,6 +40,21 @@ export default function UsersPage() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Bulk selection state
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkReason, setBulkReason] = useState('');
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  
+  // CSV Import state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importMode, setImportMode] = useState('create_and_update');
+  const [previewOnly, setPreviewOnly] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
 
   const { data: usersData, isLoading, error } = useUsers({
     page,
@@ -68,6 +94,157 @@ export default function UsersPage() {
     setPage(1);
   };
 
+  // Bulk selection handlers
+  const handleSelectAll = () => {
+    if (selectedUsers.length === usersData?.items?.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(usersData?.items?.map((user: User) => user.id) || []);
+    }
+  };
+
+  const handleSelectUser = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkStatus || !bulkReason.trim() || selectedUsers.length === 0) {
+      alert('Please select users, status, and provide a reason');
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const response = await apiClient.post('/users/bulk/status', {
+        user_ids: selectedUsers,
+        status: bulkStatus,
+        reason: bulkReason
+      });
+
+      const result = response as any; // Type assertion for response data
+      alert(`Successfully updated ${result.successful_updates || selectedUsers.length} users`);
+      
+      // Reset selection and refresh data
+      setSelectedUsers([]);
+      setShowBulkActions(false);
+      setBulkStatus('');
+      setBulkReason('');
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Bulk update failed:', error);
+      alert(`Bulk update failed: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // CSV Import handlers
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        alert('Please select a CSV file');
+        return;
+      }
+      setImportFile(file);
+      setImportResults(null);
+    }
+  };
+
+  const handleImportCSV = async () => {
+    if (!importFile) {
+      alert('Please select a CSV file');
+      return;
+    }
+
+    setImportLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('import_mode', importMode);
+      formData.append('preview_only', previewOnly.toString());
+
+      const response = await fetch('/api/v1/users/import/csv', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Import failed');
+      }
+
+      const result = await response.json();
+      setImportResults(result);
+
+      if (!previewOnly && result.status === 'completed') {
+        alert(`Import completed successfully! ${result.successful_imports} users processed.`);
+        // Refresh the users list
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error('Import failed:', error);
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const response = await fetch('/api/v1/users/export/csv/template', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'user_import_template.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Template download failed:', error);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  const exportUsers = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (roleFilter) params.append('role', roleFilter);
+      if (departmentFilter) params.append('department_id', departmentFilter);
+      if (branchFilter) params.append('branch_id', branchFilter);
+      
+      // Create download link
+      const url = `/api/v1/users/export/csv?${params.toString()}`;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    }
+  };
+
   if (error) {
     return (
       <ProtectedRoute>
@@ -96,15 +273,111 @@ export default function UsersPage() {
                 <p className="text-gray-600">Manage system users and their permissions</p>
               </div>
             </div>
-            <Link
-              href="/users/new"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Add User
-            </Link>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={exportUsers}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Download className="h-5 w-5 mr-2" />
+                Export CSV
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                Import CSV
+              </button>
+              <Link
+                href="/users/new"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Add User
+              </Link>
+            </div>
           </div>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedUsers.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <span className="text-blue-800 font-medium">
+                  {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+                </span>
+                <button
+                  onClick={() => setSelectedUsers([])}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  Clear selection
+                </button>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Bulk Status Update
+                </button>
+              </div>
+            </div>
+            
+            {showBulkActions && (
+              <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Bulk Status Update</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      New Status
+                    </label>
+                    <select
+                      value={bulkStatus}
+                      onChange={(e) => setBulkStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select status...</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="pending">Pending</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reason
+                    </label>
+                    <input
+                      type="text"
+                      value={bulkReason}
+                      onChange={(e) => setBulkReason(e.target.value)}
+                      placeholder="Enter reason for status change..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-end space-x-3">
+                  <button
+                    onClick={() => setShowBulkActions(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkStatusUpdate}
+                    disabled={bulkActionLoading || !bulkStatus || !bulkReason.trim()}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {bulkActionLoading ? 'Updating...' : `Update ${selectedUsers.length} Users`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -219,6 +492,18 @@ export default function UsersPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 text-left">
+                        <button
+                          onClick={handleSelectAll}
+                          className="flex items-center justify-center w-5 h-5 text-blue-600 hover:text-blue-800"
+                        >
+                          {selectedUsers.length === usersData?.items?.length && usersData?.items?.length > 0 ? (
+                            <CheckSquare className="w-5 h-5" />
+                          ) : (
+                            <Square className="w-5 h-5" />
+                          )}
+                        </button>
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         User
                       </th>
@@ -248,6 +533,18 @@ export default function UsersPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {usersData?.items?.map((user: User) => (
                       <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleSelectUser(user.id)}
+                            className="flex items-center justify-center w-5 h-5 text-blue-600 hover:text-blue-800"
+                          >
+                            {selectedUsers.includes(user.id) ? (
+                              <CheckSquare className="w-5 h-5" />
+                            ) : (
+                              <Square className="w-5 h-5" />
+                            )}
+                          </button>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -311,13 +608,7 @@ export default function UsersPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.status === 'active' 
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.status}
-                          </span>
+                          <StatusIndicator status={user.status} />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {user.last_login_at 
@@ -419,6 +710,243 @@ export default function UsersPage() {
             </>
           )}
         </div>
+
+        {/* CSV Import Modal */}
+        {showImportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Import Users from CSV</h2>
+                <button
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportFile(null);
+                    setImportResults(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {!importResults ? (
+                <>
+                  {/* Template Download */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-start space-x-3">
+                      <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-blue-800">Need a template?</h3>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Download our CSV template to ensure your data is formatted correctly.
+                        </p>
+                        <button
+                          onClick={downloadTemplate}
+                          className="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download Template
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* File Upload */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select CSV File
+                    </label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="csv-upload"
+                      />
+                      <label htmlFor="csv-upload" className="cursor-pointer">
+                        <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">
+                          {importFile ? importFile.name : 'Click to select CSV file or drag and drop'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          CSV files only, max 10MB
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Import Options */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Import Mode
+                      </label>
+                      <select
+                        value={importMode}
+                        onChange={(e) => setImportMode(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="create_and_update">Create new and update existing</option>
+                        <option value="create_only">Create new users only</option>
+                        <option value="update_only">Update existing users only</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="preview-only"
+                        checked={previewOnly}
+                        onChange={(e) => setPreviewOnly(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="preview-only" className="ml-2 text-sm text-gray-700">
+                        Preview only (don't import)
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowImportModal(false);
+                        setImportFile(null);
+                        setImportResults(null);
+                      }}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleImportCSV}
+                      disabled={!importFile || importLoading}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {importLoading ? 'Processing...' : (previewOnly ? 'Preview Import' : 'Import Users')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Import Results */
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Import Results</h3>
+                    
+                    {/* Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-green-600">{importResults.successful_imports}</div>
+                        <div className="text-sm text-green-700">Successful</div>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-red-600">{importResults.failed_imports}</div>
+                        <div className="text-sm text-red-700">Failed</div>
+                      </div>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-yellow-600">{importResults.skipped_rows}</div>
+                        <div className="text-sm text-yellow-700">Skipped</div>
+                      </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{importResults.total_rows}</div>
+                        <div className="text-sm text-blue-700">Total</div>
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="mb-4">
+                      {importResults.status === 'completed' ? (
+                        <div className="flex items-center space-x-2 text-green-600">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="font-medium">
+                            {importResults.preview_mode ? 'Preview completed successfully' : 'Import completed successfully'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2 text-yellow-600">
+                          <AlertCircle className="h-5 w-5" />
+                          <span className="font-medium">Import completed with some issues</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Detailed Results */}
+                    {importResults.results && importResults.results.length > 0 && (
+                      <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Row</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {importResults.results.map((result: any, index: number) => (
+                              <tr key={index} className={result.action === 'failed' ? 'bg-red-50' : ''}>
+                                <td className="px-4 py-2 text-sm text-gray-900">{result.row_number}</td>
+                                <td className="px-4 py-2">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    result.action === 'created' ? 'bg-green-100 text-green-800' :
+                                    result.action === 'updated' ? 'bg-blue-100 text-blue-800' :
+                                    result.action === 'skipped' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {result.action}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-900">{result.email}</td>
+                                <td className="px-4 py-2 text-sm">
+                                  {result.errors.length > 0 && (
+                                    <div className="text-red-600">
+                                      {result.errors.join(', ')}
+                                    </div>
+                                  )}
+                                  {result.warnings.length > 0 && (
+                                    <div className="text-yellow-600">
+                                      {result.warnings.join(', ')}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end space-x-3">
+                    {importResults.preview_mode && importResults.status === 'completed' && (
+                      <button
+                        onClick={() => {
+                          setPreviewOnly(false);
+                          setImportResults(null);
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Proceed with Import
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowImportModal(false);
+                        setImportFile(null);
+                        setImportResults(null);
+                        setPreviewOnly(false);
+                      }}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Layout>
     </ProtectedRoute>
   );

@@ -80,7 +80,7 @@ app.include_router(positions.router, prefix="/api/v1/positions", tags=["position
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
-app.include_router(account_validation.router, prefix="/api/v1", tags=["account-validation"])
+# app.include_router(account_validation.router, prefix="/api/v1", tags=["account-validation"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")

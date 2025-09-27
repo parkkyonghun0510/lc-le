@@ -1,0 +1,47 @@
+{
+  "timestamp": "2025-09-27T16:05:08.982Z",
+  "summary": {
+    "totalJSSize": 4531834,
+    "totalCSSSize": 0,
+    "totalSize": 4531834,
+    "jsStatus": "poor",
+    "cssStatus": "good",
+    "overallStatus": "poor"
+  },
+  "largeFiles": [
+    {
+      "name": "137-f579069e88dee868.js",
+      "size": 2624723,
+      "type": "JS"
+    },
+    {
+      "name": "vendors-5203760469abbbf8.js",
+      "size": 1215678,
+      "type": "JS"
+    }
+  ],
+  "recommendations": [
+    {
+      "type": "javascript",
+      "priority": "high",
+      "message": "JavaScript bundle is large. Consider code splitting and lazy loading.",
+      "actions": [
+        "Implement dynamic imports for heavy components",
+        "Use route-based code splitting",
+        "Review and optimize third-party library usage",
+        "Consider tree shaking for unused code"
+      ]
+    },
+    {
+      "type": "overall",
+      "priority": "high",
+      "message": "Overall bundle size is large. Implement comprehensive optimization.",
+      "actions": [
+        "Enable gzip/brotli compression",
+        "Implement service worker for caching",
+        "Use CDN for static assets",
+        "Consider micro-frontend architecture"
+      ]
+    }
+  ]
+}

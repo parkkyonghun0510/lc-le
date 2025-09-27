@@ -953,3 +953,5 @@ class ApplicationWorkflowResponse(CustomerApplicationResponse):
     user_completer: Optional[UserResponse] = None
     teller_processor: Optional[UserResponse] = None
     manager_reviewer: Optional[UserResponse] = None
+
+# Permission schemas will be imported directly where needed

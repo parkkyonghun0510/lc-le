@@ -16,6 +16,8 @@ export const handleApiError = (error: any, defaultMessage: string) => {
     }
   } else if (error.response?.status === 422) {
     message = 'Invalid data provided';
+  } else if (error.response?.status === 423) {
+    message = 'Account temporarily locked due to multiple failed login attempts';
   }
 
   toast.error(message);

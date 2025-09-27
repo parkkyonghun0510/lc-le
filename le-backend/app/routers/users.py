@@ -15,10 +15,106 @@ from app.routers.auth import get_current_user, get_password_hash
 from app.services.async_validation_service import AsyncValidationService, DuplicateValidationError
 from app.services.activity_management_service import ActivityManagementService
 from app.services.user_lifecycle_service import UserLifecycleService
+from app.services.user_cache_service import UserCacheService
+from app.services.optimized_user_queries import OptimizedUserQueries
+from app.services.database_monitoring_service import DatabaseMonitoringService
 from app.core.user_status import UserStatus, can_transition_status, get_allowed_transitions
 from sqlalchemy.orm import selectinload
 
 router = APIRouter()
+
+# Cache management endpoints
+@router.get("/cache/stats")
+async def get_cache_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get cache performance statistics"""
+    if current_user.role not in ["admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view cache statistics"
+        )
+    
+    cache_service = UserCacheService(db)
+    stats = await cache_service.get_cache_performance_stats()
+    return stats
+
+@router.post("/cache/invalidate")
+async def invalidate_user_cache(
+    user_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Invalidate user cache entries"""
+    if current_user.role not in ["admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to invalidate cache"
+        )
+    
+    cache_service = UserCacheService(db)
+    if user_id:
+        deleted_count = await cache_service.invalidate_user_cache(user_id)
+        return {"message": f"Invalidated {deleted_count} cache entries for user {user_id}"}
+    else:
+        deleted_count = await cache_service.invalidate_user_cache()
+        return {"message": f"Invalidated {deleted_count} user cache entries"}
+
+# Database monitoring endpoints
+@router.get("/database/stats")
+async def get_database_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get database performance statistics (admin only)"""
+    if current_user.role not in ["admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view database statistics"
+        )
+    
+    monitoring_service = DatabaseMonitoringService(db)
+    stats = await monitoring_service.get_database_stats()
+    return stats
+
+@router.get("/database/performance")
+async def get_query_performance(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get query performance summary (admin only)"""
+    if current_user.role not in ["admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view query performance"
+        )
+    
+    monitoring_service = DatabaseMonitoringService(db)
+    performance = await monitoring_service.get_query_performance_summary()
+    return performance
+
+@router.get("/database/recommendations")
+async def get_database_recommendations(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get database optimization recommendations (admin only)"""
+    if current_user.role not in ["admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view database recommendations"
+        )
+    
+    monitoring_service = DatabaseMonitoringService(db)
+    recommendations = await monitoring_service.get_index_recommendations()
+    health_score = await monitoring_service.get_table_health_score()
+    
+    return {
+        "index_recommendations": recommendations,
+        "health_score": health_score,
+        "generated_at": datetime.now(timezone.utc).isoformat()
+    }
 
 async def validate_branch_assignments(db: AsyncSession, user_branch_id: Optional[UUID], portfolio_id: Optional[UUID], line_manager_id: Optional[UUID]):
     """Validate that portfolio and line managers are from the same branch as the user"""
@@ -101,6 +197,11 @@ async def create_user(
         .where(User.id == db_user.id)
     )
     db_user_loaded = result.scalar_one_or_none()
+    
+    # Invalidate user cache after creating new user
+    cache_service = UserCacheService(db)
+    await cache_service.invalidate_user_cache()
+    
     return UserResponse.model_validate(db_user_loaded)
 
 @router.get("/", response_model=PaginatedResponse)
@@ -133,6 +234,24 @@ async def list_users(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to list users"
         )
+    
+    # Initialize cache service
+    cache_service = UserCacheService(db)
+    
+    # Try to get from cache first
+    cached_result = await cache_service.get_cached_user_list(
+        role=role, branch_id=branch_id, department_id=department_id,
+        status=status, search=search, created_from=str(created_from) if created_from else None,
+        created_to=str(created_to) if created_to else None,
+        last_login_from=str(last_login_from) if last_login_from else None,
+        last_login_to=str(last_login_to) if last_login_to else None,
+        activity_level=activity_level, inactive_days=inactive_days,
+        search_fields=search_fields, sort_by=sort_by, sort_order=sort_order,
+        page=page, size=size
+    )
+    
+    if cached_result:
+        return cached_result
     
     # Eager-load relationships to avoid lazy IO during Pydantic validation
     query = (
@@ -378,13 +497,30 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
     
-    return PaginatedResponse(
+    # Create response
+    response = PaginatedResponse(
         items=[UserResponse.model_validate(user) for user in users],
         total=total,
         page=page,
         size=size,
         pages=(total + size - 1) // size
     )
+    
+    # Cache the result for future requests
+    await cache_service.set_cached_user_list(
+        data=response,
+        role=role, branch_id=branch_id, department_id=department_id,
+        status=status, search=search, created_from=str(created_from) if created_from else None,
+        created_to=str(created_to) if created_to else None,
+        last_login_from=str(last_login_from) if last_login_from else None,
+        last_login_to=str(last_login_to) if last_login_to else None,
+        activity_level=activity_level, inactive_days=inactive_days,
+        search_fields=search_fields, sort_by=sort_by, sort_order=sort_order,
+        page=page, size=size,
+        ttl=180  # 3 minutes cache TTL
+    )
+    
+    return response
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
@@ -397,6 +533,14 @@ async def get_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this user"
         )
+    
+    # Initialize cache service
+    cache_service = UserCacheService(db)
+    
+    # Try to get from cache first
+    cached_user = await cache_service.get_cached_user_detail(user_id)
+    if cached_user:
+        return cached_user
     
     result = await db.execute(
         select(User)
@@ -537,7 +681,11 @@ async def get_user(
             "status_changed_by_user": None
         }
     
-    return UserResponse.model_validate(user_data)
+    # Create response and cache it
+    response = UserResponse.model_validate(user_data)
+    await cache_service.set_cached_user_detail(user_id, response, ttl=600)  # 10 minutes cache
+    
+    return response
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
@@ -637,6 +785,10 @@ async def update_user(
     _ = user_loaded.position
     _ = user_loaded.portfolio
     _ = user_loaded.line_manager
+    
+    # Invalidate user cache after updating user
+    cache_service = UserCacheService(db)
+    await cache_service.invalidate_user_cache(user_id)
     
     return UserResponse.model_validate(user_loaded)
 
@@ -2079,14 +2231,33 @@ async def get_user_activity_metrics(
             detail="Not authorized to view user analytics"
         )
     
+    # Initialize cache service
+    cache_service = UserCacheService(db)
+    
+    # Try to get from cache first
+    cached_analytics = await cache_service.get_cached_user_analytics(
+        days=days, department_id=department_id, branch_id=branch_id
+    )
+    if cached_analytics:
+        return cached_analytics
+    
     from app.services.user_analytics_service import UserAnalyticsService
     
     analytics_service = UserAnalyticsService(db)
-    return await analytics_service.get_user_activity_metrics(
+    result = await analytics_service.get_user_activity_metrics(
         days=days,
         department_id=department_id,
         branch_id=branch_id
     )
+    
+    # Cache the result
+    await cache_service.set_cached_user_analytics(
+        analytics_data=result,
+        days=days, department_id=department_id, branch_id=branch_id,
+        ttl=300  # 5 minutes cache
+    )
+    
+    return result
 
 @router.get("/analytics/organizational-metrics")
 async def get_organizational_metrics(

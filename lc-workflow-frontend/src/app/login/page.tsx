@@ -4,20 +4,27 @@ import { useForm } from 'react-hook-form';
 import { useLogin } from '@/hooks/useAuth';
 import { LoginCredentials } from '@/types/models';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthContext } from '@/providers/AuthProvider';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import AccountLockoutAlert from '@/components/auth/AccountLockoutAlert';
+import { useAccountLockout } from '@/hooks/useAccountLockout';
 
 export default function LoginPage() {
   const login = useLogin();
   const router = useRouter();
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, user } = useAuthContext();
+  const [username, setUsername] = useState('');
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    watch
   } = useForm<LoginCredentials>();
+
+  const watchedUsername = watch('username');
+  const lockoutState = useAccountLockout();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,8 +33,13 @@ export default function LoginPage() {
   }, [isAuthenticated, router]);
 
   const onSubmit = (data: LoginCredentials) => {
+    setUsername(data.username);
     login.mutate(data);
   };
+
+  // Show lockout alert if user has failed attempts
+  const shouldShowLockoutAlert = lockoutState.failedAttempts > 0 && 
+    (user?.username === watchedUsername || watchedUsername === username);
 
   return (
     <div className="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -54,6 +66,17 @@ export default function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {/* Account Lockout Alert */}
+          {shouldShowLockoutAlert && (
+            <AccountLockoutAlert
+              failedAttempts={lockoutState.failedAttempts}
+              lastActivityAt={user?.last_activity_at}
+              maxAttempts={lockoutState.maxAttempts}
+              lockoutDurationMinutes={lockoutState.lockoutDurationMinutes}
+              onResetAttempts={lockoutState.resetAttempts}
+            />
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">

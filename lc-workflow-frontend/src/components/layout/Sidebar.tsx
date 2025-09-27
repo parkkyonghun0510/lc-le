@@ -12,6 +12,9 @@ import {
   FolderIcon,
   XMarkIcon,
   BriefcaseIcon,
+  BellIcon,
+  ChartBarIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthContext } from '@/providers/AuthProvider';
 
@@ -33,6 +36,9 @@ const adminNavigation: NavItem[] = [
   { name: 'Positions', href: '/positions', icon: BriefcaseIcon, requiredRoles: ['admin', 'manager'] },
   { name: 'Users', href: '/users', icon: UsersIcon, requiredRoles: ['admin', 'manager'] },
   { name: 'Branches', href: '/branches', icon: MapPinIcon, requiredRoles: ['admin', 'manager'] },
+  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, requiredRoles: ['admin', 'manager'] },
+  { name: 'Notifications', href: '/notifications', icon: BellIcon, requiredRoles: ['admin', 'manager'] },
+  { name: 'Security', href: '/security', icon: ShieldCheckIcon, requiredRoles: ['admin'] },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, requiredRoles: ['admin'] },
 ];
 

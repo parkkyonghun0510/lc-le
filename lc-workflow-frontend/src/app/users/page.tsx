@@ -34,8 +34,9 @@ import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import StatusIndicator from '@/components/ui/StatusIndicator';
-import AdvancedSearchModal from '@/components/users/AdvancedSearchModal';
+import { LazyAdvancedSearchModal } from '@/components/lazy/LazyComponents';
 import FilterChips from '@/components/users/FilterChips';
+import { usePagePerformance } from '@/hooks/usePerformance';
 import { apiClient } from '@/lib/api';
 
 // Keyboard shortcuts hook
@@ -91,6 +92,9 @@ function useKeyboardShortcuts({
 }
 
 export default function UsersPage() {
+  // Track page performance
+  usePagePerformance('users');
+  
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -788,7 +792,7 @@ export default function UsersPage() {
         </div>
 
         {/* Advanced Search Modal */}
-        <AdvancedSearchModal
+        <LazyAdvancedSearchModal
           isOpen={showAdvancedSearch}
           onClose={() => setShowAdvancedSearch(false)}
           onSearch={handleAdvancedSearch}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useUsers, useDeleteUser } from '@/hooks/useUsers';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
+import { useSavedSearches } from '@/hooks/useSavedSearches';
 import { User } from '@/types/models';
 import { 
   Plus, 
@@ -23,13 +24,18 @@ import {
   FileText,
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  Command,
+  Settings,
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import StatusIndicator from '@/components/ui/StatusIndicator';
+import AdvancedSearchModal from '@/components/users/AdvancedSearchModal';
+import FilterChips from '@/components/users/FilterChips';
 import { apiClient } from '@/lib/api';
 
 export default function UsersPage() {
@@ -40,6 +46,25 @@ export default function UsersPage() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Enhanced search state
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [searchFilters, setSearchFilters] = useState({
+    search: '',
+    searchFields: [] as string[],
+    role: '',
+    departmentId: '',
+    branchId: '',
+    status: '',
+    createdFrom: '',
+    createdTo: '',
+    lastLoginFrom: '',
+    lastLoginTo: '',
+    activityLevel: '',
+    inactiveDays: '',
+    sortBy: 'created_at',
+    sortOrder: 'desc'
+  });
   
   // Bulk selection state
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -56,13 +81,17 @@ export default function UsersPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importResults, setImportResults] = useState<any>(null);
 
+  // Saved searches
+  const { savedSearches, saveSearch, deleteSearch } = useSavedSearches();
+
   const { data: usersData, isLoading, error } = useUsers({
     page,
     size: 10,
-    search: search || undefined,
-    role: roleFilter || undefined,
-    department_id: departmentFilter || undefined,
-    branch_id: branchFilter || undefined,
+    search: searchFilters.search || search || undefined,
+    role: searchFilters.role || roleFilter || undefined,
+    department_id: searchFilters.departmentId || departmentFilter || undefined,
+    branch_id: searchFilters.branchId || branchFilter || undefined,
+    status: searchFilters.status || undefined,
   });
 
   const { data: departmentsData } = useDepartments({ size: 100 });
@@ -92,6 +121,182 @@ export default function UsersPage() {
     setDepartmentFilter('');
     setBranchFilter('');
     setPage(1);
+  };
+
+  // Enhanced search handlers
+  const handleAdvancedSearch = (filters: any) => {
+    setSearchFilters(filters);
+    setPage(1);
+  };
+
+  const getActiveFilterChips = () => {
+    const chips = [];
+    
+    if (searchFilters.search) {
+      chips.push({
+        id: 'search',
+        label: 'Search',
+        value: searchFilters.search,
+        displayValue: searchFilters.searchFields.length > 0 
+          ? `"${searchFilters.search}" in ${searchFilters.searchFields.join(', ')}`
+          : `"${searchFilters.search}"`
+      });
+    }
+    
+    if (searchFilters.role) {
+      chips.push({
+        id: 'role',
+        label: 'Role',
+        value: searchFilters.role,
+        displayValue: searchFilters.role.charAt(0).toUpperCase() + searchFilters.role.slice(1)
+      });
+    }
+    
+    if (searchFilters.departmentId) {
+      const dept = departmentsData?.items?.find(d => d.id === searchFilters.departmentId);
+      chips.push({
+        id: 'departmentId',
+        label: 'Department',
+        value: searchFilters.departmentId,
+        displayValue: dept?.name || 'Unknown'
+      });
+    }
+    
+    if (searchFilters.branchId) {
+      const branch = branchesData?.items?.find(b => b.id === searchFilters.branchId);
+      chips.push({
+        id: 'branchId',
+        label: 'Branch',
+        value: searchFilters.branchId,
+        displayValue: branch?.name || 'Unknown'
+      });
+    }
+    
+    if (searchFilters.status) {
+      chips.push({
+        id: 'status',
+        label: 'Status',
+        value: searchFilters.status,
+        displayValue: searchFilters.status.charAt(0).toUpperCase() + searchFilters.status.slice(1)
+      });
+    }
+    
+    if (searchFilters.activityLevel) {
+      const activityLabels = {
+        'active': 'Active (last 30 days)',
+        'dormant': 'Dormant (90+ days)',
+        'never_logged_in': 'Never logged in'
+      };
+      chips.push({
+        id: 'activityLevel',
+        label: 'Activity',
+        value: searchFilters.activityLevel,
+        displayValue: activityLabels[searchFilters.activityLevel as keyof typeof activityLabels] || searchFilters.activityLevel
+      });
+    }
+    
+    if (searchFilters.inactiveDays) {
+      chips.push({
+        id: 'inactiveDays',
+        label: 'Inactive Days',
+        value: searchFilters.inactiveDays,
+        displayValue: `${searchFilters.inactiveDays} days`
+      });
+    }
+    
+    if (searchFilters.createdFrom || searchFilters.createdTo) {
+      const dateRange = [searchFilters.createdFrom, searchFilters.createdTo]
+        .filter(Boolean)
+        .map(date => new Date(date).toLocaleDateString())
+        .join(' to ');
+      chips.push({
+        id: 'createdDate',
+        label: 'Created',
+        value: `${searchFilters.createdFrom}-${searchFilters.createdTo}`,
+        displayValue: dateRange
+      });
+    }
+    
+    if (searchFilters.lastLoginFrom || searchFilters.lastLoginTo) {
+      const dateRange = [searchFilters.lastLoginFrom, searchFilters.lastLoginTo]
+        .filter(Boolean)
+        .map(date => new Date(date).toLocaleDateString())
+        .join(' to ');
+      chips.push({
+        id: 'lastLoginDate',
+        label: 'Last Login',
+        value: `${searchFilters.lastLoginFrom}-${searchFilters.lastLoginTo}`,
+        displayValue: dateRange
+      });
+    }
+    
+    return chips;
+  };
+
+  const handleRemoveFilter = (filterId: string) => {
+    const newFilters = { ...searchFilters };
+    
+    switch (filterId) {
+      case 'search':
+        newFilters.search = '';
+        newFilters.searchFields = [];
+        break;
+      case 'role':
+        newFilters.role = '';
+        break;
+      case 'departmentId':
+        newFilters.departmentId = '';
+        break;
+      case 'branchId':
+        newFilters.branchId = '';
+        break;
+      case 'status':
+        newFilters.status = '';
+        break;
+      case 'activityLevel':
+        newFilters.activityLevel = '';
+        break;
+      case 'inactiveDays':
+        newFilters.inactiveDays = '';
+        break;
+      case 'createdDate':
+        newFilters.createdFrom = '';
+        newFilters.createdTo = '';
+        break;
+      case 'lastLoginDate':
+        newFilters.lastLoginFrom = '';
+        newFilters.lastLoginTo = '';
+        break;
+    }
+    
+    setSearchFilters(newFilters);
+    setPage(1);
+  };
+
+  const handleClearAllFilters = () => {
+    setSearchFilters({
+      search: '',
+      searchFields: [],
+      role: '',
+      departmentId: '',
+      branchId: '',
+      status: '',
+      createdFrom: '',
+      createdTo: '',
+      lastLoginFrom: '',
+      lastLoginTo: '',
+      activityLevel: '',
+      inactiveDays: '',
+      sortBy: 'created_at',
+      sortOrder: 'desc'
+    });
+    setPage(1);
+  };
+
+  const handleLoadSavedSearch = (savedSearch: any) => {
+    setSearchFilters(savedSearch.filters);
+    setPage(1);
+    setShowAdvancedSearch(false);
   };
 
   // Bulk selection handlers
@@ -379,6 +584,13 @@ export default function UsersPage() {
           </div>
         )}
 
+        {/* Filter Chips */}
+        <FilterChips
+          filters={getActiveFilterChips()}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <form onSubmit={handleSearch} className="space-y-4">
@@ -396,12 +608,11 @@ export default function UsersPage() {
                 </div>
               </div>
               <button
-                type="button"
-                onClick={() => setShowFilters(!showFilters)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                onClick={() => setShowAdvancedSearch(true)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <Filter className="h-5 w-5 mr-2" />
-                Filters
+                <Settings className="h-5 w-5 mr-2" />
+                Advanced Search
               </button>
             </div>
 
@@ -468,10 +679,22 @@ export default function UsersPage() {
                 >
                   Clear Filters
                 </button>
-              )}
-            </div>
+              )}            </div>
           </form>
         </div>
+
+        {/* Advanced Search Modal */}
+        <AdvancedSearchModal
+          isOpen={showAdvancedSearch}
+          onClose={() => setShowAdvancedSearch(false)}
+          onSearch={handleAdvancedSearch}
+          initialFilters={searchFilters}
+          departments={departmentsData?.items || []}
+          branches={branchesData?.items || []}
+          savedSearches={savedSearches}
+          onSaveSearch={saveSearch}
+          onLoadSearch={handleLoadSavedSearch}
+        />
 
         {/* Users Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -618,6 +841,13 @@ export default function UsersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end space-x-2">
+                            <button
+                              onClick={() => router.push(`/users/${user.id}/lifecycle`)}
+                              className="text-green-600 hover:text-green-900 p-1"
+                              title="Lifecycle Management"
+                            >
+                              <Calendar className="h-4 w-4" />
+                            </button>
                             <button
                               onClick={() => router.push(`/users/${user.id}`)}
                               className="text-blue-600 hover:text-blue-900 p-1"

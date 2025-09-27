@@ -175,6 +175,48 @@ DEFAULT_SETTINGS = {
             "is_public": False
         }
     },
+    "email_config": {
+        "smtp_server": {
+            "value": "localhost",
+            "description": "SMTP server hostname",
+            "is_public": False
+        },
+        "smtp_port": {
+            "value": 587,
+            "description": "SMTP server port",
+            "is_public": False
+        },
+        "smtp_username": {
+            "value": "",
+            "description": "SMTP username for authentication",
+            "is_public": False
+        },
+        "smtp_password": {
+            "value": "",
+            "description": "SMTP password for authentication",
+            "is_public": False
+        },
+        "smtp_use_tls": {
+            "value": True,
+            "description": "Use TLS encryption for SMTP",
+            "is_public": False
+        },
+        "from_email": {
+            "value": "noreply@lc-workflow.com",
+            "description": "Default from email address",
+            "is_public": False
+        },
+        "from_name": {
+            "value": "LC Workflow System",
+            "description": "Default from name",
+            "is_public": False
+        },
+        "enabled": {
+            "value": False,
+            "description": "Enable email notifications",
+            "is_public": False
+        }
+    },
     "ui_theme": {
         "default_theme_mode": {
             "value": "system",

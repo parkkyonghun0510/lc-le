@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, and_, or_
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 import csv
 import io
 
@@ -14,6 +14,7 @@ from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse,
 from app.routers.auth import get_current_user, get_password_hash
 from app.services.async_validation_service import AsyncValidationService, DuplicateValidationError
 from app.services.activity_management_service import ActivityManagementService
+from app.services.user_lifecycle_service import UserLifecycleService
 from app.core.user_status import UserStatus, can_transition_status, get_allowed_transitions
 from sqlalchemy.orm import selectinload
 
@@ -106,7 +107,22 @@ async def create_user(
 async def list_users(
     role: Optional[str] = Query(None, description="Filter by role"),
     branch_id: Optional[str] = Query(None, description="Filter by branch"),
+    department_id: Optional[str] = Query(None, description="Filter by department"),
+    status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search in username, email, or name"),
+    # Enhanced date range filtering
+    created_from: Optional[date] = Query(None, description="Filter users created from this date"),
+    created_to: Optional[date] = Query(None, description="Filter users created to this date"),
+    last_login_from: Optional[date] = Query(None, description="Filter by last login from date"),
+    last_login_to: Optional[date] = Query(None, description="Filter by last login to date"),
+    # Activity level filtering
+    activity_level: Optional[str] = Query(None, description="Filter by activity level: active, dormant, never_logged_in"),
+    inactive_days: Optional[int] = Query(None, description="Filter users inactive for X days"),
+    # Enhanced search options
+    search_fields: Optional[str] = Query(None, description="Comma-separated fields to search: username,email,name,employee_id"),
+    # Sorting options
+    sort_by: Optional[str] = Query("created_at", description="Sort by field: created_at, last_login_at, username, email"),
+    sort_order: Optional[str] = Query("desc", description="Sort order: asc, desc"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
@@ -142,41 +158,222 @@ async def list_users(
         )
     )
     
+    # Apply existing filters
     if role:
         query = query.where(User.role == role)
     
     if branch_id:
         query = query.where(User.branch_id == branch_id)
     
+    if department_id:
+        query = query.where(User.department_id == department_id)
+    
+    if status:
+        query = query.where(User.status == status)
+    
+    # Enhanced search functionality
     if search:
         search_term = f"%{search}%"
+        if search_fields:
+            # Search in specific fields
+            search_conditions = []
+            fields = [field.strip() for field in search_fields.split(',')]
+            
+            if 'username' in fields:
+                search_conditions.append(User.username.ilike(search_term))
+            if 'email' in fields:
+                search_conditions.append(User.email.ilike(search_term))
+            if 'name' in fields:
+                search_conditions.extend([
+                    User.first_name.ilike(search_term),
+                    User.last_name.ilike(search_term)
+                ])
+            if 'employee_id' in fields:
+                search_conditions.append(User.employee_id.ilike(search_term))
+            
+            if search_conditions:
+                query = query.where(or_(*search_conditions))
+        else:
+            # Default search in all fields
+            query = query.where(
+                (User.username.ilike(search_term)) |
+                (User.email.ilike(search_term)) |
+                (User.first_name.ilike(search_term)) |
+                (User.last_name.ilike(search_term)) |
+                (User.employee_id.ilike(search_term) if User.employee_id.is_not(None) else False)
+            )
+    
+    # Date range filtering
+    if created_from:
+        query = query.where(User.created_at >= created_from)
+    
+    if created_to:
+        # Add one day to include the entire end date
+        end_date = datetime.combine(created_to, datetime.max.time())
+        query = query.where(User.created_at <= end_date)
+    
+    if last_login_from:
+        query = query.where(User.last_login_at >= last_login_from)
+    
+    if last_login_to:
+        end_date = datetime.combine(last_login_to, datetime.max.time())
+        query = query.where(User.last_login_at <= end_date)
+    
+    # Activity level filtering
+    if activity_level:
+        now = datetime.now(timezone.utc)
+        
+        if activity_level == 'never_logged_in':
+            query = query.where(User.last_login_at.is_(None))
+        elif activity_level == 'dormant':
+            # Users who haven't logged in for 90+ days
+            dormant_threshold = now - timedelta(days=90)
+            query = query.where(
+                and_(
+                    User.status == 'active',
+                    or_(
+                        User.last_login_at < dormant_threshold,
+                        User.last_login_at.is_(None)
+                    )
+                )
+            )
+        elif activity_level == 'active':
+            # Users who logged in within last 30 days
+            active_threshold = now - timedelta(days=30)
+            query = query.where(
+                and_(
+                    User.status == 'active',
+                    User.last_login_at >= active_threshold
+                )
+            )
+    
+    # Custom inactive days filtering
+    if inactive_days is not None:
+        threshold_date = datetime.now(timezone.utc) - timedelta(days=inactive_days)
         query = query.where(
-            (User.username.ilike(search_term)) |
-            (User.email.ilike(search_term)) |
-            (User.first_name.ilike(search_term)) |
-            (User.last_name.ilike(search_term))
+            or_(
+                User.last_login_at < threshold_date,
+                User.last_login_at.is_(None)
+            )
         )
     
     # Count total with the same filters applied
     count_query = select(func.count()).select_from(User)
+    
+    # Apply the same filters to count query
     if role:
         count_query = count_query.where(User.role == role)
     if branch_id:
         count_query = count_query.where(User.branch_id == branch_id)
+    if department_id:
+        count_query = count_query.where(User.department_id == department_id)
+    if status:
+        count_query = count_query.where(User.status == status)
+    
     if search:
         search_term = f"%{search}%"
+        if search_fields:
+            search_conditions = []
+            fields = [field.strip() for field in search_fields.split(',')]
+            
+            if 'username' in fields:
+                search_conditions.append(User.username.ilike(search_term))
+            if 'email' in fields:
+                search_conditions.append(User.email.ilike(search_term))
+            if 'name' in fields:
+                search_conditions.extend([
+                    User.first_name.ilike(search_term),
+                    User.last_name.ilike(search_term)
+                ])
+            if 'employee_id' in fields:
+                search_conditions.append(User.employee_id.ilike(search_term))
+            
+            if search_conditions:
+                count_query = count_query.where(or_(*search_conditions))
+        else:
+            count_query = count_query.where(
+                (User.username.ilike(search_term)) |
+                (User.email.ilike(search_term)) |
+                (User.first_name.ilike(search_term)) |
+                (User.last_name.ilike(search_term)) |
+                (User.employee_id.ilike(search_term) if User.employee_id.is_not(None) else False)
+            )
+    
+    if created_from:
+        count_query = count_query.where(User.created_at >= created_from)
+    
+    if created_to:
+        end_date = datetime.combine(created_to, datetime.max.time())
+        count_query = count_query.where(User.created_at <= end_date)
+    
+    if last_login_from:
+        count_query = count_query.where(User.last_login_at >= last_login_from)
+    
+    if last_login_to:
+        end_date = datetime.combine(last_login_to, datetime.max.time())
+        count_query = count_query.where(User.last_login_at <= end_date)
+    
+    if activity_level:
+        now = datetime.now(timezone.utc)
+        
+        if activity_level == 'never_logged_in':
+            count_query = count_query.where(User.last_login_at.is_(None))
+        elif activity_level == 'dormant':
+            dormant_threshold = now - timedelta(days=90)
+            count_query = count_query.where(
+                and_(
+                    User.status == 'active',
+                    or_(
+                        User.last_login_at < dormant_threshold,
+                        User.last_login_at.is_(None)
+                    )
+                )
+            )
+        elif activity_level == 'active':
+            active_threshold = now - timedelta(days=30)
+            count_query = count_query.where(
+                and_(
+                    User.status == 'active',
+                    User.last_login_at >= active_threshold
+                )
+            )
+    
+    if inactive_days is not None:
+        threshold_date = datetime.now(timezone.utc) - timedelta(days=inactive_days)
         count_query = count_query.where(
-            (User.username.ilike(search_term)) |
-            (User.email.ilike(search_term)) |
-            (User.first_name.ilike(search_term)) |
-            (User.last_name.ilike(search_term))
+            or_(
+                User.last_login_at < threshold_date,
+                User.last_login_at.is_(None)
+            )
         )
     count_result = await db.execute(count_query)
     total = int(count_result.scalar() or 0)
     
+    # Apply sorting
+    if sort_by == 'last_login_at':
+        if sort_order == 'asc':
+            query = query.order_by(User.last_login_at.asc().nulls_last())
+        else:
+            query = query.order_by(User.last_login_at.desc().nulls_last())
+    elif sort_by == 'username':
+        if sort_order == 'asc':
+            query = query.order_by(User.username.asc())
+        else:
+            query = query.order_by(User.username.desc())
+    elif sort_by == 'email':
+        if sort_order == 'asc':
+            query = query.order_by(User.email.asc())
+        else:
+            query = query.order_by(User.email.desc())
+    else:  # Default to created_at
+        if sort_order == 'asc':
+            query = query.order_by(User.created_at.asc())
+        else:
+            query = query.order_by(User.created_at.desc())
+    
     # Apply pagination
     offset = (page - 1) * size
-    query = query.order_by(desc(User.created_at)).offset(offset).limit(size)
+    query = query.offset(offset).limit(size)
     
     result = await db.execute(query)
     users = result.scalars().all()
@@ -1178,6 +1375,127 @@ async def get_activity_summary(
     return summary
 
 
+# User Lifecycle Management Endpoints
+
+@router.get("/{user_id}/lifecycle/onboarding")
+async def get_user_onboarding_status(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get user onboarding status and progress"""
+    if current_user.role not in ["admin", "manager"] and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view user onboarding status"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.get_user_onboarding_status(user_id)
+
+@router.post("/{user_id}/lifecycle/onboarding/complete")
+async def complete_user_onboarding(
+    user_id: UUID,
+    notes: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark user onboarding as complete"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to complete user onboarding"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.complete_onboarding(user_id, current_user.id, notes)
+
+@router.post("/{user_id}/lifecycle/onboarding/restart")
+async def restart_user_onboarding(
+    user_id: UUID,
+    reason: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Restart user onboarding process"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to restart user onboarding"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.restart_onboarding(user_id, current_user.id, reason)
+
+@router.get("/lifecycle/onboarding/summary")
+async def get_onboarding_summary(
+    department_id: Optional[UUID] = Query(None),
+    branch_id: Optional[UUID] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get onboarding summary statistics"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view onboarding summary"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.get_onboarding_summary(department_id, branch_id)
+
+@router.get("/lifecycle/onboarding/pending")
+async def get_users_needing_onboarding(
+    days_threshold: int = Query(7, description="Days threshold for pending onboarding"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get users who need onboarding attention"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view pending onboarding users"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.get_users_needing_onboarding(days_threshold)
+
+@router.post("/{user_id}/lifecycle/offboarding/initiate")
+async def initiate_user_offboarding(
+    user_id: UUID,
+    reason: str,
+    last_working_day: Optional[datetime] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Initiate offboarding process for a user"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to initiate user offboarding"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.initiate_offboarding(user_id, current_user.id, reason, last_working_day)
+
+@router.post("/{user_id}/lifecycle/offboarding/complete")
+async def complete_user_offboarding(
+    user_id: UUID,
+    notes: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Complete offboarding process and archive user"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to complete user offboarding"
+        )
+    
+    lifecycle_service = UserLifecycleService(db)
+    return await lifecycle_service.complete_offboarding(user_id, current_user.id, notes)
+
+
 # CSV Import/Export helper functions
 async def lookup_reference_data(db: AsyncSession):
     """Lookup reference data for CSV import validation"""
@@ -1633,3 +1951,246 @@ async def download_csv_template(
         media_type='text/csv',
         headers={'Content-Disposition': 'attachment; filename=user_import_template.csv'}
     )
+
+
+# Notification Management Endpoints
+
+@router.get("/notifications/preferences")
+async def get_notification_preferences(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current user's notification preferences"""
+    from app.services.notification_service import NotificationService
+    
+    notification_service = NotificationService(db)
+    return await notification_service.get_notification_preferences(current_user.id)
+
+@router.put("/notifications/preferences")
+async def update_notification_preferences(
+    preferences: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update current user's notification preferences"""
+    from app.services.notification_service import NotificationService
+    
+    notification_service = NotificationService(db)
+    return await notification_service.update_notification_preferences(
+        current_user.id, preferences
+    )
+
+@router.post("/notifications/test")
+async def test_notification_system(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Test notification system (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to test notification system"
+        )
+    
+    from app.services.notification_service import NotificationService
+    
+    notification_service = NotificationService(db)
+    return await notification_service.test_notification_system(current_user.id)
+
+@router.post("/notifications/onboarding-reminders")
+async def send_onboarding_reminders(
+    days_threshold: int = Query(7, description="Days threshold for overdue onboarding"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Send onboarding reminders to overdue users (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to send onboarding reminders"
+        )
+    
+    from app.services.notification_service import NotificationService
+    
+    notification_service = NotificationService(db)
+    return await notification_service.send_onboarding_reminder_notifications(days_threshold)
+
+@router.get("/notifications/summary")
+async def get_notification_summary(
+    days: int = Query(30, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get notification statistics and summary (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view notification summary"
+        )
+    
+    from app.services.notification_service import NotificationService
+    
+    notification_service = NotificationService(db)
+    return await notification_service.get_notification_summary(days)
+
+@router.post("/{user_id}/notifications/welcome")
+async def send_welcome_notification(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Send welcome notification to user (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to send welcome notifications"
+        )
+    
+    # Get target user
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    from app.services.notification_service import NotificationService
+    
+    notification_service = NotificationService(db)
+    return await notification_service.send_welcome_notification(user)
+
+
+# User Analytics Endpoints
+
+@router.get("/analytics/activity-metrics")
+async def get_user_activity_metrics(
+    days: int = Query(30, description="Number of days to analyze"),
+    department_id: Optional[UUID] = Query(None, description="Filter by department"),
+    branch_id: Optional[UUID] = Query(None, description="Filter by branch"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get comprehensive user activity metrics (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view user analytics"
+        )
+    
+    from app.services.user_analytics_service import UserAnalyticsService
+    
+    analytics_service = UserAnalyticsService(db)
+    return await analytics_service.get_user_activity_metrics(
+        days=days,
+        department_id=department_id,
+        branch_id=branch_id
+    )
+
+@router.get("/analytics/organizational-metrics")
+async def get_organizational_metrics(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get organizational metrics and distribution (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view organizational analytics"
+        )
+    
+    from app.services.user_analytics_service import UserAnalyticsService
+    
+    analytics_service = UserAnalyticsService(db)
+    return await analytics_service.get_organizational_metrics()
+
+@router.get("/{user_id}/analytics/performance-dashboard")
+async def get_user_performance_dashboard(
+    user_id: UUID,
+    days: int = Query(90, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get individual user performance dashboard"""
+    if current_user.role not in ["admin", "manager"] and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view user performance dashboard"
+        )
+    
+    from app.services.user_analytics_service import UserAnalyticsService
+    
+    analytics_service = UserAnalyticsService(db)
+    return await analytics_service.get_user_performance_dashboard(
+        user_id=user_id,
+        days=days
+    )
+
+@router.get("/analytics/activity-trends")
+async def get_activity_trends(
+    days: int = Query(30, description="Number of days to analyze"),
+    metric_type: str = Query("user_creation", description="Type of metric to trend"),
+    department_id: Optional[UUID] = Query(None, description="Filter by department"),
+    branch_id: Optional[UUID] = Query(None, description="Filter by branch"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get activity trends over time (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view activity trends"
+        )
+    
+    from app.services.user_analytics_service import UserAnalyticsService
+    
+    analytics_service = UserAnalyticsService(db)
+    
+    # Get activity metrics which includes trends
+    metrics = await analytics_service.get_user_activity_metrics(
+        days=days,
+        department_id=department_id,
+        branch_id=branch_id
+    )
+    
+    return {
+        'trends': metrics.get('trends', {}),
+        'period_days': days,
+        'metric_type': metric_type,
+        'filters': {
+            'department_id': str(department_id) if department_id else None,
+            'branch_id': str(branch_id) if branch_id else None
+        },
+        'generated_at': datetime.now(timezone.utc).isoformat()
+    }
+
+@router.get("/analytics/summary")
+async def get_analytics_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get analytics summary dashboard (admin/manager only)"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view analytics summary"
+        )
+    
+    from app.services.user_analytics_service import UserAnalyticsService
+    
+    analytics_service = UserAnalyticsService(db)
+    
+    # Get both user activity and organizational metrics
+    activity_metrics = await analytics_service.get_user_activity_metrics(days=30)
+    org_metrics = await analytics_service.get_organizational_metrics()
+    
+    return {
+        'activity_overview': activity_metrics.get('overview', {}),
+        'role_distribution': activity_metrics.get('role_distribution', {}),
+        'activity_levels': activity_metrics.get('activity_levels', {}).get('category_counts', {}),
+        'onboarding_metrics': activity_metrics.get('onboarding_metrics', {}),
+        'organizational_summary': org_metrics.get('summary', {}),
+        'geographic_distribution': activity_metrics.get('geographic_distribution', {}),
+        'generated_at': datetime.now(timezone.utc).isoformat()
+    }

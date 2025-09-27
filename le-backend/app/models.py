@@ -56,6 +56,10 @@ class User(Base):
     direct_reports = relationship("User", foreign_keys="User.line_manager_id", back_populates="line_manager")
     applications = relationship("CustomerApplication", back_populates="user", foreign_keys="CustomerApplication.user_id")
     uploaded_files = relationship("File", back_populates="uploaded_by_user")
+    
+    # Permission system relationships
+    user_roles = relationship("UserRole", foreign_keys="UserRole.user_id", cascade="all, delete-orphan")
+    user_permissions = relationship("UserPermission", foreign_keys="UserPermission.user_id", cascade="all, delete-orphan")
 
 class Department(Base):
     __tablename__ = "departments"

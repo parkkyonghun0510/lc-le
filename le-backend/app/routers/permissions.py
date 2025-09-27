@@ -20,7 +20,7 @@ from app.models.permissions import (
     ResourceType, PermissionAction, PermissionScope
 )
 from app.services.permission_service import PermissionService, require_permission
-from app.dependencies import get_current_user
+from app.routers.auth import get_current_user
 from app.schemas.permission_schemas import (
     PermissionCreate, PermissionUpdate, PermissionResponse,
     RoleCreate, RoleUpdate, RoleResponse, RoleAssignmentCreate,

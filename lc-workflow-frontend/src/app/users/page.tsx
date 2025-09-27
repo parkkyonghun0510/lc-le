@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUsers, useDeleteUser } from '@/hooks/useUsers';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
@@ -37,6 +37,58 @@ import StatusIndicator from '@/components/ui/StatusIndicator';
 import AdvancedSearchModal from '@/components/users/AdvancedSearchModal';
 import FilterChips from '@/components/users/FilterChips';
 import { apiClient } from '@/lib/api';
+
+// Keyboard shortcuts hook
+function useKeyboardShortcuts({
+  onAdvancedSearch,
+  onNewUser,
+  onExport,
+  onImport,
+  onClearFilters
+}: {
+  onAdvancedSearch: () => void;
+  onNewUser: () => void;
+  onExport: () => void;
+  onImport: () => void;
+  onClearFilters: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only trigger if not typing in an input
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case 'k': // Ctrl/Cmd + K for advanced search
+            event.preventDefault();
+            onAdvancedSearch();
+            break;
+          case 'n': // Ctrl/Cmd + N for new user
+            event.preventDefault();
+            onNewUser();
+            break;
+          case 'e': // Ctrl/Cmd + E for export
+            event.preventDefault();
+            onExport();
+            break;
+          case 'i': // Ctrl/Cmd + I for import
+            event.preventDefault();
+            onImport();
+            break;
+          case 'r': // Ctrl/Cmd + R for clear filters
+            event.preventDefault();
+            onClearFilters();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onAdvancedSearch, onNewUser, onExport, onImport, onClearFilters]);
+}
 
 export default function UsersPage() {
   const router = useRouter();
@@ -81,6 +133,15 @@ export default function UsersPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importResults, setImportResults] = useState<any>(null);
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onAdvancedSearch: () => setShowAdvancedSearch(true),
+    onNewUser: () => router.push('/users/new'),
+    onExport: () => exportUsers(),
+    onImport: () => setShowImportModal(true),
+    onClearFilters: () => handleClearAllFilters()
+  });
+
   // Saved searches
   const { savedSearches, saveSearch, deleteSearch } = useSavedSearches();
 
@@ -92,6 +153,16 @@ export default function UsersPage() {
     department_id: searchFilters.departmentId || departmentFilter || undefined,
     branch_id: searchFilters.branchId || branchFilter || undefined,
     status: searchFilters.status || undefined,
+    // Enhanced search parameters
+    created_from: searchFilters.createdFrom || undefined,
+    created_to: searchFilters.createdTo || undefined,
+    last_login_from: searchFilters.lastLoginFrom || undefined,
+    last_login_to: searchFilters.lastLoginTo || undefined,
+    activity_level: searchFilters.activityLevel || undefined,
+    inactive_days: searchFilters.inactiveDays ? parseInt(searchFilters.inactiveDays) : undefined,
+    search_fields: searchFilters.searchFields.length > 0 ? searchFilters.searchFields.join(',') : undefined,
+    sort_by: searchFilters.sortBy || undefined,
+    sort_order: searchFilters.sortOrder || undefined,
   });
 
   const { data: departmentsData } = useDepartments({ size: 100 });
@@ -479,6 +550,39 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
+              <div className="relative group">
+                <button className="inline-flex items-center px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+                  <Command className="h-4 w-4 mr-1" />
+                  Shortcuts
+                </button>
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                  <div className="p-3">
+                    <h4 className="font-medium text-gray-900 mb-2">Keyboard Shortcuts</h4>
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Advanced Search</span>
+                        <span className="font-mono bg-gray-100 px-1 rounded">Ctrl+K</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>New User</span>
+                        <span className="font-mono bg-gray-100 px-1 rounded">Ctrl+N</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Export CSV</span>
+                        <span className="font-mono bg-gray-100 px-1 rounded">Ctrl+E</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Import CSV</span>
+                        <span className="font-mono bg-gray-100 px-1 rounded">Ctrl+I</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Clear Filters</span>
+                        <span className="font-mono bg-gray-100 px-1 rounded">Ctrl+R</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <button
                 onClick={exportUsers}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

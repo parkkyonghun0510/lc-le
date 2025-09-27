@@ -201,7 +201,7 @@ class BulkPermissionAssignmentItem(BaseSchema):
 
 class BulkPermissionAssignment(BaseSchema):
     """Schema for bulk permission assignments."""
-    target_type: str = Field(..., regex="^(user|role)$")
+    target_type: str = Field(..., pattern="^(user|role)$")
     assignments: List[BulkPermissionAssignmentItem]
 
 
@@ -220,7 +220,7 @@ class PermissionTemplateBase(BaseSchema):
     """Base schema for permission templates."""
     name: str = Field(..., min_length=1, max_length=100)
     description: str = Field(..., min_length=1, max_length=500)
-    template_type: str = Field(..., regex="^(role|department|position)$")
+    template_type: str = Field(..., pattern="^(role|department|position)$")
     permissions: List[UUID] = Field(..., min_items=1)
     default_conditions: Optional[Dict[str, Any]] = None
 

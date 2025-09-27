@@ -79,12 +79,54 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
     return result.scalar_one_or_none()
 
 async def authenticate_user(db: AsyncSession, username: str, password: str) -> Optional[User]:
+    """Authenticate user with enhanced security including failed attempt tracking"""
     user = await get_user_by_username(db, username)
     if not user:
         return None
+    
+    # Check if account is locked due to too many failed attempts
+    max_failed_attempts = 5  # Maximum failed attempts before lockout
+    lockout_duration_minutes = 30  # Account lockout duration
+    
+    if user.failed_login_attempts >= max_failed_attempts:
+        # Check if lockout period has expired
+        if user.last_activity_at:
+            lockout_expiry = user.last_activity_at + timedelta(minutes=lockout_duration_minutes)
+            if datetime.now(timezone.utc) < lockout_expiry:
+                # Account is still locked
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail=f"Account locked due to {max_failed_attempts} failed login attempts. Try again after {lockout_duration_minutes} minutes."
+                )
+        # Reset failed attempts if lockout period has expired
+        user.failed_login_attempts = 0
+        await db.commit()
+    
     hashed: str = str(user.password_hash)  # narrow for type checker; runtime value is str
+    
+    # Verify password
     if not verify_password(password, hashed):
+        # Increment failed login attempts
+        user.failed_login_attempts += 1
+        user.last_activity_at = datetime.now(timezone.utc)
+        
+        # Check if this attempt triggers account lockout
+        if user.failed_login_attempts >= max_failed_attempts:
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Account locked due to {max_failed_attempts} failed login attempts. Try again after {lockout_duration_minutes} minutes."
+            )
+        
+        await db.commit()
         return None
+    
+    # Successful login - reset failed attempts and update login tracking
+    user.failed_login_attempts = 0
+    user.login_count = (user.login_count or 0) + 1
+    user.last_activity_at = datetime.now(timezone.utc)
+    await db.commit()
+    
     return user
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:

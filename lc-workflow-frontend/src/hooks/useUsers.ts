@@ -20,10 +20,19 @@ export const useUsers = (filters: {
   role?: string;
   department_id?: string;
   position_id?: string;
-
   branch_id?: string;
   search?: string;
   status?: string;
+  // Enhanced search parameters
+  created_from?: string;
+  created_to?: string;
+  last_login_from?: string;
+  last_login_to?: string;
+  activity_level?: string;
+  inactive_days?: number;
+  search_fields?: string;
+  sort_by?: string;
+  sort_order?: string;
 } = {}) => {
   return useQuery({
     queryKey: userKeys.list(filters),
@@ -39,10 +48,19 @@ export const useInfiniteUsers = (filters: {
   role?: string;
   department_id?: string;
   position_id?: string;   
-
   branch_id?: string;
   search?: string;
   status?: string;
+  // Enhanced search parameters
+  created_from?: string;
+  created_to?: string;
+  last_login_from?: string;
+  last_login_to?: string;
+  activity_level?: string;
+  inactive_days?: number;
+  search_fields?: string;
+  sort_by?: string;
+  sort_order?: string;
 } = {}) => {
   return useInfiniteQuery({
     queryKey: userKeys.list(filters),

@@ -2,11 +2,11 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AuthResponse, LoginCredentials } from '@/types/models';
 import { handleApiError } from './handleApiError';
 
-const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090/api/v1';
 
 function normalizeBaseUrl(raw: string): string {
   try {
-    let url = raw.trim().replace(/\/$/, '').replace(/\/(api|api\/v1)\/?$/i, '');
+    let url = raw.trim().replace(/\/$/, '');
     const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const isProd = process.env.NODE_ENV === 'production' || (typeof window !== 'undefined' && window.location.hostname.endsWith('railway.app'));
     if (isHttpsPage || isProd) url = url.replace(/^http:\/\//i, 'https://');
@@ -22,7 +22,7 @@ export function getApiOrigin(): string {
 }
 
 const API_ORIGIN = getApiOrigin();
-const API_BASE_URL = `${API_ORIGIN}/api/v1`;
+const API_BASE_URL = API_ORIGIN;
 class ApiClient {
   private client: AxiosInstance;
 

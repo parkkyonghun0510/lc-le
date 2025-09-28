@@ -295,6 +295,7 @@ export interface PaginatedResponse<T> {
 export type ApplicationStatus =
   | 'draft'
   | 'submitted'
+  | 'pending'
   | 'under_review'
   | 'approved'
   | 'rejected';

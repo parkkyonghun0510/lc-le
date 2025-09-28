@@ -11,7 +11,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.services.cache_service import cache_service, cache_user_list, cache_user_detail, cache_analytics
-from app.models import User, Department, Branch, Position, Portfolio
+from app.models import User, Department, Branch, Position
 from app.schemas import UserResponse, PaginatedResponse
 import logging
 

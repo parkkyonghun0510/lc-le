@@ -52,15 +52,6 @@ export function formatDateDOB(dateString: string): string {
   }).format(date);
 }
 
-// export function formatCurrency(amount: number, currency = 'KHR', locale = 'km-KH'): string {
-//   const isRiel = currency === 'KHR';
-//   return new Intl.NumberFormat(locale, {
-//     style: 'currency',
-//     currency,
-//     minimumFractionDigits: isRiel ? 0 : 2,
-//     maximumFractionDigits: isRiel ? 0 : 2,
-//   }).format(amount);
-// }
 
 // Currency conversion rates (in a real app, these would come from an API)
 const EXCHANGE_RATES = {
@@ -89,24 +80,6 @@ export function convertCurrency(
   // Default: return original amount if conversion not supported
   return amount;
 }
-// export function formatCurrency(amount: number, currency = 'KHR', locale = 'km-KH'): string {
-//   const isRiel = currency === 'KHR';
-
-//   // Format normally using Intl
-//   let formatted = new Intl.NumberFormat(locale, {
-//     style: 'currency',
-//     currency,
-//     minimumFractionDigits: isRiel ? 0 : 2,
-//     maximumFractionDigits: isRiel ? 0 : 2,
-//   }).format(amount);
-
-//   // Replace KHR with ៛ if needed
-//   if (isRiel) {
-//     formatted = formatted.replace(/\s?(KHR|៛)/g, '៛');
-//   }
-
-//   return formatted;
-// }
 export function formatCurrency(
   amount: number,
   currency = 'KHR',

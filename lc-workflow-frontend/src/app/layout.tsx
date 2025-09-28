@@ -6,6 +6,7 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToasterClient } from "@/components/ToasterClient";
 import { AppInitializer } from "@/components/AppInitializer";
+import ErrorBoundaryProvider from "@/components/providers/ErrorBoundaryProvider";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -84,16 +85,18 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="57x57" href="/icon-57x57.png" />
       </head>
       <body className={`${inter.variable} ${notoSansKhmer.variable} font-sans antialiased`}>
-        <QueryProvider>
-          <ThemeProvider useBackendSettings={true}>
-            <AuthProvider>
-              <AppInitializer>
-                <ToasterClient />
-                {children}
-              </AppInitializer>
-            </AuthProvider>
-          </ThemeProvider>
-        </QueryProvider>
+        <ErrorBoundaryProvider>
+          <QueryProvider>
+            <ThemeProvider useBackendSettings={true}>
+              <AuthProvider>
+                <AppInitializer>
+                  <ToasterClient />
+                  {children}
+                </AppInitializer>
+              </AuthProvider>
+            </ThemeProvider>
+          </QueryProvider>
+        </ErrorBoundaryProvider>
       </body>
     </html>
   );

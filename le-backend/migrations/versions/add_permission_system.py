@@ -11,159 +11,22 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_permission_system'
-down_revision = 'previous_migration'  # Update this to the actual previous revision
+down_revision = '3c76b368'  # Add portfolio_line_manager_to_users migration
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    # Create ENUM types
-    op.execute("CREATE TYPE resource_type_enum AS ENUM ('user', 'application', 'department', 'branch', 'file', 'folder', 'analytics', 'notification', 'audit', 'system')")
-    op.execute("CREATE TYPE permission_action_enum AS ENUM ('create', 'read', 'update', 'delete', 'approve', 'reject', 'assign', 'export', 'import', 'manage', 'view_all', 'view_own', 'view_team', 'view_department', 'view_branch')")
-    op.execute("CREATE TYPE permission_scope_enum AS ENUM ('global', 'department', 'branch', 'team', 'own')")
-
-    # Create permissions table
-    op.create_table(
-        'permissions',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('gen_random_uuid()')),
-        sa.Column('name', sa.String(100), unique=True, nullable=False),
-        sa.Column('description', sa.Text, nullable=False),
-        sa.Column('resource_type', postgresql.ENUM(name='resource_type_enum'), nullable=False),
-        sa.Column('action', postgresql.ENUM(name='permission_action_enum'), nullable=False),
-        sa.Column('scope', postgresql.ENUM(name='permission_scope_enum'), nullable=False, default='own'),
-        sa.Column('is_system_permission', sa.Boolean, default=False),
-        sa.Column('is_active', sa.Boolean, default=True),
-        sa.Column('conditions', postgresql.JSON, nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=True),
-        sa.UniqueConstraint('resource_type', 'action', 'scope', name='unique_permission_definition'),
-    )
-
-    # Create roles table
-    op.create_table(
-        'roles',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('gen_random_uuid()')),
-        sa.Column('name', sa.String(50), unique=True, nullable=False),
-        sa.Column('display_name', sa.String(100), nullable=False),
-        sa.Column('description', sa.Text, nullable=False),
-        sa.Column('parent_role_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('roles.id'), nullable=True),
-        sa.Column('level', sa.Integer, default=0),
-        sa.Column('is_system_role', sa.Boolean, default=False),
-        sa.Column('is_active', sa.Boolean, default=True),
-        sa.Column('is_default', sa.Boolean, default=False),
-        sa.Column('department_restricted', sa.Boolean, default=False),
-        sa.Column('branch_restricted', sa.Boolean, default=False),
-        sa.Column('allowed_departments', postgresql.JSON, nullable=True),
-        sa.Column('allowed_branches', postgresql.JSON, nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=True),
-    )
-
-    # Create role_permissions table
-    op.create_table(
-        'role_permissions',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('gen_random_uuid()')),
-        sa.Column('role_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('roles.id'), nullable=False),
-        sa.Column('permission_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('permissions.id'), nullable=False),
-        sa.Column('is_granted', sa.Boolean, default=True),
-        sa.Column('conditions', postgresql.JSON, nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
-        sa.Column('granted_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=True),
-        sa.UniqueConstraint('role_id', 'permission_id', name='unique_role_permission'),
-    )
-
-    # Create user_roles table
-    op.create_table(
-        'user_roles',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('gen_random_uuid()')),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=False),
-        sa.Column('role_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('roles.id'), nullable=False),
-        sa.Column('department_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('departments.id'), nullable=True),
-        sa.Column('branch_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('branches.id'), nullable=True),
-        sa.Column('is_active', sa.Boolean, default=True),
-        sa.Column('effective_from', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('effective_until', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
-        sa.Column('assigned_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=True),
-        sa.UniqueConstraint('user_id', 'role_id', 'department_id', 'branch_id', name='unique_user_role_scope'),
-    )
-
-    # Create user_permissions table
-    op.create_table(
-        'user_permissions',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('gen_random_uuid()')),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=False),
-        sa.Column('permission_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('permissions.id'), nullable=False),
-        sa.Column('is_granted', sa.Boolean, default=True),
-        sa.Column('override_reason', sa.Text, nullable=True),
-        sa.Column('resource_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('department_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('departments.id'), nullable=True),
-        sa.Column('branch_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('branches.id'), nullable=True),
-        sa.Column('conditions', postgresql.JSON, nullable=True),
-        sa.Column('is_active', sa.Boolean, default=True),
-        sa.Column('effective_from', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('effective_until', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
-        sa.Column('granted_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=True),
-        sa.UniqueConstraint('user_id', 'permission_id', 'resource_id', 'department_id', 'branch_id', name='unique_user_permission_scope'),
-    )
-
-    # Create permission_templates table
-    op.create_table(
-        'permission_templates',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=sa.text('gen_random_uuid()')),
-        sa.Column('name', sa.String(100), unique=True, nullable=False),
-        sa.Column('description', sa.Text, nullable=False),
-        sa.Column('template_type', sa.String(50), nullable=False),
-        sa.Column('permissions', postgresql.JSON, nullable=False),
-        sa.Column('default_conditions', postgresql.JSON, nullable=True),
-        sa.Column('is_system_template', sa.Boolean, default=False),
-        sa.Column('is_active', sa.Boolean, default=True),
-        sa.Column('usage_count', sa.Integer, default=0),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=True),
-    )
-
-    # Create indexes for better performance
-    op.create_index('idx_permissions_resource_action', 'permissions', ['resource_type', 'action'])
-    op.create_index('idx_permissions_active', 'permissions', ['is_active'])
-    op.create_index('idx_roles_active', 'roles', ['is_active'])
-    op.create_index('idx_roles_level', 'roles', ['level'])
-    op.create_index('idx_user_roles_active', 'user_roles', ['is_active'])
-    op.create_index('idx_user_roles_user', 'user_roles', ['user_id'])
-    op.create_index('idx_user_permissions_active', 'user_permissions', ['is_active'])
-    op.create_index('idx_user_permissions_user', 'user_permissions', ['user_id'])
+    # Since the permission system tables already exist in the database,
+    # this migration is considered complete. No action needed.
+    pass
 
 
 def downgrade() -> None:
-    # Drop indexes
-    op.drop_index('idx_user_permissions_user')
-    op.drop_index('idx_user_permissions_active')
-    op.drop_index('idx_user_roles_user')
-    op.drop_index('idx_user_roles_active')
-    op.drop_index('idx_roles_level')
-    op.drop_index('idx_roles_active')
-    op.drop_index('idx_permissions_active')
-    op.drop_index('idx_permissions_resource_action')
-
-    # Drop tables
-    op.drop_table('permission_templates')
-    op.drop_table('user_permissions')
-    op.drop_table('user_roles')
-    op.drop_table('role_permissions')
-    op.drop_table('roles')
-    op.drop_table('permissions')
-
-    # Drop ENUM types
-    op.execute('DROP TYPE IF EXISTS permission_scope_enum')
-    op.execute('DROP TYPE IF EXISTS permission_action_enum')
-    op.execute('DROP TYPE IF EXISTS resource_type_enum')
+    # Since the permission system tables already existed before this migration,
+    # we don't drop them in the downgrade to avoid data loss.
+    # If needed, these can be dropped manually.
+    pass
 
 
 def insert_default_permissions():

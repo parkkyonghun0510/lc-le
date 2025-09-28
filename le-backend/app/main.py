@@ -12,7 +12,7 @@ from app.database import engine, Base
 from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
 from app.routers import folders, customers, enums, selfies, validation, account_validation
 from app.routers import settings as settings_router
-from app.routers import permissions
+from app.routers import permissions, performance, security
 from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
 from app.middleware.database_middleware import DatabaseConnectionMiddleware
@@ -79,6 +79,8 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboar
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(positions.router, prefix="/api/v1/positions", tags=["positions"])
 app.include_router(permissions.router, prefix="/api/v1/permissions", tags=["permissions"])
+app.include_router(performance.router, prefix="/api/v1", tags=["performance"])
+app.include_router(security.router, prefix="/api/v1", tags=["security"])
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])

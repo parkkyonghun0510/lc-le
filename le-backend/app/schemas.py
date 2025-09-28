@@ -1,13 +1,13 @@
 from __future__ import annotations
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator  # pyright: ignore[reportMissingImports]
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import json
 import re
 from uuid import UUID
 from enum import Enum
-from .workflow import WorkflowStatus, WorkflowStatusUpdate, WorkflowStatusResponse
-from .core.user_status import UserStatus, can_transition_status
+from app.workflow import WorkflowStatus, WorkflowStatusUpdate, WorkflowStatusResponse
+from app.core.user_status import UserStatus, can_transition_status
 
 # Base schemas
 class BaseSchema(BaseModel):

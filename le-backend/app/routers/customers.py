@@ -158,7 +158,7 @@ async def get_customer_applications(
         file_count = file_count_result.scalar_one() or 0
         
         # Use Pydantic schema for proper serialization
-        app_response = CustomerApplicationResponse.model_validate(application)
+        app_response = CustomerApplicationResponse.from_orm(application)
         app_dict = app_response.model_dump()
         app_dict["file_count"] = file_count
         application_responses.append(app_dict)

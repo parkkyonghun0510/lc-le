@@ -10,11 +10,11 @@ from app.database import get_db
 
 router = APIRouter()
 
-@router.post("/", response_model=schemas.Position, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.PositionResponse, status_code=status.HTTP_201_CREATED)
 async def create_position(
     position: schemas.PositionCreate,
     db: AsyncSession = Depends(get_db),
-) -> schemas.Position:
+) -> schemas.PositionResponse:
     db_position = models.Position(**position.model_dump())
     db.add(db_position)
     try:
@@ -74,7 +74,7 @@ async def read_positions(
 
         # Convert SQLAlchemy models to Pydantic schemas
         print(f"DEBUG: About to convert to schemas")
-        position_schemas = [schemas.Position.model_validate(position) for position in positions]
+        position_schemas = [schemas.PositionResponse.model_validate(position) for position in positions]
         print(f"DEBUG: Converted {len(position_schemas)} position schemas")
 
         # Calculate total pages
@@ -98,8 +98,8 @@ async def read_positions(
         print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise e
 
-@router.get("/{position_id}", response_model=schemas.Position)
-async def read_position(position_id: UUID, db: AsyncSession = Depends(get_db)) -> schemas.Position:
+@router.get("/{position_id}", response_model=schemas.PositionResponse)
+async def read_position(position_id: UUID, db: AsyncSession = Depends(get_db)) -> schemas.PositionResponse:
     result = await db.execute(
         select(models.Position).where(models.Position.id == position_id)
     )
@@ -108,12 +108,12 @@ async def read_position(position_id: UUID, db: AsyncSession = Depends(get_db)) -
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Position not found")
     return position
 
-@router.patch("/{position_id}", response_model=schemas.Position)
+@router.patch("/{position_id}", response_model=schemas.PositionResponse)
 async def update_position(
     position_id: UUID,
     position: schemas.PositionUpdate,
     db: AsyncSession = Depends(get_db),
-) -> schemas.Position:
+) -> schemas.PositionResponse:
     # Fetch existing
     result = await db.execute(
         select(models.Position).where(models.Position.id == position_id)

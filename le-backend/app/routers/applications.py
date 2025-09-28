@@ -9,66 +9,19 @@ from datetime import datetime, date, timezone, timedelta
 
 from app.database import get_db
 from app.models import CustomerApplication, User, Department, Branch
-# Temporarily disable problematic imports to get server running
-# TODO: Fix schema imports properly
-# from schemas import (
-#     CustomerApplicationCreate,
-#     CustomerApplicationUpdate,
-#     CustomerApplicationResponse,
-#     PaginatedResponse,
-#     RejectionRequest,
-#     BaseSchema,
-#     WorkflowTransitionRequest,
-#     WorkflowStatusInfo,
-#     ApplicationWorkflowResponse,
-# )
-
-# Define placeholder Pydantic models for now
-from pydantic import BaseModel
-from typing import List, Optional, Any, Dict
-from datetime import datetime
-
-class BaseSchema(BaseModel):
-    pass
-
-class CustomerApplicationCreate(BaseSchema):
-    pass
-
-class CustomerApplicationUpdate(BaseSchema):
-    pass
-
-class CustomerApplicationResponse(BaseSchema):
-    id: Optional[str] = None
-    status: Optional[str] = None
-    created_at: Optional[datetime] = None
-
-class PaginatedResponse(BaseSchema):
-    items: List[Any] = []
-    total: int = 0
-    page: int = 1
-    size: int = 10
-    pages: int = 0
-
-class RejectionRequest(BaseSchema):
-    reason: str
-    rejection_type: Optional[str] = None
-
-class WorkflowTransitionRequest(BaseSchema):
-    action: str
-    reason: Optional[str] = None
-
-class WorkflowStatusInfo(BaseSchema):
-    current_status: str
-    allowed_transitions: List[str] = []
-    requires_approval: bool = False
-
-class ApplicationWorkflowResponse(BaseSchema):
-    application_id: str
-    workflow_status: str
-    workflow_info: Optional[WorkflowStatusInfo] = None
+from app.schemas import (
+    CustomerApplicationCreate,
+    CustomerApplicationUpdate,
+    CustomerApplicationResponse,
+    PaginatedResponse,
+    RejectionRequest,
+    WorkflowTransitionRequest,
+    WorkflowStatusInfo,
+    ApplicationWorkflowResponse,
+    ApprovalRequest,
+)
 from app.workflow import WorkflowValidator, WorkflowStatus
 from app.routers.auth import get_current_user
-from datetime import timezone
 
 from app.services.minio_service import minio_service
 
@@ -133,7 +86,7 @@ async def create_application(
     db.add(db_application)
     await db.commit()
     await db.refresh(db_application)
-    resp = CustomerApplicationResponse.model_validate(db_application)
+    resp = CustomerApplicationResponse.from_orm(db_application)
     enrich_application_response(resp)
     return resp
 
@@ -238,7 +191,7 @@ async def list_applications(
     
     return PaginatedResponse(
         items=[
-            enrich_application_response(CustomerApplicationResponse.model_validate(app))
+            enrich_application_response(CustomerApplicationResponse.from_orm(app))
             for app in applications
         ],
         total=total,
@@ -401,7 +354,7 @@ async def get_application(
                     detail="Not authorized to access this application"
                 )
     
-    resp = CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.from_orm(application)
     enrich_application_response(resp)
     return resp
 
@@ -509,7 +462,7 @@ async def update_application(
     
     await db.commit()
     await db.refresh(application)
-    resp = CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.from_orm(application)
     enrich_application_response(resp)
     return resp
 
@@ -628,14 +581,9 @@ async def submit_application(
     await db.commit()
     await db.refresh(application)
     
-    resp = CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.from_orm(application)
     enrich_application_response(resp)
     return resp
-
-class ApprovalRequest(BaseSchema):
-    approved_amount: Optional[float] = None
-    approved_interest_rate: Optional[float] = None
-    approved_loan_term: Optional[str] = None
 
 @router.patch("/{application_id}/approve", response_model=CustomerApplicationResponse)
 async def approve_application(
@@ -692,7 +640,7 @@ async def approve_application(
     await db.commit()
     await db.refresh(application)
     
-    resp = CustomerApplicationResponse.model_validate(application)
+    resp = CustomerApplicationResponse.from_orm(application)
     enrich_application_response(resp)
     return resp
 
@@ -740,7 +688,7 @@ async def reject_application(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    return CustomerApplicationResponse.from_orm(application)
 
 @router.get("/{application_id}/relationships")
 async def get_application_relationships(
@@ -781,7 +729,7 @@ async def get_application_relationships(
     department_manager = department.manager if department else None
     branch_manager = branch.manager if branch else None
     
-    app_resp = CustomerApplicationResponse.model_validate(application)
+    app_resp = CustomerApplicationResponse.from_orm(application)
     enrich_application_response(app_resp)
     return {
         "application": app_resp,
@@ -891,7 +839,7 @@ async def assign_reviewer(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    return CustomerApplicationResponse.from_orm(application)
 
 @router.patch("/{application_id}/priority")
 async def update_priority(
@@ -929,7 +877,7 @@ async def update_priority(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    return CustomerApplicationResponse.from_orm(application)
 
 @router.get("/stats/summary")
 async def get_application_stats(
@@ -1146,7 +1094,7 @@ async def update_workflow_stage(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    return CustomerApplicationResponse.from_orm(application)
 
 
 
@@ -1198,7 +1146,7 @@ async def update_loan_status(
     await db.commit()
     await db.refresh(application)
     
-    return CustomerApplicationResponse.model_validate(application)
+    return CustomerApplicationResponse.from_orm(application)
 
 
 # Workflow Management Endpoints
@@ -1260,7 +1208,7 @@ async def transition_workflow(
         workflow_info = _build_workflow_info(updated_application, current_user)
         
         # Return extended response
-        response_data = CustomerApplicationResponse.model_validate(updated_application)
+        response_data = CustomerApplicationResponse.from_orm(updated_application)
         enrich_application_response(response_data)
         return ApplicationWorkflowResponse(
             **response_data.model_dump(),

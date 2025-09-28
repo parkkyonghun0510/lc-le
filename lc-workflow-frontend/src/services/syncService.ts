@@ -4,6 +4,7 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
+import { API_ORIGIN_FOR_LINKS } from '@/lib/api';
 import { fileKeys, folderKeys } from '@/hooks/useFiles';
 import toast from 'react-hot-toast';
 
@@ -295,9 +296,11 @@ class SyncService {
      */
     private async pingServer() {
         try {
-            // In production, this would ping your backend health endpoint
-            const response = await fetch('/api/v1/health', {
-                method: 'HEAD',
+            // Ping backend health endpoint using absolute API origin
+            const url = `${API_ORIGIN_FOR_LINKS}/health`;
+            const response = await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
                 cache: 'no-cache'
             });
 

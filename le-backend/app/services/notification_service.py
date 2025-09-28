@@ -8,7 +8,7 @@ in-app notifications, notification preferences, and notification history trackin
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, literal, DateTime
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import logging
@@ -492,15 +492,11 @@ class NotificationService:
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
         
         # Get notification-related audit logs
+        # Placeholder query to keep structure without invalid casting
+        start_literal = literal(start_date, type_=DateTime(timezone=True))
         result = await self.db.execute(
-            select(func.count().label('count'))
-            .select_from(
-                select(1).where(
-                    and_(
-                        # This would be from actual audit logs
-                        func.cast(start_date, type_=lambda: None) <= func.now()
-                    )
-                ).subquery()
+            select(func.count().label('count')).select_from(
+                select(1).where(start_literal <= func.now()).subquery()
             )
         )
         

@@ -4,7 +4,8 @@ import {
   Notification, 
   NotificationPreferences, 
   NotificationSummary, 
-  NotificationTestResult 
+  NotificationTestResult, 
+  NotificationType 
 } from '@/types/notifications';
 import toast from 'react-hot-toast';
 
@@ -18,9 +19,35 @@ export const notificationKeys = {
 
 // Get notification preferences
 export const useNotificationPreferences = () => {
+  const normalize = (p: any): NotificationPreferences => {
+    const allTypes = Object.values(NotificationType) as NotificationType[];
+    const defaultEmail = allTypes.reduce<Record<NotificationType, boolean>>((acc, t) => {
+      acc[t] = t === NotificationType.BULK_OPERATION_COMPLETE ? false : true;
+      return acc;
+    }, {} as Record<NotificationType, boolean>);
+    const defaultInApp = allTypes.reduce<Record<NotificationType, boolean>>((acc, t) => {
+      acc[t] = true;
+      return acc;
+    }, {} as Record<NotificationType, boolean>);
+    return {
+      email_notifications: { ...defaultEmail, ...(p?.email_notifications || {}) },
+      in_app_notifications: { ...defaultInApp, ...(p?.in_app_notifications || {}) },
+      notification_frequency: p?.notification_frequency ?? 'immediate',
+      quiet_hours: {
+        enabled: p?.quiet_hours?.enabled ?? false,
+        start_time: p?.quiet_hours?.start_time ?? '22:00',
+        end_time: p?.quiet_hours?.end_time ?? '08:00',
+      },
+    };
+  };
+
   return useQuery({
     queryKey: notificationKeys.preferences(),
-    queryFn: () => apiClient.get<NotificationPreferences>('/users/notifications/preferences'),
+    queryFn: async () => {
+      const res = await apiClient.get<any>('/users/notifications/preferences');
+      const raw = res?.preferences ?? res;
+      return normalize(raw);
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
@@ -30,8 +57,30 @@ export const useUpdateNotificationPreferences = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (preferences: Partial<NotificationPreferences>) =>
-      apiClient.put<NotificationPreferences>('/users/notifications/preferences', preferences),
+    mutationFn: async (preferences: Partial<NotificationPreferences>) => {
+      const res = await apiClient.put<any>('/users/notifications/preferences', preferences);
+      const raw = res?.preferences ?? res;
+      // Reuse same normalization as above
+      const allTypes = Object.values(NotificationType) as NotificationType[];
+      const defaultEmail = allTypes.reduce<Record<NotificationType, boolean>>((acc, t) => {
+        acc[t] = t === NotificationType.BULK_OPERATION_COMPLETE ? false : true;
+        return acc;
+      }, {} as Record<NotificationType, boolean>);
+      const defaultInApp = allTypes.reduce<Record<NotificationType, boolean>>((acc, t) => {
+        acc[t] = true;
+        return acc;
+      }, {} as Record<NotificationType, boolean>);
+      return {
+        email_notifications: { ...defaultEmail, ...(raw?.email_notifications || {}) },
+        in_app_notifications: { ...defaultInApp, ...(raw?.in_app_notifications || {}) },
+        notification_frequency: raw?.notification_frequency ?? 'immediate',
+        quiet_hours: {
+          enabled: raw?.quiet_hours?.enabled ?? false,
+          start_time: raw?.quiet_hours?.start_time ?? '22:00',
+          end_time: raw?.quiet_hours?.end_time ?? '08:00',
+        },
+      } as NotificationPreferences;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.preferences() });
       toast.success('Notification preferences updated successfully!');
@@ -45,9 +94,27 @@ export const useUpdateNotificationPreferences = () => {
 
 // Get notification summary
 export const useNotificationSummary = (days: number = 30) => {
+  const emptySummary = (): NotificationSummary => ({
+    total_notifications: 0,
+    unread_count: 0,
+    by_type: {} as Record<NotificationType, number>,
+    by_priority: {} as Record<any, number>,
+    recent_notifications: [],
+  });
+
   return useQuery({
     queryKey: notificationKeys.summary(),
-    queryFn: () => apiClient.get<NotificationSummary>(`/users/notifications/summary?days=${days}`),
+    queryFn: async () => {
+      try {
+        return await apiClient.get<NotificationSummary>(`/users/notifications/summary?days=${days}`);
+      } catch (err: any) {
+        if (err?.response?.status === 403) {
+          // Not authorized to view summary; return empty summary to avoid UI errors
+          return emptySummary();
+        }
+        throw err;
+      }
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };

@@ -12,10 +12,14 @@ class Settings(BaseSettings):
     )
     
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/lc_workflow"
+    # DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/lc_workflow"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:DiCKQpigDCyOAlIwRAACCIfXvnrzjUUl@interchange.proxy.rlwy.net:33042/railway"
+
     
     # Redis
-    REDIS_URL: str = "redis://localhost:6379"
+    # REDIS_URL: str = "redis://localhost:6379"
+    REDIS_URL: str = "redis://default:rpKlwePA8Sdut7FwtHjt6HmZ5umnpYzM@maglev.proxy.rlwy.net:40813"
+
     
     # JWT - Generate secure secret key if not provided
     SECRET_KEY: str = secrets.token_urlsafe(32)
@@ -31,10 +35,12 @@ class Settings(BaseSettings):
     # CORS - Restrict origins in production
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
-        "http://localhost:8080",
+        "http://localhost:3001",
+        "http://localhost:8090",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:8090",
         "http://127.0.0.1:8000",
     ]
     

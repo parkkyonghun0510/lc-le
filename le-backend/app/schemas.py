@@ -955,3 +955,10 @@ class ApplicationWorkflowResponse(CustomerApplicationResponse):
     manager_reviewer: Optional[UserResponse] = None
 
 # Permission schemas will be imported directly where needed
+
+# --- Resolve forward references after all models are defined ---
+UserResponse.model_rebuild()
+TokenResponse.model_rebuild()
+SelfieListResponse.model_rebuild()
+ApplicationWorkflowResponse.model_rebuild()
+PaginatedResponse.model_rebuild()

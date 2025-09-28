@@ -2173,12 +2173,7 @@ async def get_notification_summary(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get notification statistics and summary (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view notification summary"
-        )
+    """Get notification statistics and summary (available to all authenticated roles)"""
     
     from app.services.notification_service import NotificationService
     

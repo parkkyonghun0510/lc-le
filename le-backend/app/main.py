@@ -54,7 +54,7 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 # Add database connection middleware
 app.add_middleware(DatabaseConnectionMiddleware, max_reconnect_attempts=3)
 
-# Configure CORS
+# Configure CORS LAST so it's outermost and applies to all responses (including errors)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,

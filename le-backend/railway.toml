@@ -13,7 +13,7 @@ restartPolicyMaxRetries = 5
 [env]
 # Basic configuration
 ENVIRONMENT = "production"
-LOG_LEVEL = "info"
+LOG_LEVEL = "warning"  # Reduce logging verbosity
 DEBUG = "false"
 
 # Railway will provide these automatically, but we can set defaults
@@ -24,10 +24,14 @@ PIP_DISABLE_PIP_VERSION_CHECK = "1"
 # CORS - Railway will inject the correct frontend URL
 CORS_ORIGINS = "${{FRONTEND_URL}}"
 
-# Production optimizations
+# Production optimizations - reduce resource usage
 UVICORN_WORKERS = "1"
 UVICORN_RELOAD = "false"
-MAX_WORKERS = "4"
+MAX_WORKERS = "2"
+
+# Logging configuration for production
+SQLALCHEMY_ECHO = "false"
+SQLALCHEMY_LOG_LEVEL = "WARNING"
 
 # Build configuration
 [build.env]

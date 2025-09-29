@@ -18,6 +18,36 @@ from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
 from app.middleware.database_middleware import DatabaseConnectionMiddleware
 
+# Configure logging for production
+import logging
+import logging.config
+import sys
+
+# Use logging configuration file if available
+try:
+    logging.config.fileConfig('logging.conf')
+    print("Using logging.conf configuration")
+except FileNotFoundError:
+    # Fallback to basic configuration
+    logging.basicConfig(
+        level=logging.WARNING if not settings.DEBUG else logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        stream=sys.stdout
+    )
+
+# Configure specific loggers
+if not settings.DEBUG:
+    # In production, be more restrictive
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
+    logging.getLogger('sqlalchemy.pool').setLevel(logging.ERROR)
+    logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
+    logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
+else:
+    # In development, allow more logging
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+    logging.getLogger('sqlalchemy.pool').setLevel(logging.INFO)
+    logging.getLogger('sqlalchemy.orm').setLevel(logging.INFO)
+
 # Suppress Pydantic JSON schema warnings for non-serializable defaults
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic.json_schema")
 

@@ -5,6 +5,7 @@ from typing import AsyncGenerator, Optional
 import redis
 import asyncio
 import logging
+import os
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,8 @@ if "postgresql" in async_database_url:
     connect_args["ssl"] = "require" if "railway" in async_database_url else False
 
 engine = create_async_engine(
-    async_database_url, 
-    echo=settings.DEBUG,
+    async_database_url,
+    echo=os.getenv("SQLALCHEMY_ECHO", "false").lower() == "true",
     connect_args=connect_args,
     # Connection pool settings for better reliability
     pool_size=10,
@@ -34,6 +35,10 @@ engine = create_async_engine(
     pool_timeout=30,
     pool_recycle=3600,  # Recycle connections every hour
     pool_pre_ping=True,  # Validate connections before use
+    # Add logging configuration
+    logging_name="sqlalchemy.engine",
+    # Only log warnings and errors, not info/debug
+    echo_pool=settings.DEBUG,
 )
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

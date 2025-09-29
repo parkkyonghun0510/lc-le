@@ -2,10 +2,21 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  
+
   // Performance optimizations
   experimental: {
     optimizePackageImports: ['@mui/material', '@mui/icons-material', 'lodash', 'date-fns'],
+    // Optimize CSS for production
+    optimizeCss: true,
+    // Enable modern bundling features
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
   },
   
   // Turbopack configuration (moved from experimental)
@@ -20,12 +31,42 @@ const nextConfig: NextConfig = {
   
   // Bundle optimization
   webpack: (config, { dev, isServer }) => {
-    // Tree shaking optimization
-    config.optimization = {
-      ...config.optimization,
-      usedExports: true,
-      sideEffects: false,
-    };
+    // Production-only optimizations
+    if (!dev) {
+      // Enable more aggressive optimizations for production
+      config.optimization = {
+        ...config.optimization,
+        usedExports: true,
+        sideEffects: false,
+        // Enable module concatenation
+        concatenateModules: true,
+        // Split runtime chunk for better caching
+        runtimeChunk: {
+          name: 'runtime',
+        },
+        // More aggressive splitting
+        splitChunks: {
+          ...config.optimization.splitChunks,
+          minSize: 20000,
+          maxSize: 244000,
+        },
+      };
+
+      // Enable webpack's production mode features
+      config.mode = 'production';
+
+      // Optimize bundle analysis
+      if (process.env.ANALYZE === 'true') {
+        const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            reportFilename: '../bundle-analyzer-report.html',
+            openAnalyzer: false,
+          })
+        );
+      }
+    }
     
     // Code splitting optimization
     if (!isServer) {
@@ -73,12 +114,18 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Optimize for production
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    // Enable modern formats
+    dangerouslyAllowSVG: true,
+    // Content security policy for images
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   
   // Compression
   compress: true,
   
-  // Headers for performance
+  // Headers for performance and security
   async headers() {
     return [
       {
@@ -96,6 +143,18 @@ const nextConfig: NextConfig = {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
           },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
         ],
       },
       {
@@ -104,6 +163,15 @@ const nextConfig: NextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
           },
         ],
       },

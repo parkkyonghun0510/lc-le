@@ -84,9 +84,9 @@ class DatabaseMonitoringService:
             
             # Get table statistics
             table_stats_query = text("""
-                SELECT 
+                SELECT
                     schemaname,
-                    tablename,
+                    relname,
                     n_tup_ins as inserts,
                     n_tup_upd as updates,
                     n_tup_del as deletes,
@@ -96,7 +96,7 @@ class DatabaseMonitoringService:
                     last_autovacuum,
                     last_analyze,
                     last_autoanalyze
-                FROM pg_stat_user_tables 
+                FROM pg_stat_user_tables
                 ORDER BY n_live_tup DESC
             """)
             result = await self.db.execute(table_stats_query)
@@ -120,15 +120,15 @@ class DatabaseMonitoringService:
             
             # Get index usage statistics
             index_stats_query = text("""
-                SELECT 
+                SELECT
                     schemaname,
-                    tablename,
-                    indexname,
+                    relname,
+                    indexrelname,
                     idx_tup_read,
                     idx_tup_fetch,
                     idx_scan,
                     idx_tup_read / NULLIF(idx_scan, 0) as avg_tuples_per_scan
-                FROM pg_stat_user_indexes 
+                FROM pg_stat_user_indexes
                 WHERE schemaname = 'public'
                 ORDER BY idx_scan DESC
             """)
@@ -231,14 +231,14 @@ class DatabaseMonitoringService:
         try:
             # Check for unused indexes
             unused_indexes_query = text("""
-                SELECT 
+                SELECT
                     schemaname,
-                    tablename,
-                    indexname,
+                    relname,
+                    indexrelname,
                     idx_scan,
                     pg_size_pretty(pg_relation_size(indexrelid)) as index_size
-                FROM pg_stat_user_indexes 
-                WHERE schemaname = 'public' 
+                FROM pg_stat_user_indexes
+                WHERE schemaname = 'public'
                 AND idx_scan = 0
                 ORDER BY pg_relation_size(indexrelid) DESC
             """)
@@ -300,16 +300,16 @@ class DatabaseMonitoringService:
         try:
             # Get table statistics
             health_query = text("""
-                SELECT 
-                    tablename,
+                SELECT
+                    relname,
                     n_live_tup as live_tuples,
                     n_dead_tup as dead_tuples,
-                    CASE 
+                    CASE
                         WHEN n_live_tup > 0 THEN (n_dead_tup::float / n_live_tup) * 100
                         ELSE 0
                     END as dead_tuple_percentage,
-                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as table_size
-                FROM pg_stat_user_tables 
+                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as table_size
+                FROM pg_stat_user_tables
                 WHERE schemaname = 'public'
                 ORDER BY dead_tuple_percentage DESC
             """)

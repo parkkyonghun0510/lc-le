@@ -171,7 +171,8 @@ async def create_user(
         password_hash=get_password_hash(user.password)
     )
     db.add(db_user)
-    await db.commit()
+    await db.flush()
+    await db.refresh(db_user)
     # Re-fetch with relationships eagerly loaded to avoid lazy IO during serialization
     result = await db.execute(
         select(User)
@@ -497,9 +498,10 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
     
-    # Create response
+    # Create response using safe helper function to avoid circular reference issues
+    from app.routers.auth import create_safe_user_response
     response = PaginatedResponse(
-        items=[UserResponse.model_validate(user) for user in users],
+        items=[create_safe_user_response(user, max_depth=2) for user in users],
         total=total,
         page=page,
         size=size,
@@ -521,6 +523,196 @@ async def list_users(
     )
     
     return response
+
+# --- /users/me endpoints ---
+from fastapi import Body
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+
+    # Ensure all relationships are loaded before validation
+    _ = user.department
+    _ = user.branch
+    _ = user.position
+    _ = user.portfolio
+    _ = user.line_manager
+
+    return UserResponse.model_validate(user)
+
+@router.patch("/me", response_model=UserResponse)
+async def patch_me(
+    user_update: UserUpdate = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> UserResponse:
+    # Only allow user to update their own profile
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = user_update.dict(exclude_unset=True)
+
+    # Use comprehensive validation service for duplicate checking
+    if update_data:  # Only validate if there's data to update
+        try:
+            validation_service = AsyncValidationService(db)
+            await validation_service.validate_user_duplicates(update_data, exclude_id=current_user.id)
+        except DuplicateValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+
+    # Validate branch-based assignments for profile updates
+    branch_id = update_data.get('branch_id', user.branch_id)
+    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
+    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
+    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
+
+    # Handle password update
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data['password'])
+        del update_data['password']
+
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    await db.commit()
+    # Re-fetch with relationships eagerly loaded
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == user.id)
+    )
+    user_loaded = result.scalar_one_or_none()
+
+    # Ensure all relationships are loaded before validation
+    _ = user_loaded.department
+    _ = user_loaded.branch
+    _ = user_loaded.position
+    _ = user_loaded.portfolio
+    _ = user_loaded.line_manager
+
+    return UserResponse.model_validate(user_loaded)
+
+@router.put("/me", response_model=UserResponse)
+async def put_me(
+    user_update: UserUpdate = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> UserResponse:
+    # Only allow user to replace their own profile
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = user_update.dict()
+
+    # Use comprehensive validation service for duplicate checking
+    if update_data:  # Only validate if there's data to update
+        try:
+            validation_service = AsyncValidationService(db)
+            await validation_service.validate_user_duplicates(update_data, exclude_id=current_user.id)
+        except DuplicateValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+
+    # Validate branch-based assignments for profile updates
+    branch_id = update_data.get('branch_id', user.branch_id)
+    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
+    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
+    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
+
+    # Handle password update
+    if 'password' in update_data and update_data['password']:
+        update_data['password_hash'] = get_password_hash(update_data['password'])
+        del update_data['password']
+
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    await db.commit()
+    # Re-fetch with relationships eagerly loaded
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.department),
+            selectinload(User.branch),
+            selectinload(User.position),
+            selectinload(User.portfolio).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.portfolio),
+                selectinload(User.line_manager)
+            ),
+        )
+        .where(User.id == user.id)
+    )
+    user_loaded = result.scalar_one_or_none()
+
+    # Ensure all relationships are loaded before validation
+    _ = user_loaded.department
+    _ = user_loaded.branch
+    _ = user_loaded.position
+    _ = user_loaded.portfolio
+    _ = user_loaded.line_manager
+
+    return UserResponse.model_validate(user_loaded)
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
@@ -925,195 +1117,6 @@ async def delete_user(
     
     return {"message": "User deleted successfully"}
 
-# --- /users/me endpoints ---
-from fastapi import Body
-
-@router.get("/me", response_model=UserResponse)
-async def get_me(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.department),
-            selectinload(User.branch),
-            selectinload(User.position),
-            selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-        )
-        .where(User.id == current_user.id)
-    )
-    user = result.scalar_one_or_none()
-    
-    # Ensure all relationships are loaded before validation
-    _ = user.department
-    _ = user.branch
-    _ = user.position
-    _ = user.portfolio
-    _ = user.line_manager
-    
-    return UserResponse.model_validate(user)
-
-@router.patch("/me", response_model=UserResponse)
-async def patch_me(
-    user_update: UserUpdate = Body(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-) -> UserResponse:
-    # Only allow user to update their own profile
-    result = await db.execute(select(User).where(User.id == current_user.id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    update_data = user_update.dict(exclude_unset=True)
-    
-    # Use comprehensive validation service for duplicate checking
-    if update_data:  # Only validate if there's data to update
-        try:
-            validation_service = AsyncValidationService(db)
-            await validation_service.validate_user_duplicates(update_data, exclude_id=current_user.id)
-        except DuplicateValidationError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
-    
-    # Validate branch-based assignments for profile updates
-    branch_id = update_data.get('branch_id', user.branch_id)
-    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
-    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
-    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
-    
-    # Handle password update
-    if 'password' in update_data and update_data['password']:
-        update_data['password_hash'] = get_password_hash(update_data['password'])
-        del update_data['password']
-    
-    for field, value in update_data.items():
-        setattr(user, field, value)
-    await db.commit()
-    # Re-fetch with relationships eagerly loaded
-    result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.department),
-            selectinload(User.branch),
-            selectinload(User.position),
-            selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-        )
-        .where(User.id == user.id)
-    )
-    user_loaded = result.scalar_one_or_none()
-    
-    # Ensure all relationships are loaded before validation
-    _ = user_loaded.department
-    _ = user_loaded.branch
-    _ = user_loaded.position
-    _ = user_loaded.portfolio
-    _ = user_loaded.line_manager
-    
-    return UserResponse.model_validate(user_loaded)
-
-@router.put("/me", response_model=UserResponse)
-async def put_me(
-    user_update: UserUpdate = Body(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-) -> UserResponse:
-    # Only allow user to replace their own profile
-    result = await db.execute(select(User).where(User.id == current_user.id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    update_data = user_update.dict()
-    
-    # Use comprehensive validation service for duplicate checking
-    if update_data:  # Only validate if there's data to update
-        try:
-            validation_service = AsyncValidationService(db)
-            await validation_service.validate_user_duplicates(update_data, exclude_id=current_user.id)
-        except DuplicateValidationError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
-    
-    # Validate branch-based assignments for profile updates
-    branch_id = update_data.get('branch_id', user.branch_id)
-    portfolio_id = update_data.get('portfolio_id', user.portfolio_id)
-    line_manager_id = update_data.get('line_manager_id', user.line_manager_id)
-    await validate_branch_assignments(db, branch_id, portfolio_id, line_manager_id)
-    
-    # Handle password update
-    if 'password' in update_data and update_data['password']:
-        update_data['password_hash'] = get_password_hash(update_data['password'])
-        del update_data['password']
-    
-    for field, value in update_data.items():
-        setattr(user, field, value)
-    await db.commit()
-    # Re-fetch with relationships eagerly loaded
-    result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.department),
-            selectinload(User.branch),
-            selectinload(User.position),
-            selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-        )
-        .where(User.id == user.id)
-    )
-    user_loaded = result.scalar_one_or_none()
-    
-    # Ensure all relationships are loaded before validation
-    _ = user_loaded.department
-    _ = user_loaded.branch
-    _ = user_loaded.position
-    _ = user_loaded.portfolio
-    _ = user_loaded.line_manager
-    
-    return UserResponse.model_validate(user_loaded)
 
 # Status management endpoints
 @router.post("/{user_id}/status", response_model=UserStatusChangeResponse)
@@ -1359,7 +1362,10 @@ async def bulk_update_user_status(
         status="processing"
     )
     db.add(bulk_operation)
-    await db.commit()
+
+    await db.flush()
+
+    await db.refresh(bulk_operation)
     await db.refresh(bulk_operation)
     
     # Process each user
@@ -1847,7 +1853,11 @@ async def process_csv_row(row_data: dict, row_result: CSVImportRowResult, refere
             
             db_user = User(**user_data)
             db.add(db_user)
-            await db.flush()  # Get the ID without committing
+
+            await db.flush()
+
+            await db.refresh(db_user)  # Get the ID without committing
+            await db.refresh(db_user)
             
             row_result.user_id = db_user.id
             row_result.username = db_user.username
@@ -1926,6 +1936,7 @@ async def import_users_csv(
     )
     db.add(bulk_operation)
     await db.flush()
+    await db.refresh(bulk_operation)
     
     try:
         # Read CSV content

@@ -190,7 +190,10 @@ class EnhancedFolderService:
             parent_id=parent_folder.id
         )
         db.add(new_folder)
+
         await db.flush()
+
+        await db.refresh(new_folder)
         
         logger.info(f"Created new folder: {folder_name} for application {application_id}")
         return new_folder.id
@@ -227,7 +230,10 @@ class EnhancedFolderService:
                 parent_id=None
             )
             db.add(parent_folder)
+
             await db.flush()
+
+            await db.refresh(parent_folder)
             logger.info(f"Created new parent folder for application {application_id}")
             return parent_folder
         

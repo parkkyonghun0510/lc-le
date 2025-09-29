@@ -341,7 +341,7 @@ async def upload_file(
     
     # Create file record with proper error handling
     try:
-        db_file = File(
+        db_file = FileModel(
             filename=os.path.basename(object_name),
             original_filename=file.filename,  # Keep original for display
             display_name=file.filename,  # Set display name from original filename
@@ -361,7 +361,8 @@ async def upload_file(
         )
         
         db.add(db_file)
-        await db.commit()
+        await db.flush()
+        await db.refresh(db_file)
         await db.refresh(db_file)
         
         logger.info(
@@ -479,7 +480,7 @@ async def finalize_uploaded_file(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Object not found in storage: {e}")
 
-    db_file = File(
+    db_file = FileModel(
         filename=payload.object_name,
         original_filename=payload.original_filename,
         file_path=payload.object_name,
@@ -490,7 +491,8 @@ async def finalize_uploaded_file(
         folder_id=payload.folder_id,
     )
     db.add(db_file)
-    await db.commit()
+    await db.flush()
+    await db.refresh(db_file)
     await db.refresh(db_file)
     return FileResponse.from_orm(db_file)
 
@@ -503,27 +505,27 @@ async def get_files(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> PaginatedResponse:
-    query = select(File)
-    
+    query = select(FileModel)
+
     if application_id:
-        query = query.where(File.application_id == application_id)
+        query = query.where(FileModel.application_id == application_id)
     if folder_id:
-        query = query.where(File.folder_id == folder_id)
-    
+        query = query.where(FileModel.folder_id == folder_id)
+
     # Non-admin users can only see their own files
     if current_user.role != "admin":
-        query = query.where(File.uploaded_by == current_user.id)
-    
-    query = query.order_by(desc(File.created_at))
-    
+        query = query.where(FileModel.uploaded_by == current_user.id)
+
+    query = query.order_by(desc(FileModel.created_at))
+
     # Get total count
-    count_query = select(func.count()).select_from(File)
+    count_query = select(func.count()).select_from(FileModel)
     if application_id:
-        count_query = count_query.where(File.application_id == application_id)
+        count_query = count_query.where(FileModel.application_id == application_id)
     if folder_id:
-        count_query = count_query.where(File.folder_id == folder_id)
+        count_query = count_query.where(FileModel.folder_id == folder_id)
     if current_user.role != "admin":
-        count_query = count_query.where(File.uploaded_by == current_user.id)
+        count_query = count_query.where(FileModel.uploaded_by == current_user.id)
     
     total_result = await db.execute(count_query)
     total = total_result.scalar_one() or 0
@@ -535,7 +537,7 @@ async def get_files(
     files = result.scalars().all()
     
     return PaginatedResponse(
-        items=[FileResponse.from_orm(file) for file in files],
+        items=[_populate_file_urls(file) for file in files],
         total=total,
         page=page,
         size=size,
@@ -549,16 +551,16 @@ async def get_file(
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     result = await db.execute(
-        select(File).where(File.id == file_id)
+        select(FileModel).where(FileModel.id == file_id)
     )
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found"
         )
-    
+
     # Check permissions
     if current_user.role != "admin" and file.uploaded_by != current_user.id:
         raise HTTPException(
@@ -575,16 +577,16 @@ async def delete_file(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, str]:
     result = await db.execute(
-        select(File).where(File.id == file_id)
+        select(FileModel).where(FileModel.id == file_id)
     )
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found"
         )
-    
+
     # Check permissions
     if current_user.role not in ["admin", "manager"] and file.uploaded_by != current_user.id:
         raise HTTPException(
@@ -612,16 +614,16 @@ async def download_file(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, str]:
     result = await db.execute(
-        select(File).where(File.id == file_id)
+        select(FileModel).where(FileModel.id == file_id)
     )
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found"
         )
-    
+
     # Check permissions
     if current_user.role != "admin" and file.uploaded_by != current_user.id:
         raise HTTPException(

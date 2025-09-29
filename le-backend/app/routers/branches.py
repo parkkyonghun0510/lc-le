@@ -49,7 +49,10 @@ async def create_branch(
     
     db_branch = Branch(**branch.dict())
     db.add(db_branch)
-    await db.commit()
+
+    await db.flush()
+
+    await db.refresh(db_branch)
     await db.refresh(db_branch)
     return BranchResponse.from_orm(db_branch)
 

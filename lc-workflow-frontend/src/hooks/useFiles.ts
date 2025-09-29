@@ -395,8 +395,15 @@ export const useDownloadFile = () => {
       try {
         const response = (await apiClient.get(`/files/${id}/download`)) as { download_url?: string };
         const download_url = response?.download_url;
-        
+
         if (download_url) {
+          // Validate URL format before using
+          try {
+            new URL(download_url);
+          } catch (urlError) {
+            throw new Error('Invalid download URL format');
+          }
+
           // Create a temporary link for the presigned URL
           const link = document.createElement('a');
           link.href = download_url;
@@ -406,11 +413,12 @@ export const useDownloadFile = () => {
           link.click();
           document.body.removeChild(link);
         } else {
-          throw new Error('No download URL provided');
+          throw new Error('No download URL provided by server');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Download failed:', error);
-        toast.error('Failed to download file');
+        const errorMessage = error.response?.data?.detail || error.message || 'Failed to download file';
+        toast.error(`Download failed: ${errorMessage}`);
       }
     },
   };

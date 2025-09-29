@@ -50,10 +50,11 @@ export default function AddressPickerDemoPage() {
 
 <AddressPicker
   onAddressChange={(address) => {
-    console.log('Selected:', address);
+    // Handle address selection
+    setSelectedAddress(address);
   }}
   language="km" // or "en"
-/>`}
+  />`}
               </pre>
             </div>
 

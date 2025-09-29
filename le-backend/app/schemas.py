@@ -109,6 +109,24 @@ class PositionResponse(PositionBase):
     @classmethod
     def from_orm(cls, position):
         """Create PositionResponse from Position model with computed user_count"""
+        # Safely get users without triggering lazy loading
+        users = None
+        try:
+            # Check if users relationship is loaded and accessible
+            if hasattr(position, 'users'):
+                users = getattr(position, 'users', None)
+        except Exception:
+            # If accessing users triggers any error, treat as None
+            users = None
+
+        # Safely compute user_count
+        user_count = 0
+        if users:
+            try:
+                user_count = len(users)
+            except Exception:
+                user_count = 0
+
         data = {
             'id': position.id,
             'name': position.name,
@@ -116,12 +134,18 @@ class PositionResponse(PositionBase):
             'is_active': position.is_active,
             'created_at': position.created_at,
             'updated_at': position.updated_at,
-            'user_count': len(position.users) if hasattr(position, 'users') and position.users else 0
+            'user_count': user_count
         }
 
-        # Add nested user objects if relationships are loaded
-        if hasattr(position, 'users') and position.users:
-            data['users'] = [UserResponse.from_orm(user) for user in position.users]
+        # Add nested user objects if relationships are loaded and accessible
+        if users:
+            try:
+                data['users'] = [UserResponse.from_orm(user) for user in users]
+            except Exception:
+                # If processing users fails, set to None
+                data['users'] = None
+        else:
+            data['users'] = None
 
         return cls(**data)
 
@@ -736,7 +760,7 @@ class CustomerApplicationResponse(CustomerApplicationBase):
             'desired_loan_term': application.desired_loan_term,
             'requested_disbursement_date': application.requested_disbursement_date,
             'interest_rate': application.interest_rate,
-            'loan_amount': application.loan_amount,
+            'loan_amount': application.requested_amount,
             'loan_status': application.loan_status,
             'loan_purpose': application.loan_purpose,
             'loan_start_date': application.loan_start_date,

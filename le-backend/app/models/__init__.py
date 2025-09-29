@@ -1,5 +1,9 @@
 # Models package
 from .audit import AuditLog, AuditEventType
+from .permissions import (
+    Permission, Role, RolePermission, UserRole, UserPermission, PermissionTemplate,
+    ResourceType, PermissionAction, PermissionScope
+)
 
 # Import models from parent models.py using relative import
 import importlib
@@ -16,7 +20,7 @@ if models_path.exists():
     if spec is not None and spec.loader is not None:
         parent_models = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(parent_models)
-        
+
         # Import all model classes
         User = parent_models.User
         Department = parent_models.Department
@@ -31,6 +35,8 @@ if models_path.exists():
 
 
 __all__ = [
-    "AuditLog", "AuditEventType", "User", "Department", "Branch", 
-    "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie", "BulkOperation"
+    "AuditLog", "AuditEventType", "User", "Department", "Branch",
+    "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie", "BulkOperation",
+    "Permission", "Role", "RolePermission", "UserRole", "UserPermission", "PermissionTemplate",
+    "ResourceType", "PermissionAction", "PermissionScope"
 ]

@@ -248,18 +248,18 @@ class UserCacheService:
     async def get_cache_performance_stats(self) -> Dict[str, Any]:
         """Get cache performance statistics"""
         stats = await self.cache.get_cache_stats()
-        
+
         # Add user-specific cache statistics
-        user_cache_keys = await self.cache.redis.keys(f"{self.cache.cache_prefix}:users:*") if self.cache.redis else []
-        reference_cache_keys = await self.cache.redis.keys(f"{self.cache.cache_prefix}:reference:*") if self.cache.redis else []
-        analytics_cache_keys = await self.cache.redis.keys(f"{self.cache.cache_prefix}:analytics:*") if self.cache.redis else []
-        
+        user_cache_keys = self.cache.redis.keys(f"{self.cache.cache_prefix}:users:*") if self.cache.redis else []
+        reference_cache_keys = self.cache.redis.keys(f"{self.cache.cache_prefix}:reference:*") if self.cache.redis else []
+        analytics_cache_keys = self.cache.redis.keys(f"{self.cache.cache_prefix}:analytics:*") if self.cache.redis else []
+
         stats.update({
             "user_cache_entries": len(user_cache_keys),
             "reference_cache_entries": len(reference_cache_keys),
             "analytics_cache_entries": len(analytics_cache_keys),
         })
-        
+
         return stats
 
 

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  BarChart3, 
-  Users, 
-  TrendingUp, 
-  Activity, 
-  Building2, 
-  MapPin, 
+import { useState, Suspense, lazy } from 'react';
+import {
+  BarChart3,
+  Users,
+  TrendingUp,
+  Activity,
+  Building2,
+  MapPin,
   Briefcase,
   Calendar,
   Filter,
@@ -16,13 +16,15 @@ import {
 import { useAnalyticsSummary, useActivityMetrics, useOrganizationalMetrics } from '@/hooks/useAnalytics';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
-import ActivityOverview from './ActivityOverview';
-import RoleDistributionChart from './RoleDistributionChart';
-import ActivityLevelsChart from './ActivityLevelsChart';
-import OnboardingMetrics from './OnboardingMetrics';
-import OrganizationalBreakdown from './OrganizationalBreakdown';
-import GeographicDistribution from './GeographicDistribution';
-import ActivityTrendsChart from './ActivityTrendsChart';
+
+// Lazy load heavy chart components
+const ActivityOverview = lazy(() => import('./ActivityOverview'));
+const RoleDistributionChart = lazy(() => import('./RoleDistributionChart'));
+const ActivityLevelsChart = lazy(() => import('./ActivityLevelsChart'));
+const OnboardingMetrics = lazy(() => import('./OnboardingMetrics'));
+const OrganizationalBreakdown = lazy(() => import('./OrganizationalBreakdown'));
+const GeographicDistribution = lazy(() => import('./GeographicDistribution'));
+const ActivityTrendsChart = lazy(() => import('./ActivityTrendsChart'));
 
 interface AnalyticsDashboardProps {
   className?: string;
@@ -204,60 +206,109 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Activity Overview */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <ActivityOverview 
-            data={activityMetrics?.overview} 
-            isLoading={activityLoading} 
-          />
+          <Suspense fallback={
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          }>
+            <ActivityOverview
+              data={activityMetrics?.overview}
+              isLoading={activityLoading}
+            />
+          </Suspense>
         </div>
 
         {/* Role Distribution */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <RoleDistributionChart 
-            data={summary?.role_distribution} 
-            isLoading={summaryLoading} 
-          />
+          <Suspense fallback={
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          }>
+            <RoleDistributionChart
+              data={summary?.role_distribution}
+              isLoading={summaryLoading}
+            />
+          </Suspense>
         </div>
 
         {/* Activity Levels */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <ActivityLevelsChart 
-            data={activityMetrics?.activity_levels} 
-            isLoading={activityLoading} 
-          />
+          <Suspense fallback={
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          }>
+            <ActivityLevelsChart
+              data={activityMetrics?.activity_levels}
+              isLoading={activityLoading}
+            />
+          </Suspense>
         </div>
 
         {/* Onboarding Metrics */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <OnboardingMetrics 
-            data={activityMetrics?.onboarding_metrics} 
-            isLoading={activityLoading} 
-          />
+          <Suspense fallback={
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          }>
+            <OnboardingMetrics
+              data={activityMetrics?.onboarding_metrics}
+              isLoading={activityLoading}
+            />
+          </Suspense>
         </div>
       </div>
 
       {/* Organizational Breakdown */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <OrganizationalBreakdown 
-          data={orgMetrics} 
-          isLoading={orgLoading} 
-        />
+        <Suspense fallback={
+          <div className="space-y-4">
+            <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-48 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        }>
+          <OrganizationalBreakdown
+            data={orgMetrics}
+            isLoading={orgLoading}
+          />
+        </Suspense>
       </div>
 
       {/* Geographic Distribution */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <GeographicDistribution 
-          data={activityMetrics?.geographic_distribution} 
-          isLoading={activityLoading} 
-        />
+        <Suspense fallback={
+          <div className="space-y-4">
+            <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        }>
+          <GeographicDistribution
+            data={activityMetrics?.geographic_distribution}
+            isLoading={activityLoading}
+          />
+        </Suspense>
       </div>
 
       {/* Activity Trends */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <ActivityTrendsChart 
-          data={activityMetrics?.trends} 
-          isLoading={activityLoading} 
-          timeRange={timeRange}
-        />
+        <Suspense fallback={
+          <div className="space-y-4">
+            <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        }>
+          <ActivityTrendsChart
+            data={activityMetrics?.trends}
+            isLoading={activityLoading}
+            timeRange={timeRange}
+          />
+        </Suspense>
       </div>
     </div>
   );

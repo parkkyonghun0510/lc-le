@@ -56,11 +56,11 @@ class CacheService:
         """Get cached data"""
         if not self.redis:
             return None
-            
+
         try:
             cache_key = self._get_cache_key(key, namespace)
-            cached_data = await self.redis.get(cache_key)
-            
+            cached_data = self.redis.get(cache_key)
+
             if cached_data:
                 deserialized = self._deserialize_data(cached_data)
                 logger.debug(f"Cache HIT for key: {cache_key}")
@@ -68,7 +68,7 @@ class CacheService:
             else:
                 logger.debug(f"Cache MISS for key: {cache_key}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Redis GET error for key {key}: {e}")
             return None
@@ -77,16 +77,16 @@ class CacheService:
         """Set cached data with TTL"""
         if not self.redis:
             return False
-            
+
         try:
             cache_key = self._get_cache_key(key, namespace)
             serialized_data = self._serialize_data(data)
             ttl = ttl or self.default_ttl
-            
-            await self.redis.setex(cache_key, ttl, serialized_data)
+
+            self.redis.setex(cache_key, ttl, serialized_data)
             logger.debug(f"Cache SET for key: {cache_key} (TTL: {ttl}s)")
             return True
-            
+
         except Exception as e:
             logger.error(f"Redis SET error for key {key}: {e}")
             return False
@@ -95,13 +95,13 @@ class CacheService:
         """Delete cached data"""
         if not self.redis:
             return False
-            
+
         try:
             cache_key = self._get_cache_key(key, namespace)
-            result = await self.redis.delete(cache_key)
+            result = self.redis.delete(cache_key)
             logger.debug(f"Cache DELETE for key: {cache_key}")
             return bool(result)
-            
+
         except Exception as e:
             logger.error(f"Redis DELETE error for key {key}: {e}")
             return False
@@ -110,17 +110,17 @@ class CacheService:
         """Delete all keys matching pattern"""
         if not self.redis:
             return 0
-            
+
         try:
             cache_pattern = self._get_cache_key(pattern, namespace)
-            keys = await self.redis.keys(cache_pattern)
-            
+            keys = self.redis.keys(cache_pattern)
+
             if keys:
-                deleted_count = await self.redis.delete(*keys)
+                deleted_count = self.redis.delete(*keys)
                 logger.debug(f"Cache DELETE PATTERN: {len(keys)} keys deleted for pattern: {cache_pattern}")
                 return deleted_count
             return 0
-            
+
         except Exception as e:
             logger.error(f"Redis DELETE PATTERN error for pattern {pattern}: {e}")
             return 0
@@ -129,10 +129,10 @@ class CacheService:
         """Check if key exists in cache"""
         if not self.redis:
             return False
-            
+
         try:
             cache_key = self._get_cache_key(key, namespace)
-            return bool(await self.redis.exists(cache_key))
+            return bool(self.redis.exists(cache_key))
         except Exception as e:
             logger.error(f"Redis EXISTS error for key {key}: {e}")
             return False
@@ -214,11 +214,11 @@ class CacheService:
         """Get cache statistics"""
         if not self.redis:
             return {"redis_available": False}
-        
+
         try:
-            info = await self.redis.info()
+            info = self.redis.info()
             keyspace_info = info.get("keyspace", {})
-            
+
             return {
                 "redis_available": True,
                 "total_keys": info.get("db0", {}).get("keys", 0),

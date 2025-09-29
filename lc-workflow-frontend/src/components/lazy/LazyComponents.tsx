@@ -1,140 +1,90 @@
-/**
- * Lazy Loading Components
- * Dynamically import heavy components to improve initial bundle size
- */
+'use client';
 
-import { lazy, Suspense, ComponentType } from 'react';
-import { Skeleton } from '@mui/material';
+import { Suspense, lazy, ComponentType, useState, useEffect } from 'react';
 
-// Loading skeleton components
-const TableSkeleton = () => (
-  <div className="space-y-4">
-    <div className="h-8 bg-gray-200 rounded animate-pulse" />
-    <div className="space-y-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
-      ))}
-    </div>
-  </div>
+// Lazy loaded components with Suspense wrapper
+const AnalyticsDashboardComponent = lazy(() => import('@/components/analytics/AnalyticsDashboard'));
+const AdvancedSearchModalComponent = lazy(() => import('@/components/users/AdvancedSearchModal'));
+
+export const LazyAnalyticsDashboard = (props: any) => (
+  <LazyWrapper>
+    <AnalyticsDashboardComponent {...props} />
+  </LazyWrapper>
 );
 
-const ChartSkeleton = () => (
-  <div className="h-64 bg-gray-100 rounded animate-pulse flex items-center justify-center">
-    <div className="text-gray-500">Loading chart...</div>
-  </div>
+export const LazyAdvancedSearchModal = (props: any) => (
+  <LazyWrapper>
+    <AdvancedSearchModalComponent {...props} />
+  </LazyWrapper>
 );
 
-const FormSkeleton = () => (
-  <div className="space-y-4">
-    {Array.from({ length: 6 }).map((_, i) => (
-      <div key={i} className="space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-1/4 animate-pulse" />
-        <div className="h-10 bg-gray-100 rounded animate-pulse" />
-      </div>
-    ))}
-  </div>
-);
-
-const PageSkeleton = () => (
-  <div className="space-y-6">
-    <div className="h-8 bg-gray-200 rounded w-1/3 animate-pulse" />
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-32 bg-gray-100 rounded animate-pulse" />
-      ))}
-    </div>
-  </div>
-);
-
-// Generic lazy loading wrapper
+// Enhanced lazy loading wrapper with better error handling and loading states
 interface LazyWrapperProps {
   fallback?: React.ReactNode;
   errorFallback?: React.ReactNode;
+  children: React.ReactNode;
 }
 
-function createLazyComponent<T extends ComponentType<any>>(
+export function LazyWrapper({ fallback, errorFallback, children }: LazyWrapperProps) {
+  return (
+    <Suspense
+      fallback={fallback || (
+        <div className="space-y-4">
+          <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      )}
+    >
+      {children}
+    </Suspense>
+  );
+}
+
+// Generic lazy component loader
+export function lazyLoadComponent<T extends ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>,
-  fallback: React.ReactNode = <PageSkeleton />
+  fallback?: React.ReactNode
 ) {
   const LazyComponent = lazy(importFunc);
 
-  return function LazyWrapper(props: any) {
-    return (
-      <Suspense fallback={fallback}>
-        <LazyComponent {...props} />
-      </Suspense>
-    );
-  };
+  const LazyComponentWrapper = (props: React.ComponentProps<T>) => (
+    <LazyWrapper fallback={fallback}>
+      <LazyComponent {...props} />
+    </LazyWrapper>
+  );
+
+  LazyComponentWrapper.displayName = 'LazyComponentWrapper';
+  return LazyComponentWrapper;
 }
 
-// Analytics Components (Heavy - Charts)
-export const LazyAnalyticsDashboard = createLazyComponent(
-  () => import('../analytics/AnalyticsDashboard'),
-  <PageSkeleton />
-);
+// Preload component for better UX
+export function preloadComponent(importFunc: () => Promise<any>) {
+  const promise = importFunc();
+  return promise;
+}
 
-export const LazyActivityOverview = createLazyComponent(
-  () => import('../analytics/ActivityOverview'),
-  <ChartSkeleton />
-);
+// Intersection Observer hook for lazy loading
+export function useLazyLoad(threshold = 0.1) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [elementRef, setElementRef] = useState<Element | null>(null);
 
-export const LazyRoleDistributionChart = createLazyComponent(
-  () => import('../analytics/RoleDistributionChart'),
-  <ChartSkeleton />
-);
+  useEffect(() => {
+    if (!elementRef) return;
 
-export const LazyActivityLevelsChart = createLazyComponent(
-  () => import('../analytics/ActivityLevelsChart'),
-  <ChartSkeleton />
-);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold }
+    );
 
-export const LazyActivityTrendsChart = createLazyComponent(
-  () => import('../analytics/ActivityTrendsChart'),
-  <ChartSkeleton />
-);
+    observer.observe(elementRef);
 
-export const LazyOnboardingMetrics = createLazyComponent(
-  () => import('../analytics/OnboardingMetrics'),
-  <ChartSkeleton />
-);
+    return () => observer.disconnect();
+  }, [elementRef, threshold]);
 
-export const LazyOrganizationalBreakdown = createLazyComponent(
-  () => import('../analytics/OrganizationalBreakdown'),
-  <ChartSkeleton />
-);
-
-export const LazyGeographicDistribution = createLazyComponent(
-  () => import('../analytics/GeographicDistribution'),
-  <ChartSkeleton />
-);
-
-// User Management Components (Heavy - Tables)
-export const LazyAdvancedSearchModal = createLazyComponent(
-  () => import('../users/AdvancedSearchModal'),
-  <FormSkeleton />
-);
-
-// Notification Components (Heavy - Real-time Updates)  
-export const LazyNotificationDropdown = createLazyComponent(
-  () => import('../notifications/NotificationDropdown'),
-  <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
-);
-
-export const LazyNotificationManagement = createLazyComponent(
-  () => import('../notifications/NotificationManagement'),
-  <PageSkeleton />
-);
-
-// Security Components (Heavy - Complex Logic)
-export const LazyAccountLockoutManagement = createLazyComponent(
-  () => import('../auth/AccountLockoutManagement'),
-  <PageSkeleton />
-);
-
-// Export skeleton components for reuse
-export {
-  TableSkeleton,
-  ChartSkeleton,
-  FormSkeleton,
-  PageSkeleton,
-};
+  return { isVisible, setElementRef };
+}

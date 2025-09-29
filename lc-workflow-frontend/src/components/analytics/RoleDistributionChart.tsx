@@ -1,5 +1,6 @@
 'use client';
 
+import React, { memo, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface RoleDistributionChartProps {
@@ -9,7 +10,22 @@ interface RoleDistributionChartProps {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
-export default function RoleDistributionChart({ data, isLoading }: RoleDistributionChartProps) {
+function RoleDistributionChartComponent({ data, isLoading }: RoleDistributionChartProps) {
+  // Memoize expensive calculations
+  const chartData = useMemo(() => {
+    if (!data || Object.keys(data).length === 0) return [];
+    return Object.entries(data).map(([role, count], index) => ({
+      name: role.charAt(0).toUpperCase() + role.slice(1),
+      value: count,
+      color: COLORS[index % COLORS.length]
+    }));
+  }, [data]);
+
+  const total = useMemo(() => {
+    if (!data) return 0;
+    return Object.values(data).reduce((sum: number, count: number) => sum + count, 0);
+  }, [data]);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -35,23 +51,15 @@ export default function RoleDistributionChart({ data, isLoading }: RoleDistribut
     );
   }
 
-  const chartData = Object.entries(data).map(([role, count], index) => ({
-    name: role.charAt(0).toUpperCase() + role.slice(1),
-    value: count,
-    color: COLORS[index % COLORS.length]
-  }));
-
-  const total = Object.values(data).reduce((sum, count) => sum + count, 0);
-
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0];
-      const percentage = ((data.value / total) * 100).toFixed(1);
+      const chartData = payload[0];
+      const percentage = ((chartData.value / total) * 100).toFixed(1);
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{data.name}</p>
+          <p className="font-medium text-gray-900">{chartData.name}</p>
           <p className="text-sm text-gray-600">
-            {data.value} users ({percentage}%)
+            {chartData.value} users ({percentage}%)
           </p>
         </div>
       );
@@ -62,7 +70,7 @@ export default function RoleDistributionChart({ data, isLoading }: RoleDistribut
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900">Role Distribution</h3>
-      
+
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -80,8 +88,8 @@ export default function RoleDistributionChart({ data, isLoading }: RoleDistribut
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-            <Legend 
-              verticalAlign="bottom" 
+            <Legend
+              verticalAlign="bottom"
               height={36}
               formatter={(value, entry: any) => (
                 <span className="text-sm text-gray-700">
@@ -107,3 +115,7 @@ export default function RoleDistributionChart({ data, isLoading }: RoleDistribut
     </div>
   );
 }
+
+// Memoize the component to prevent unnecessary re-renders
+const RoleDistributionChart = memo(RoleDistributionChartComponent);
+export default RoleDistributionChart;

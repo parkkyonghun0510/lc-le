@@ -84,7 +84,8 @@ async def create_application(
         po_created_by=current_user.id
     )
     db.add(db_application)
-    await db.commit()
+    await db.flush()
+    await db.refresh(db_application)
     await db.refresh(db_application)
     resp = CustomerApplicationResponse.from_orm(db_application)
     enrich_application_response(resp)
@@ -282,7 +283,7 @@ async def get_customer_cards(
             "phone": app.phone,
             "loan_status": app.loan_status,
             "status": app.status,
-            "loan_amount": float(app.loan_amount) if app.loan_amount else None,
+            "loan_amount": float(app.requested_amount) if app.requested_amount else None,
             "requested_amount": float(app.requested_amount) if app.requested_amount else None,
             "interest_rate": float(app.interest_rate) if app.interest_rate else None,
             "loan_start_date": app.loan_start_date,
@@ -628,14 +629,14 @@ async def approve_application(
     
     # Set approved amounts (use requested if not specified)
     if approval_data:
-        application.loan_amount = approval_data.approved_amount or application.requested_amount
+        application.requested_amount = approval_data.approved_amount or application.requested_amount
         if approval_data.approved_interest_rate:
             application.interest_rate = approval_data.approved_interest_rate
         if approval_data.approved_loan_term:
             application.desired_loan_term = approval_data.approved_loan_term
     else:
-        # Default: approved amount equals requested amount
-        application.loan_amount = application.requested_amount
+        # Default: approved amount equals requested amount (no change needed)
+        pass
     
     await db.commit()
     await db.refresh(application)

@@ -578,7 +578,12 @@ async def create_permission_template(
     )
     
     db.add(template)
-    await db.commit()
+
+    
+    await db.flush()
+
+    
+    await db.refresh(template)
     await db.refresh(template)
     
     return PermissionTemplateResponse.from_orm(template)

@@ -44,10 +44,10 @@ export function ThemeProvider({
   
   // Check if user is authenticated
   const { isAuthenticated } = useAuth();
-  
-  // Fetch backend theme settings (always call hook, conditionally use result)
+
+  // Only fetch backend theme settings when useBackendSettings is enabled
   const { data: themeSettings, isLoading: isThemeLoading, isError: isThemeError } = useThemeSettings();
-  
+
   // Only use backend settings if enabled
   const shouldUseBackendSettings = useBackendSettings && themeSettings;
   

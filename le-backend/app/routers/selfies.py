@@ -111,7 +111,12 @@ async def upload_selfie(
     )
     
     db.add(db_file)
-    await db.commit()
+
+    
+    await db.flush()
+
+    
+    await db.refresh(db_file)
     await db.refresh(db_file)
     
     # Create selfie record with metadata
@@ -130,7 +135,12 @@ async def upload_selfie(
     )
     
     db.add(db_selfie)
-    await db.commit()
+
+    
+    await db.flush()
+
+    
+    await db.refresh(db_selfie)
     await db.refresh(db_selfie)
     
     # Return response

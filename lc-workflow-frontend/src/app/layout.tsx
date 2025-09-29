@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToasterClient } from "@/components/ToasterClient";
 import { AppInitializer } from "@/components/AppInitializer";
 import ErrorBoundaryProvider from "@/components/providers/ErrorBoundaryProvider";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -90,6 +91,7 @@ export default function RootLayout({
             <ThemeProvider useBackendSettings={true}>
               <AuthProvider>
                 <AppInitializer>
+                  <ServiceWorkerRegistration />
                   <ToasterClient />
                   {children}
                 </AppInitializer>

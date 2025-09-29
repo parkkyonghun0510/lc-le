@@ -404,7 +404,12 @@ async def create_setting(
         )
         
         db.add(new_setting)
-        await db.commit()
+
+        
+        await db.flush()
+
+        
+        await db.refresh(new_setting)
         await db.refresh(new_setting)
         
         return {
@@ -702,7 +707,10 @@ async def bulk_update_settings(
                     updated_by=current_user.id
                 )
                 db.add(new_setting)
-                await db.flush()  # Get the ID without committing
+
+                await db.flush()
+
+                await db.refresh(new_setting)  # Get the ID without committing
                 
                 updated_settings[key] = {
                     "id": str(new_setting.id),

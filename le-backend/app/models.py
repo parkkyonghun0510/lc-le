@@ -1,5 +1,4 @@
 from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Numeric, Date, JSON, BigInteger, Integer, Index
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text, Date, Numeric, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -130,19 +129,19 @@ class CustomerApplication(Base):
     monthly_income = Column(Numeric(15, 2))
     income_source = Column(String(100))  # salary, business, agriculture, etc.
     
-    # Loan Details
-    requested_amount = Column(Numeric(15, 2))
-    loan_purposes = Column(JSON)  # business, agriculture, education, housing, vehicle, medical, other
-    purpose_details = Column(Text)
-    product_type = Column(String(50))  # micro_loan, sme_loan, agriculture_loan, housing_loan, education_loan
-    desired_loan_term = Column(Integer)  # 6_months, 12_months, etc.
-    requested_disbursement_date = Column(Date)
-    interest_rate = Column(Numeric(5, 2))  # Annual percentage rate
-    
-    # Additional loan fields from frontend
-    loan_amount = Column(Numeric(15, 2))  # Current/approved loan amount
-    loan_status = Column(String(20))  # draft, active, disbursed, completed, defaulted
-    loan_purpose = Column(String(255))  # Single purpose description
+    # Loan Details - Consolidated fields for clarity
+    requested_amount = Column(Numeric(15, 2), comment='Initial requested amount (consolidated from loan_amount)')
+    loan_purposes = Column(JSON, comment='Multiple loan purposes as JSON array')
+    purpose_details = Column(Text, comment='Detailed description of loan purposes')
+    product_type = Column(String(50), comment='Type of loan product')
+    desired_loan_term = Column(Integer, comment='Requested loan term in months')
+    requested_disbursement_date = Column(Date, comment='When customer wants the loan disbursed')
+    interest_rate = Column(Numeric(5, 2), comment='Annual percentage rate')
+
+    # Additional loan fields from frontend - consolidated into requested_amount above
+    # loan_amount field removed - use requested_amount instead
+    loan_status = Column(String(20), comment='Current status of the loan application')
+    loan_purpose = Column(String(255), comment='Primary loan purpose description')
     loan_start_date = Column(Date)  # Actual disbursement date
     loan_end_date = Column(Date)  # Loan maturity date
     

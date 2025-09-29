@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { File } from '@/types/models';
-import { 
-  XMarkIcon, 
+import {
+  XMarkIcon,
   ArrowDownTrayIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   MagnifyingGlassMinusIcon,
-  MagnifyingGlassPlusIcon
+  MagnifyingGlassPlusIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useDownloadFile } from '@/hooks/useFiles';
 import { apiClient } from '@/lib/api';
@@ -38,35 +39,58 @@ export default function FilePreview({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { downloadFile } = useDownloadFile();
 
   // Reset zoom and position when file changes
+
+  const fetchPreviewUrl = async (attempt = 0) => {
+    try {
+      const res = await apiClient.get<{ download_url: string }>(`/files/${file.id}/download`);
+      if (res && res.download_url) {
+        setPreviewUrl(res.download_url);
+        setRetryCount(0);
+      } else if ((res as any).url) {
+        // Fallback if backend uses 'url'
+        setPreviewUrl((res as any).url);
+        setRetryCount(0);
+      } else {
+        console.error('No download URL in response:', res);
+        setImageError(true);
+      }
+    } catch (e) {
+      console.error(`Failed to fetch download URL for file preview (attempt ${attempt + 1}):`, e);
+      if (attempt < 2) {
+        // Retry up to 2 times with exponential backoff
+        setTimeout(() => fetchPreviewUrl(attempt + 1), Math.pow(2, attempt) * 1000);
+      } else {
+        setImageError(true);
+      }
+    }
+  };
 
   useEffect(() => {
     setImageZoom(1);
     setImagePosition({ x: 0, y: 0 });
     setImageError(false);
     setPreviewUrl(null);
-    // Fetch presigned URL for preview
-    (async () => {
-      try {
-        const res = await apiClient.get<{ download_url: string }>(`/files/${file.id}/download`);
-        if (res && (res as any).download_url) {
-          setPreviewUrl((res as any).download_url);
-        } else if ((res as any).url) {
-          // Fallback if backend uses 'url'
-          setPreviewUrl((res as any).url);
-        }
-      } catch (e) {
-        setImageError(true);
-      }
-    })();
+    setRetryCount(0);
+
+    // Fetch presigned URL for preview with retry
+    fetchPreviewUrl(0);
   }, [file.id]);
 
   if (!isOpen) return null;
 
   const handleDownload = () => {
     downloadFile(file.id, file.display_name || file.original_filename);
+  };
+
+  const handleRetry = () => {
+    setImageError(false);
+    setPreviewUrl(null);
+    setRetryCount(0);
+    fetchPreviewUrl(0);
   };
 
   const getPreviewUrl = () => previewUrl || '';
@@ -217,23 +241,40 @@ export default function FilePreview({
       );
     }
 
-    // Fallback for unsupported file types
+    // Fallback for unsupported file types or when preview fails
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
         <div className="p-6 bg-gray-100 dark:bg-gray-700 rounded-full mb-6">
           <div className="text-4xl">📄</div>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Preview not available</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          {imageError ? 'Preview failed to load' : 'Preview not available'}
+        </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center max-w-md">
-          This file type cannot be previewed in the browser. Download the file to view its contents.
+          {imageError
+            ? 'Unable to load file preview. The file may be corrupted or temporarily unavailable.'
+            : 'This file type cannot be previewed in the browser.'
+          }
+          {' '}Download the file to view its contents.
         </p>
-        <button
-          onClick={handleDownload}
-          className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3"
-        >
-          <ArrowDownTrayIcon className="h-5 w-5" />
-          Download File
-        </button>
+        <div className="flex gap-3">
+          {imageError && retryCount < 3 && (
+            <button
+              onClick={handleRetry}
+              className="group px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 dark:from-gray-500 dark:to-gray-600 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 dark:hover:from-gray-600 dark:hover:to-gray-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3"
+            >
+              <ArrowPathIcon className="h-5 w-5" />
+              Retry Preview
+            </button>
+          )}
+          <button
+            onClick={handleDownload}
+            className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" />
+            Download File
+          </button>
+        </div>
       </div>
     );
   };

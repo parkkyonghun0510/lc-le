@@ -221,14 +221,12 @@ export default function ValidationDemoPage() {
   const [activeTab, setActiveTab] = useState('fields');
 
   const handleUserSubmit = async (data: UserFormData) => {
-    console.log('User form submitted:', data);
     toast.success('User form submitted successfully!');
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   const handleCustomerSubmit = async (data: CustomerApplicationFormData) => {
-    console.log('Customer application submitted:', data);
     toast.success('Customer application submitted successfully!');
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));

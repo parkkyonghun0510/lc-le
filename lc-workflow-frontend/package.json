@@ -5,11 +5,21 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:production": "NODE_ENV=production npm run build",
+    "build:analyze": "ANALYZE=true npm run build",
+    "build:railway": "NODE_ENV=production NEXT_PUBLIC_FORCE_HTTPS=true npm run build",
     "start": "next start",
+    "start:production": "NODE_ENV=production next start --port ${PORT:-3000}",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "analyze": "npm run build && node scripts/analyze-bundle.js",
-    "analyze:watch": "npm run build -- --watch && node scripts/analyze-bundle.js"
+    "analyze:watch": "npm run build -- --watch && node scripts/analyze-bundle.js",
+    "postinstall": "npm run build:production",
+    "predeploy": "npm run lint && npm run test && npm run build:railway",
+    "deploy:railway": "npm run predeploy && echo 'Ready for Railway deployment'"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -21,15 +31,15 @@
     "@mui/material": "^7.3.2",
     "@playwright/test": "^1.55.0",
     "@tanstack/react-query": "^5.83.0",
-    "@tanstack/react-query-devtools": "^5.83.0",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
+    "critters": "^0.0.23",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.12",
     "lodash": "^4.17.21",
     "lucide-react": "^0.534.0",
-    "next": "15.4.5",
+    "next": "^15.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
@@ -46,7 +56,9 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/eslintrc": "^3",
+    "@next/bundle-analyzer": "^15.4.5",
     "@tailwindcss/postcss": "^4",
+    "@tanstack/react-query-devtools": "^5.83.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
@@ -62,6 +74,7 @@
     "jest-environment-jsdom": "^30.1.2",
     "msw": "^2.11.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "webpack-bundle-analyzer": "^4.10.2"
   }
 }

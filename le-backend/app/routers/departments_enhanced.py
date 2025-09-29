@@ -47,7 +47,10 @@ async def create_department(
     
     db_department = Department(**department.dict())
     db.add(db_department)
-    await db.commit()
+
+    await db.flush()
+
+    await db.refresh(db_department)
     await db.refresh(db_department)
     return DepartmentResponse.from_orm(db_department)
 

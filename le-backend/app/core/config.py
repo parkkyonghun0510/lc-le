@@ -12,12 +12,11 @@ class Settings(BaseSettings):
     )
     
     # Database - Use Railway environment variable or fallback to provided URL
-    # DATABASE_URL: str = "postgresql+asyncpg://postgres:DiCKQpigDCyOAlIwRAACCIfXvnrzjUUl@interchange.proxy.rlwy.net:33042/railway"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost:5432/lcworkflow")
 
     
     # Redis
-    # REDIS_URL: str = "redis://localhost:6379"
-    # REDIS_URL: str = "redis://default:rpKlwePA8Sdut7FwtHjt6HmZ5umnpYzM@maglev.proxy.rlwy.net:40813"
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     
     # JWT - Use environment variables with fallbacks
@@ -87,27 +86,26 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
-        # Handle Railway DATABASE_URL environment variable
-        database_url = os.getenv('DATABASE_URL')
-        if database_url:
-            print(f"Found DATABASE_URL environment variable")
+        # Handle Railway DATABASE_URL environment variable conversion
+        if self.DATABASE_URL:
+            print(f"Found DATABASE_URL: {self.DATABASE_URL[:50]}...")
             # Convert postgres:// to postgresql+asyncpg:// for async support
-            if database_url.startswith('postgres://'):
-                database_url = database_url.replace('postgres://', 'postgresql+asyncpg://', 1)
+            if self.DATABASE_URL.startswith('postgres://'):
+                self.DATABASE_URL = self.DATABASE_URL.replace('postgres://', 'postgresql+asyncpg://', 1)
                 print(f"Converted postgres:// to postgresql+asyncpg://")
-            elif not database_url.startswith('postgresql+asyncpg://'):
+            elif self.DATABASE_URL.startswith('postgresql://') and 'asyncpg' not in self.DATABASE_URL:
                 # Add asyncpg driver if not present
-                database_url = database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+                self.DATABASE_URL = self.DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://', 1)
                 print(f"Added asyncpg driver to PostgreSQL URL")
-            self.DATABASE_URL = database_url
         else:
-            print("Warning: DATABASE_URL environment variable not found - using default database configuration")
+            print("Warning: DATABASE_URL not configured")
             
         # Map Railway environment variables
-        if self.DRAGONFLY_URL and not self.REDIS_URL:
+        if self.DRAGONFLY_URL:
+            print(f"Using Dragonfly URL for Redis connection")
             self.REDIS_URL = self.DRAGONFLY_URL
-        elif self.REDIS_URL and not self.DRAGONFLY_URL:
-            self.DRAGONFLY_URL = self.REDIS_URL
+        elif self.REDIS_URL:
+            print(f"Using Redis URL: {self.REDIS_URL[:30]}...")
             
         # Map MinIO variables from Railway
         if self.MINIO_PRIVATE_ENDPOINT and not self.MINIO_ENDPOINT:

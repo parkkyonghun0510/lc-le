@@ -12,6 +12,7 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import logging
+from functools import wraps
 from fastapi import HTTPException
 
 from app.models import User
@@ -627,7 +628,8 @@ def require_permission(
             ...
     """
     def decorator(func):
-        async def wrapper(*args, **kwargs):
+        @wraps(func)
+        async def permission_wrapper(*args, **kwargs):
             # Extract current_user from kwargs
             current_user = kwargs.get('current_user')
             if not current_user:
@@ -652,5 +654,5 @@ def require_permission(
             
             return await func(*args, **kwargs)
         
-        return wrapper
+        return permission_wrapper
     return decorator

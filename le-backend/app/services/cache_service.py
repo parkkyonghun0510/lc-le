@@ -247,7 +247,7 @@ def cache_result(ttl: int = 300, namespace: str = "default", key_func=None):
     """
     def decorator(func):
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def cache_wrapper(*args, **kwargs):
             # Generate cache key
             if key_func:
                 cache_key = key_func(*args, **kwargs)
@@ -270,7 +270,7 @@ def cache_result(ttl: int = 300, namespace: str = "default", key_func=None):
             await cache_service.set(cache_key, result, ttl, namespace)
             return result
         
-        return wrapper
+        return cache_wrapper
     return decorator
 
 

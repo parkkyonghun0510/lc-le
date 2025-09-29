@@ -138,7 +138,7 @@ def query_monitor(query_name: str = None):
     """Decorator for monitoring query performance"""
     def decorator(func: Callable):
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def query_wrapper(*args, **kwargs):
             # Extract db session from args if available
             db = None
             for arg in args:
@@ -159,7 +159,7 @@ def query_monitor(query_name: str = None):
             else:
                 return await func(*args, **kwargs)
         
-        return wrapper
+        return query_wrapper
     return decorator
 
 

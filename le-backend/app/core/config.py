@@ -11,12 +11,11 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
     
-    # Database - Use Railway environment variable or fallback to provided URL
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost:5432/lcworkflow")
-
+     # Database
+    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/lc_workflow"
     
     # Redis
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL: str = "redis://localhost:6379"
 
     
     # JWT - Use environment variables with fallbacks
@@ -31,7 +30,15 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # CORS - Restrict origins in production
-    ALLOWED_ORIGINS: List[str] = []
+    # CORS - Restrict origins in production
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:8000",
+    ]
     
     # File Storage
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "static/uploads")

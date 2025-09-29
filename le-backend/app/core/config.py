@@ -74,27 +74,30 @@ class Settings(BaseSettings):
     SESSION_COOKIE_SAMESITE: str = "lax"
     
     # Environment variables from podman-compose.yml
-    MINIO_ENDPOINT: str = ""
-    MINIO_ACCESS_KEY: str = ""
-    MINIO_SECRET_KEY: str = ""
+    MINIO_ENDPOINT: str = "https://bucket-production-9546.up.railway.app:443"
+    MINIO_ACCESS_KEY: str = "uJ8Z7zDRJh17MwHoKfF2"
+    MINIO_SECRET_KEY: str = "hbA41Ti9O1l9ewDFr5A7S0aHfNSnqakl2iyTVFqe"
     MINIO_BUCKET_NAME: str = "lc-workflow-files"
-    MINIO_SECURE: bool = False
+    MINIO_SECURE: bool = True
     # Define as Union to handle both list and string from env
-    CORS_ORIGINS: Union[List[str], str] = []
+    CORS_ORIGINS: Union[List[str], str] = [
+        "https://frontend-production-c749.up.railway.app",
+        "https://le-workflow-03fc.up.railway.app",
+    ]
     
     # Railway specific environment variables
-    DRAGONFLY_URL: str = ""
-    MINIO_PRIVATE_ENDPOINT: str = ""
+    DRAGONFLY_URL: str = "redis://default:rpKlwePA8Sdut7FwtHjt6HmZ5umnpYzM@maglev.proxy.rlwy.net:40813"
+    MINIO_PRIVATE_ENDPOINT: str = "https://bucket-production-9546.up.railway.app:443"
     MINIO_ROOT_USER: str = ""
     MINIO_ROOT_PASSWORD: str = ""
     
     # S3 aliases for compatibility
-    S3_ENDPOINT: str = ""
-    S3_ACCESS_KEY: str = ""
-    S3_SECRET_KEY: str = ""
+    S3_ENDPOINT: str = "https://bucket-production-9546.up.railway.app:443"
+    S3_ACCESS_KEY: str = "uJ8Z7zDRJh17MwHoKfF2"
+    S3_SECRET_KEY: str = "hbA41Ti9O1l9ewDFr5A7S0aHfNSnqakl2iyTVFqe"
     S3_BUCKET_NAME: str = "lc-workflow-files"
     S3_REGION: str = "us-east-1"
-    S3_USE_SSL: bool = False
+    S3_USE_SSL: bool = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

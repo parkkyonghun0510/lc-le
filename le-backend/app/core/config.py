@@ -169,7 +169,6 @@ class Settings(BaseSettings):
             ]
         
         # Ensure upload directory exists
-        import os
         os.makedirs(self.UPLOAD_DIR, exist_ok=True)
 
 settings = Settings()

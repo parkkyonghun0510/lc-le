@@ -12,12 +12,12 @@ class Settings(BaseSettings):
     )
     
     # Database - Use Railway environment variable or fallback to provided URL
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:DiCKQpigDCyOAlIwRAACCIfXvnrzjUUl@interchange.proxy.rlwy.net:33042/railway"
+    # DATABASE_URL: str = "postgresql+asyncpg://postgres:DiCKQpigDCyOAlIwRAACCIfXvnrzjUUl@interchange.proxy.rlwy.net:33042/railway"
 
     
     # Redis
     # REDIS_URL: str = "redis://localhost:6379"
-    REDIS_URL: str = "redis://default:rpKlwePA8Sdut7FwtHjt6HmZ5umnpYzM@maglev.proxy.rlwy.net:40813"
+    # REDIS_URL: str = "redis://default:rpKlwePA8Sdut7FwtHjt6HmZ5umnpYzM@maglev.proxy.rlwy.net:40813"
 
     
     # JWT - Generate secure secret key if not provided
@@ -32,19 +32,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # CORS - Restrict origins in production
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:8090",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:8090",
-        "http://127.0.0.1:8000",
-        # Production frontend URLs
-        "https://le-workflow-03fc.up.railway.app",
-        "https://frontend-production-c749.up.railway.app",
-    ]
+    ALLOWED_ORIGINS: List[str] = []
     
     # File Storage
     UPLOAD_DIR: str = "static/uploads"

@@ -26,31 +26,14 @@ class DatabaseConnectionMiddleware(BaseHTTPMiddleware):
             
         except (DisconnectionError, OperationalError) as e:
             logger.warning(f"Database connection error detected: {e}")
-            
+
             # Attempt automatic reconnection if not already in progress
             if not self._reconnect_in_progress:
                 await self._attempt_reconnection()
-            
-            # Return service unavailable response
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "success": False,
-                    "error": {
-                        "code": "DATABASE_CONNECTION_ERROR",
-                        "message": "Database connection temporarily unavailable",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "details": {
-                            "error_type": type(e).__name__,
-                            "reconnection_attempted": True
-                        },
-                        "suggestions": [
-                            "Please try again in a few moments",
-                            "The database connection is being restored"
-                        ]
-                    }
-                }
-            )
+
+            # Re-raise the exception to be handled by error handlers
+            # This allows the proper error response formatting
+            raise
         
         except Exception as e:
             # Let other exceptions bubble up to be handled by error handlers

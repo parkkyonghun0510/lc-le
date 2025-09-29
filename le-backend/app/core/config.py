@@ -109,14 +109,20 @@ class Settings(BaseSettings):
         if hasattr(self, 'MINIO_PRIVATE_ENDPOINT') and self.MINIO_PRIVATE_ENDPOINT:
             self.MINIO_ENDPOINT = self.MINIO_PRIVATE_ENDPOINT
             self.S3_ENDPOINT = self.MINIO_PRIVATE_ENDPOINT
-            
+
         if hasattr(self, 'MINIO_ROOT_USER') and self.MINIO_ROOT_USER:
             self.MINIO_ACCESS_KEY = self.MINIO_ROOT_USER
             self.S3_ACCESS_KEY = self.MINIO_ROOT_USER
-            
+
         if hasattr(self, 'MINIO_ROOT_PASSWORD') and self.MINIO_ROOT_PASSWORD:
             self.MINIO_SECRET_KEY = self.MINIO_ROOT_PASSWORD
             self.S3_SECRET_KEY = self.MINIO_ROOT_PASSWORD
+
+        # Ensure we have valid credentials for production
+        if not self.DEBUG and not self.MINIO_ACCESS_KEY:
+            print("Warning: MINIO_ACCESS_KEY not set - file uploads may not work")
+        if not self.DEBUG and not self.MINIO_SECRET_KEY:
+            print("Warning: MINIO_SECRET_KEY not set - file uploads may not work")
             
         if hasattr(self, 'MINIO_BUCKET_NAME') and self.MINIO_BUCKET_NAME:
             self.S3_BUCKET_NAME = self.MINIO_BUCKET_NAME

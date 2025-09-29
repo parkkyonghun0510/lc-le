@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -37,6 +38,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Could not create database tables: {e}")
         print("Application will start without database connectivity")
+
+    # Validate external service connections in production
+    if not settings.DEBUG:
+        try:
+            from app.core.database_health import check_database_health
+            health = await check_database_health()
+            if health["status"] != "healthy":
+                print(f"Warning: Database health check failed: {health.get('error')}")
+        except Exception as e:
+            print(f"Warning: Could not check database health: {e}")
+
     yield
 
 app = FastAPI(
@@ -45,7 +57,23 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     # Configure OpenAPI schema generation to handle non-serializable defaults gracefully
-    generate_unique_id_function=lambda route: f"{route.tags[0]}-{route.name}" if route.tags else route.name
+    generate_unique_id_function=lambda route: f"{route.tags[0]}-{route.name}" if route.tags else route.name,
+    # Add exception handlers for graceful error handling
+    exception_handlers={
+        Exception: lambda request, exc: JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "details": {"error_type": type(exc).__name__} if not settings.DEBUG else {"error_type": type(exc).__name__, "message": str(exc)},
+                    "suggestions": ["Please try again later", "Contact support if the problem persists"]
+                }
+            }
+        )
+    }
 )
 
 # Behind Railway's proxy, trust all hosts for forwarded headers
@@ -123,9 +151,14 @@ async def api_health_check() -> dict:
         }
 
 if __name__ == "__main__":
+    import os
+
+    # Use PORT environment variable from Railway, fallback to settings
+    port = int(os.getenv("PORT", settings.PORT))
+
     uvicorn.run(
         "app.main:app",
         host=settings.HOST,
-        port=settings.PORT,
+        port=port,
         reload=settings.DEBUG
     )

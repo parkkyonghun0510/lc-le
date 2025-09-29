@@ -4,23 +4,30 @@ dockerfilePath = "/le-backend/Dockerfile"
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8090 --proxy-headers --forwarded-allow-ips='*'"
-healthcheckPath = "/api/v1/health"
+healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
+restartPolicyMaxRetries = 5
 
 # Environment variables for Railway deployment
 [env]
+# Basic configuration
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+DEBUG = "false"
+
+# Railway will provide these automatically, but we can set defaults
 PYTHON_VERSION = "3.11"
 PIP_NO_CACHE_DIR = "1"
 PIP_DISABLE_PIP_VERSION_CHECK = "1"
-# Allow the frontend origins for CORS (matches actual production frontend URLs)
-CORS_ORIGINS = "https://le-workflow-03fc.up.railway.app,https://frontend-production-c749.up.railway.app"
+
+# CORS - Railway will inject the correct frontend URL
+CORS_ORIGINS = "${{FRONTEND_URL}}"
+
 # Production optimizations
-ENVIRONMENT = "production"
-LOG_LEVEL = "info"
-UVICORN_WORKERS = "4"
+UVICORN_WORKERS = "1"
 UVICORN_RELOAD = "false"
+MAX_WORKERS = "4"
 
 # Build configuration
 [build.env]

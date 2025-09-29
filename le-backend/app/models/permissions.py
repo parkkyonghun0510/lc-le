@@ -215,7 +215,7 @@ class UserRole(Base):
     assigned_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
     
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
+    user = relationship("User", foreign_keys=[user_id], overlaps="user_roles")
     role = relationship("Role", back_populates="user_roles")
     department = relationship("Department", foreign_keys=[department_id])
     branch = relationship("Branch", foreign_keys=[branch_id])
@@ -264,7 +264,7 @@ class UserPermission(Base):
     granted_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
     
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
+    user = relationship("User", foreign_keys=[user_id], overlaps="user_permissions")
     permission = relationship("Permission", back_populates="user_permissions")
     department = relationship("Department", foreign_keys=[department_id])
     branch = relationship("Branch", foreign_keys=[branch_id])

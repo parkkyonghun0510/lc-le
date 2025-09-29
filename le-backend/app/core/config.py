@@ -11,8 +11,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
     
-    # Database
-    # DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/lc_workflow"
+    # Database - Use Railway environment variable or fallback to provided URL
     DATABASE_URL: str = "postgresql+asyncpg://postgres:DiCKQpigDCyOAlIwRAACCIfXvnrzjUUl@interchange.proxy.rlwy.net:33042/railway"
 
     
@@ -101,6 +100,18 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+        # Handle Railway DATABASE_URL environment variable
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            # Convert postgres:// to postgresql+asyncpg:// for async support
+            if database_url.startswith('postgres://'):
+                database_url = database_url.replace('postgres://', 'postgresql+asyncpg://', 1)
+            elif not database_url.startswith('postgresql+asyncpg://'):
+                # Add asyncpg driver if not present
+                database_url = database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+            self.DATABASE_URL = database_url
+            
         # Map Railway environment variables
         if hasattr(self, 'DRAGONFLY_URL') and self.DRAGONFLY_URL:
             self.REDIS_URL = self.DRAGONFLY_URL

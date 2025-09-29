@@ -42,6 +42,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3001",
         "http://127.0.0.1:8090",
         "http://127.0.0.1:8000",
+        # Production frontend URLs
+        "https://le-workflow-03fc.up.railway.app",
+        "https://frontend-production-c749.up.railway.app",
     ]
     
     # File Storage

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     
     # JWT - Use environment variables with fallbacks
-    SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+    SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(64))  # Increased to 64 chars for better security
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))

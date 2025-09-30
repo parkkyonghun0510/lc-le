@@ -14,7 +14,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { formatBytes } from '@/lib/utils';
-import { DocumentType } from '@/app/applications/new/types';
+import { DocumentType } from '../../../app/applications/new/types';
 
 interface GroupFileUploadModalProps {
   isOpen: boolean;

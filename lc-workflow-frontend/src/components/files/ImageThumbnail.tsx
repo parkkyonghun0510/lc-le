@@ -70,7 +70,7 @@ export default function ImageThumbnail({
   const isImage = file.mime_type.startsWith('image/');
 
   return (
-    <div 
+    <div
       className={`relative ${sizeClasses[size]} ${className} ${onClick ? 'cursor-pointer group' : ''} transition-all duration-200 hover:scale-105`}
       onClick={onClick}
       onMouseEnter={() => setIsHovering(true)}
@@ -80,15 +80,17 @@ export default function ImageThumbnail({
         <div className="relative w-full h-full">
           {/* Loading skeleton */}
           {isLoading && (
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded-xl flex items-center justify-center shadow-sm">
-              <PhotoIcon className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded-xl flex items-center justify-center shadow-sm border border-gray-200 dark:border-gray-600">
+              <div className="p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
+                <PhotoIcon className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+              </div>
             </div>
           )}
-          
+
           {/* Thumbnail image */}
           {thumbnailUrl && (
             <img
-              src={thumbnailUrl}
+              src={file.preview_url}
               alt={file.display_name || file.original_filename}
               className={`w-full h-full object-cover rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 transition-all duration-200 group-hover:shadow-xl ${
                 isLoading ? 'opacity-0' : 'opacity-100'
@@ -118,7 +120,7 @@ export default function ImageThumbnail({
       ) : (
         /* Non-image file icon */
         <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-xl flex items-center justify-center border border-gray-200 dark:border-gray-600 shadow-sm group-hover:shadow-lg transition-all duration-200">
-          <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
+          <div className="p-3 bg-white/60 dark:bg-gray-800/60 rounded-xl backdrop-blur-sm">
             {getFileIcon()}
           </div>
         </div>
@@ -135,7 +137,7 @@ export default function ImageThumbnail({
 
       {/* Image type indicator */}
       {isImage && (
-        <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg backdrop-blur-sm font-medium">
+        <div className="absolute top-2 right-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs px-2 py-1 rounded-full shadow-lg backdrop-blur-sm font-medium">
           IMG
         </div>
       )}

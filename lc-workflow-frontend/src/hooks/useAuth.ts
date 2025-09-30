@@ -17,8 +17,14 @@ export const useLogin = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (credentials: LoginCredentials) => apiClient.login(credentials),
+    mutationFn: (credentials: LoginCredentials) => {
+      return apiClient.login(credentials);
+    },
     onSuccess: async (data) => {
+      // Check what was actually stored
+      const storedToken = localStorage.getItem('access_token');
+      const storedUser = localStorage.getItem('user');
+
       // Ensure token is stored before redirecting
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -68,15 +74,58 @@ export const useLogout = () => {
 };
 
 export const useCurrentUser = () => {
-  return useQuery<User>({
-    queryKey: authKeys.user(),
-    // Ensure type aligns with updated User including optional position fields
-    queryFn: () => apiClient.getCurrentUser() as Promise<User>,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1,
-    retryDelay: 500,
-    enabled: typeof window !== 'undefined' && !!localStorage.getItem('access_token'), // Only run when token exists
-  });
+   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+   const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+   const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+
+   // Enhanced debugging for token state
+   const tokenInfo = {
+     hasToken: !!token,
+     tokenLength: token?.length || 0,
+     tokenPrefix: token?.substring(0, 20) + '...' || 'none',
+     hasRefreshToken: !!refreshToken,
+     refreshTokenLength: refreshToken?.length || 0,
+     hasUserData: !!userData,
+     isClient: typeof window !== 'undefined',
+     timestamp: new Date().toISOString(),
+     localStorageKeys: typeof window !== 'undefined' ? Object.keys(localStorage).filter(key =>
+       key.includes('token') || key.includes('user')
+     ) : [],
+   };
+
+
+   // Validate token format if present
+   if (token && token.split('.').length !== 3) {
+     // Invalid JWT format detected
+   }
+
+   return useQuery<User>({
+     queryKey: authKeys.user(),
+     // Ensure type aligns with updated User including optional position fields
+     queryFn: async () => {
+       // Additional pre-flight checks
+       const preFlightToken = localStorage.getItem('access_token');
+       if (!preFlightToken) {
+         throw new Error('No access token available');
+       }
+
+       try {
+         const user = await apiClient.getCurrentUser();
+         return user;
+       } catch (error: any) {
+         // Special handling for 401 errors
+         if (error.response?.status === 401) {
+           // 401 Unauthorized - Token validation failed
+         }
+
+         throw error;
+       }
+     },
+     staleTime: 5 * 60 * 1000, // 5 minutes
+     retry: 1,
+     retryDelay: 500,
+     enabled: typeof window !== 'undefined' && !!localStorage.getItem('access_token'), // Only run when token exists
+   });
 };
 
 // Utility hook to check if user is authenticated

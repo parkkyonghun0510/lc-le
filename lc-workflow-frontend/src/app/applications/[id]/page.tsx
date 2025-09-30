@@ -172,19 +172,19 @@ function ApplicationDetailContent() {
         <Layout>
           <div className="animate-pulse space-y-6">
             {/* Header Skeleton */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
+                  <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-2xl"></div>
                   <div>
-                    <div className="h-6 bg-gray-200 rounded-lg w-48 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded-lg w-32"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded-lg w-48 mb-2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded-lg w-32"></div>
                   </div>
                 </div>
                 <div className="flex space-x-3">
-                  <div className="h-10 w-20 bg-gray-200 rounded-xl"></div>
-                  <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
+                  <div className="h-10 w-20 bg-gray-200 dark:bg-gray-600 rounded-xl"></div>
+                  <div className="h-10 w-24 bg-gray-200 dark:bg-gray-600 rounded-xl"></div>
                 </div>
               </div>
             </div>
@@ -283,7 +283,7 @@ function ApplicationDetailContent() {
         <div className="space-y-6">
           {/* Header */}
           <Card variant="elevated" padding="lg" className="hover:shadow-xl transition-all duration-300">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0">
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 xl:gap-0">
               {/* Back button and title section */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                 <Button
@@ -298,8 +298,8 @@ function ApplicationDetailContent() {
 
                 <div className="flex items-center space-x-4 sm:pl-6 sm:border-l border-gray-200 dark:border-gray-600">
                   <div className="relative flex-shrink-0">
-                    <div className="p-4 bg-gradient-to-br from-primary-100 via-primary-50 to-blue-100 dark:from-primary-900/50 dark:via-primary-800/30 dark:to-blue-800/50 rounded-2xl shadow-inner">
-                      <UserIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                    <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-800/50 rounded-2xl shadow-inner">
+                      <UserIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-green-400 to-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
                   </div>
@@ -382,9 +382,9 @@ function ApplicationDetailContent() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6">
             {/* Customer Information */}
             <Card variant="elevated" padding="none" className="overflow-hidden hover:shadow-xl transition-all duration-300">
               <SectionHeader
@@ -705,14 +705,14 @@ function ApplicationDetailContent() {
                                 {folderImages.length > 0 && (
                                   <div className="mb-6">
                                     <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3 flex items-center">
-                                      <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
                                       រូបភាព ({folderImages.length})
                                     </h4>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                       {folderImages.map((file) => (
                                         <div
                                           key={file.id}
-                                          className="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105"
+                                          className="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border border-gray-200 dark:border-gray-600"
                                           onClick={() => openPreview(file, folderImages)}
                                         >
                                           <ImageThumbnail
@@ -748,7 +748,7 @@ function ApplicationDetailContent() {
                                       {folderDocs.map((file) => (
                                         <div
                                           key={file.id}
-                                          className="group flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-700 dark:to-blue-900/20 rounded-lg border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-300"
+                                          className="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                         >
                                           <div className="flex items-center space-x-3">
                                             <div className="p-2 bg-blue-500 rounded-lg shadow-md">
@@ -763,13 +763,15 @@ function ApplicationDetailContent() {
                                               </p>
                                             </div>
                                           </div>
-                                          <button
+                                          <Button
+                                            variant="primary"
+                                            size="sm"
                                             onClick={() => downloadFile(file.id, file.original_filename || 'document')}
-                                            className="group/btn flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200 hover:shadow-md text-sm"
+                                            className="group/btn"
                                           >
                                             <ArrowDownTrayIcon className="w-3 h-3 mr-1.5" />
                                             <span className="font-medium">Download</span>
-                                          </button>
+                                          </Button>
                                         </div>
                                       ))}
                                     </div>

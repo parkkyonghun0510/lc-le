@@ -3,7 +3,45 @@ import { AuthResponse, LoginCredentials } from '@/types/models';
 import { handleApiError } from './handleApiError';
 import { logger } from './logger';
 
-const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090/api/v1';
+// Enhanced API URL detection with multiple fallback strategies
+function detectApiBaseUrl(): string {
+  // 1. Use environment variable if provided
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  // 2. Auto-detect based on current location (for development)
+  if (typeof window !== 'undefined' && window.location) {
+    const currentHost = window.location.hostname;
+    const currentPort = window.location.port;
+
+    // If running on localhost with a port, assume backend is on 8090
+    if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+      if (currentPort && currentPort !== '3000') {
+        return `http://localhost:8090/api/v1`;
+      }
+      // If frontend is on 3000, backend should be on 8090
+      if (currentPort === '3000' || !currentPort) {
+        return `http://localhost:8090/api/v1`;
+      }
+    }
+
+    // If running on a deployed domain, try to construct backend URL
+    if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+      // For Railway or similar platforms, try common patterns
+      if (currentHost.includes('railway.app')) {
+        // Extract app name and construct backend URL
+        const appName = currentHost.split('.')[0];
+        return `https://${appName}-backend.railway.internal/api/v1`;
+      }
+    }
+  }
+
+  // 3. Fallback to localhost (original behavior)
+  return 'http://localhost:8090/api/v1';
+}
+
+const RAW_API_BASE_URL = detectApiBaseUrl();
 
 export function getApiOrigin(): string {
   return RAW_API_BASE_URL.replace(/\/$/, ''); // Just remove trailing slash, no URL conversion
@@ -79,7 +117,7 @@ class ApiClient {
         return ApiErrorCategory.TIMEOUT;
       }
 
-      // Detailed network error logging
+      // Detailed network error logging with enhanced diagnostics
       logger.error('Network error detected - no response received', error, {
         category: 'network_diagnostic',
         errorCode: error.code,
@@ -93,8 +131,29 @@ class ApiClient {
         networkInfo: {
           isOnline: typeof navigator !== 'undefined' ? navigator.onLine : 'unknown',
           timestamp: new Date().toISOString(),
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+        },
+        // Enhanced debugging info
+        debugging: {
+          axiosVersion: '1.x',
+          nodeEnvironment: typeof process !== 'undefined' ? process.env.NODE_ENV : 'unknown',
+          apiBaseUrl: API_BASE_URL,
+          requestHeaders: error.config?.headers,
         }
       });
+
+      // Additional logging to help diagnose the issue
+      if (typeof window !== 'undefined') {
+        logger.info('Browser network diagnostics', {
+          category: 'browser_network_info',
+          isOnline: navigator.onLine,
+          cookieEnabled: navigator.cookieEnabled,
+          connection: typeof navigator !== 'undefined' && 'connection' in navigator ? (navigator as any).connection : 'not available',
+          localStorage: typeof Storage !== 'undefined' ? 'available' : 'not available',
+          sessionStorage: typeof Storage !== 'undefined' ? 'available' : 'not available',
+        });
+      }
+
       return ApiErrorCategory.NETWORK;
     }
 
@@ -232,7 +291,60 @@ class ApiClient {
     // Request interceptor with logging
     this.client.interceptors.request.use((config) => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-      if (token) config.headers.Authorization = `Bearer ${token}`;
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+      const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+
+        // Enhanced token debugging for auth requests
+        if (config.url?.includes('/auth/me')) {
+          logger.info('🔐 [API] Auth request with token details:', {
+            category: 'auth_debug',
+            token: {
+              exists: !!token,
+              length: token.length,
+              prefix: token.substring(0, 20) + '...',
+              isJwtFormat: token.split('.').length === 3,
+            },
+            refreshToken: {
+              exists: !!refreshToken,
+              length: refreshToken?.length || 0,
+            },
+            userData: {
+              exists: !!userData,
+              isValidJson: (() => {
+                try {
+                  return userData ? JSON.parse(userData) : null;
+                } catch {
+                  return false;
+                }
+              })(),
+            },
+            timestamp: new Date().toISOString(),
+            url: config.url,
+            method: config.method,
+          });
+        }
+      } else {
+        // Log when no token is present for auth requests
+        if (config.url?.includes('/auth/me')) {
+          logger.warn('🚨 [API] Auth request without token:', {
+            category: 'auth_debug',
+            token: {
+              exists: false,
+              localStorage: {
+                hasAccessToken: localStorage.getItem('access_token') !== null,
+                hasRefreshToken: localStorage.getItem('refresh_token') !== null,
+                hasUser: localStorage.getItem('user') !== null,
+              }
+            },
+            timestamp: new Date().toISOString(),
+            url: config.url,
+            method: config.method,
+          });
+        }
+      }
 
       // Log API request
       logger.logApiRequest(config.method?.toUpperCase() || 'GET', config.url || '', {
@@ -409,13 +521,322 @@ export const apiClient = new ApiClient();
 export const axiosInstance = (apiClient as any)['client'];
 export const API_ORIGIN_FOR_LINKS = API_ORIGIN;
 
-// Add a simple connectivity test function
-export const testApiConnection = async (): Promise<boolean> => {
-  try {
-    await apiClient.get('/settings/theme');
-    return true;
-  } catch (error) {
-    console.error('API connection test failed:', error);
-    return false;
+// Enhanced connectivity test with multiple URL attempts
+export const testApiConnection = async (customUrl?: string): Promise<{
+  success: boolean;
+  url: string;
+  error?: string;
+  responseTime?: number;
+}> => {
+  const testUrls = customUrl ? [customUrl] : [
+    API_BASE_URL,
+    'http://localhost:8090/api/v1',
+    'http://127.0.0.1:8090/api/v1',
+  ];
+
+  // Test API connectivity
+
+  for (const url of testUrls) {
+    const startTime = Date.now();
+    try {
+      // Use direct fetch for testing to avoid interceptor complexity
+      const response = await fetch(`${url}/settings/theme`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      });
+
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok) {
+        return {
+          success: true,
+          url,
+          responseTime,
+        };
+      } else {
+        // HTTP error response
+      }
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Connection failed
+    }
   }
+
+  return {
+    success: false,
+    url: API_BASE_URL,
+    error: 'All connection attempts failed',
+  };
+};
+
+// Add a comprehensive network diagnostic function
+export const diagnoseNetworkIssues = async (): Promise<{
+  apiConnection: boolean;
+  networkDiagnostics: {
+    isOnline?: boolean;
+    cookieEnabled?: boolean;
+    connection?: any;
+    userAgent?: string;
+    language?: string;
+    platform?: string;
+  };
+  browserInfo: {
+    localStorage?: string;
+    sessionStorage?: string;
+    indexedDB?: string;
+    serviceWorker?: string;
+  };
+  suggestions: string[];
+}> => {
+
+  const results = {
+    apiConnection: false,
+    networkDiagnostics: {} as any,
+    browserInfo: {} as any,
+    suggestions: [] as string[],
+  };
+
+  try {
+    // Test API connection
+    const apiTestResult = await testApiConnection();
+    results.apiConnection = apiTestResult.success;
+
+    // Get network diagnostics
+    if (typeof navigator !== 'undefined') {
+      results.networkDiagnostics = {
+        isOnline: navigator.onLine,
+        cookieEnabled: navigator.cookieEnabled,
+        connection: 'connection' in navigator ? (navigator as any).connection : 'not available',
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+      };
+
+      results.browserInfo = {
+        localStorage: typeof Storage !== 'undefined' ? 'available' : 'not available',
+        sessionStorage: typeof Storage !== 'undefined' ? 'available' : 'not available',
+        indexedDB: typeof indexedDB !== 'undefined' ? 'available' : 'not available',
+        serviceWorker: 'serviceWorker' in navigator ? 'available' : 'not available',
+      };
+    }
+
+    // Generate suggestions based on results
+    if (!results.apiConnection) {
+      results.suggestions.push('API connection failed - check if backend server is running');
+      results.suggestions.push('Verify NEXT_PUBLIC_API_URL environment variable');
+      results.suggestions.push('Check browser network tab for failed requests');
+    }
+
+    if (!results.networkDiagnostics.isOnline) {
+      results.suggestions.push('Browser reports offline status - check internet connection');
+    }
+
+    if (!results.browserInfo.localStorage) {
+      results.suggestions.push('LocalStorage not available - check browser settings');
+    }
+
+
+    // Also log to external logging service if available
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'network_diagnosis', {
+        event_category: 'debug',
+        api_connection: results.apiConnection,
+        is_online: results.networkDiagnostics.isOnline,
+        suggestions_count: results.suggestions.length,
+      });
+    }
+
+    return results;
+
+  } catch (error) {
+    results.suggestions.push('Network diagnosis encountered an error');
+    return results;
+  }
+};
+
+// Quick connectivity check for login issues
+export const checkLoginConnectivity = async (): Promise<{
+  canConnect: boolean;
+  issues: string[];
+  suggestions: string[];
+}> => {
+
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+
+  try {
+    // Test basic API connectivity
+    const apiResult = await testApiConnection();
+
+    if (!apiResult.success) {
+      issues.push('Cannot connect to backend API');
+      suggestions.push('Check if the backend server is running on port 8090');
+      suggestions.push('Verify NEXT_PUBLIC_API_URL environment variable');
+      suggestions.push('Try running: curl http://localhost:8090/health');
+    }
+
+    // Test authentication endpoint specifically
+    if (apiResult.success) {
+      try {
+        await apiClient.get('/auth/me');
+      } catch (authError: any) {
+        if (authError.response?.status === 401) {
+          // This is expected if not logged in, not really an issue
+        } else {
+          issues.push('Authentication service not responding properly');
+          suggestions.push('Check authentication configuration in backend');
+        }
+      }
+    }
+
+    return {
+      canConnect: issues.length === 0,
+      issues,
+      suggestions,
+    };
+
+  } catch (error) {
+    return {
+      canConnect: false,
+      issues: ['Connectivity check failed'],
+      suggestions: ['Check browser console for detailed error messages'],
+    };
+  }
+};
+
+// Simple login connectivity helper
+export const getLoginTroubleshootingInfo = (): {
+  currentApiUrl: string;
+  suggestedActions: string[];
+  environmentInfo: Record<string, any>;
+} => {
+  const currentApiUrl = API_BASE_URL;
+
+  const suggestedActions = [
+    'Check if backend is running: curl http://localhost:8090/health',
+    'Verify API URL configuration in .env file',
+    'Try using the Network Debugger component',
+    'Check browser Network tab for failed requests',
+  ];
+
+  // Add environment-specific suggestions
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname.includes('railway.app')) {
+      suggestedActions.unshift('For Railway deployment, use internal networking: https://your-app-backend.railway.internal/api/v1/');
+    }
+  }
+
+  const environmentInfo = {
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : 'unknown',
+    hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+    protocol: typeof window !== 'undefined' ? window.location.protocol : 'unknown',
+    port: typeof window !== 'undefined' ? window.location.port : 'unknown',
+  };
+
+  return {
+    currentApiUrl,
+    suggestedActions,
+    environmentInfo,
+  };
+};
+
+// Comprehensive token debugging utility
+export const debugTokenState = (): {
+  tokenState: {
+    hasAccessToken: boolean;
+    hasRefreshToken: boolean;
+    hasUserData: boolean;
+    accessTokenLength: number;
+    refreshTokenLength: number;
+    accessTokenPrefix: string;
+    refreshTokenPrefix: string;
+    isAccessTokenJwtFormat: boolean;
+    isRefreshTokenJwtFormat: boolean;
+    userDataValid: boolean;
+    userData: any;
+  };
+  localStorage: {
+    allKeys: string[];
+    authKeys: string[];
+    authValues: Record<string, string>;
+  };
+  suggestions: string[];
+  timestamp: string;
+} => {
+
+  const accessToken = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+  const userDataString = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+
+  let userData = null;
+  let userDataValid = false;
+
+  try {
+    userData = userDataString ? JSON.parse(userDataString) : null;
+    userDataValid = true;
+  } catch (e) {
+    // Invalid user data JSON
+  }
+
+  const allKeys = typeof window !== 'undefined' ? Object.keys(localStorage) : [];
+  const authKeys = allKeys.filter(key => key.includes('token') || key.includes('user'));
+  const authValues: Record<string, string> = {};
+
+  authKeys.forEach(key => {
+    const value = localStorage.getItem(key);
+    authValues[key] = value ? `${value.substring(0, 20)}...` : 'null';
+  });
+
+  const suggestions: string[] = [];
+
+  if (!accessToken) {
+    suggestions.push('No access token found - user needs to log in');
+  } else if (accessToken.split('.').length !== 3) {
+    suggestions.push('Access token is not in valid JWT format (should have 3 parts separated by dots)');
+  }
+
+  if (!refreshToken) {
+    suggestions.push('No refresh token found - may cause issues when access token expires');
+  } else if (refreshToken.split('.').length !== 3) {
+    suggestions.push('Refresh token is not in valid JWT format');
+  }
+
+  if (!userDataValid) {
+    suggestions.push('User data is corrupted or missing');
+  }
+
+  if (accessToken && accessToken.length < 100) {
+    suggestions.push('Access token seems unusually short - may be corrupted');
+  }
+
+  const result = {
+    tokenState: {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      hasUserData: !!userDataString,
+      accessTokenLength: accessToken?.length || 0,
+      refreshTokenLength: refreshToken?.length || 0,
+      accessTokenPrefix: accessToken?.substring(0, 20) + '...' || 'none',
+      refreshTokenPrefix: refreshToken?.substring(0, 20) + '...' || 'none',
+      isAccessTokenJwtFormat: accessToken ? accessToken.split('.').length === 3 : false,
+      isRefreshTokenJwtFormat: refreshToken ? refreshToken.split('.').length === 3 : false,
+      userDataValid,
+      userData: userData ? { id: userData.id, username: userData.username, role: userData.role } : null,
+    },
+    localStorage: {
+      allKeys,
+      authKeys,
+      authValues,
+    },
+    suggestions,
+    timestamp: new Date().toISOString(),
+  };
+
+
+  return result;
 };

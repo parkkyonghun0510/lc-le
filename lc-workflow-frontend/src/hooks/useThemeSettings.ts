@@ -99,7 +99,6 @@ export const useUpdateThemeSettings = () => {
       queryClient.invalidateQueries({ queryKey: themeKeys.colors() });
     },
     onError: (error: any) => {
-      console.error('Failed to update theme settings:', error);
       // In a real implementation, we would show an error toast
     },
   });

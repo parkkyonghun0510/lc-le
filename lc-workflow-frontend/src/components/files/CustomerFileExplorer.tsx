@@ -103,7 +103,7 @@ export default function CustomerFileExplorer({
   const { downloadFile } = useDownloadFile();
 
   // Real data: customers and applications with file counts
-  const { data: customersData, isLoading: isLoadingCustomers } = useCustomers({ page: 1, size: 100 });
+  const { data: customersData, isLoading: isLoadingCustomers, error: customersError } = useCustomers({ page: 1, size: 100 });
   const { data: applicationsList = [], isLoading: isLoadingApplications } = useCustomerApplications(currentCustomerId || '');
   const { data: foldersData = [], isLoading: isLoadingFolders } = useFolders({
     application_id: currentApplicationId,
@@ -414,6 +414,29 @@ export default function CustomerFileExplorer({
     
     return paths;
   };
+
+  // Check for authentication error
+  if (customersError && (customersError as any)?.response?.status === 401) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="p-4 bg-red-100 dark:bg-red-900/50 rounded-full mb-4">
+          <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Authentication Required</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4 max-w-md">
+          You need to be logged in to access customer files. Please log in to continue.
+        </p>
+        <button
+          onClick={() => window.location.href = '/login'}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg transition-colors duration-200"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
 
   if (
     (currentPath.length === 0 && isLoadingCustomers) ||

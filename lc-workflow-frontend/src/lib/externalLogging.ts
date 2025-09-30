@@ -4,6 +4,7 @@ import { logger, LogEntry, LogLevel } from './logger';
 export interface ExternalLoggingConfig {
   enabled: boolean;
   endpoint?: string;
+  baseUrl?: string;
   apiKey?: string;
   environment: string;
   service: string;
@@ -39,6 +40,30 @@ class ExternalLoggingService {
         category: 'external_logging_init_error',
       });
     }
+  }
+
+  private buildEndpointUrl(endpoint?: string): string | null {
+    // If a full endpoint is provided, use it directly
+    if (this.config.endpoint && !this.config.baseUrl) {
+      return this.config.endpoint;
+    }
+
+    // If baseUrl is provided, build the full URL
+    if (this.config.baseUrl) {
+      const baseUrl = this.config.baseUrl.endsWith('/')
+        ? this.config.baseUrl.slice(0, -1)
+        : this.config.baseUrl;
+
+      const endpointPath = endpoint || '';
+      const path = endpointPath.startsWith('/')
+        ? endpointPath
+        : `/${endpointPath}`;
+
+      return `${baseUrl}${path}`;
+    }
+
+    // Fallback to the direct endpoint
+    return this.config.endpoint || null;
   }
 
   // Method to capture exceptions
@@ -144,10 +169,17 @@ class ExternalLoggingService {
 
   // Method to send data to external endpoint
   private async sendToEndpoint(entry: LogEntry): Promise<void> {
-    if (!this.config.endpoint) return;
+    const endpointUrl = this.buildEndpointUrl();
+    if (!endpointUrl) return;
+
+    // Check if fetch is available
+    if (typeof fetch !== 'function') {
+      logger.error('Fetch API not available for external logging');
+      return;
+    }
 
     try {
-      await fetch(this.config.endpoint, {
+      await fetch(endpointUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,11 +222,56 @@ class ExternalLoggingService {
   getUserContext(): { id: string; email?: string; name?: string } | null {
     return this.userContext;
   }
+
+  // Test connection with external logging endpoint
+  async testConnection(endpoint?: string): Promise<boolean> {
+    const testUrl = this.buildEndpointUrl(endpoint || 'healthz');
+    if (!testUrl) {
+      logger.error('No endpoint URL available for external logging connection test');
+      return false;
+    }
+
+    // Check if fetch is available
+    if (typeof fetch !== 'function') {
+      logger.error('Fetch API not available for external logging connection test');
+      return false;
+    }
+
+    try {
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.config.apiKey && { 'Authorization': `Bearer ${this.config.apiKey}` }),
+        },
+      });
+
+      const success = response.ok;
+      logger.info(`External logging connection test to ${testUrl}: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`, {
+        category: 'external_logging_connection_test',
+        service: this.config.service,
+        status: response.status,
+      });
+      return success;
+    } catch (error) {
+      logger.error(`External logging connection test to ${testUrl} failed:`, error as Error, {
+        category: 'external_logging_connection_test_error',
+        service: this.config.service,
+      });
+      return false;
+    }
+  }
+
+  // Get the current endpoint URL for testing
+  getEndpointUrl(endpoint?: string): string | null {
+    return this.buildEndpointUrl(endpoint);
+  }
 }
 
 // Create default external logging service instance
 export const externalLogging = new ExternalLoggingService({
-  enabled: !!process.env.NEXT_PUBLIC_EXTERNAL_LOGGING_ENDPOINT,
+  enabled: !!process.env.NEXT_PUBLIC_EXTERNAL_LOGGING_BASE_URL || !!process.env.NEXT_PUBLIC_EXTERNAL_LOGGING_ENDPOINT,
+  baseUrl: process.env.NEXT_PUBLIC_EXTERNAL_LOGGING_BASE_URL,
   endpoint: process.env.NEXT_PUBLIC_EXTERNAL_LOGGING_ENDPOINT,
   apiKey: process.env.NEXT_PUBLIC_EXTERNAL_LOGGING_API_KEY,
   environment: process.env.NODE_ENV || 'development',

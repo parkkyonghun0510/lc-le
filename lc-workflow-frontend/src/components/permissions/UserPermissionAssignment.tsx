@@ -88,8 +88,8 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   const { data: user } = useQuery<User>({
     queryKey: ['user', userId],
     queryFn: async () => {
-      const response = await fetch(`/api/users/${userId}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await fetch(`/api/v1/users/${userId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to fetch user');
       return response.json();
@@ -100,8 +100,8 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   const { data: userRoles, isLoading: rolesLoading } = useQuery<UserRole[]>({
     queryKey: ['user-roles', userId],
     queryFn: async () => {
-      const response = await fetch(`/api/permissions/users/${userId}/roles`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await fetch(`/api/v1/permissions/users/${userId}/roles`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to fetch user roles');
       return response.json();
@@ -112,8 +112,8 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   const { data: userPermissions, isLoading: permissionsLoading } = useQuery<UserPermission[]>({
     queryKey: ['user-permissions', userId],
     queryFn: async () => {
-      const response = await fetch(`/api/permissions/users/${userId}/permissions`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await fetch(`/api/v1/permissions/users/${userId}/permissions`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to fetch user permissions');
       return response.json();
@@ -124,8 +124,8 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   const { data: availableRoles } = useQuery<Role[]>({
     queryKey: ['roles'],
     queryFn: async () => {
-      const response = await fetch('/api/permissions/roles?is_active=true', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await fetch('/api/v1/permissions/roles?is_active=true', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to fetch roles');
       return response.json();
@@ -136,8 +136,8 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   const { data: availablePermissions } = useQuery<Permission[]>({
     queryKey: ['permissions'],
     queryFn: async () => {
-      const response = await fetch('/api/permissions?is_active=true', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await fetch('/api/v1/permissions?is_active=true', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to fetch permissions');
       return response.json();
@@ -147,9 +147,9 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   // Revoke role mutation
   const revokeRoleMutation = useMutation({
     mutationFn: async (roleId: string) => {
-      const response = await fetch(`/api/permissions/users/${userId}/roles/${roleId}`, {
+      const response = await fetch(`/api/v1/permissions/users/${userId}/roles/${roleId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to revoke role');
       return response.json();
@@ -162,9 +162,9 @@ export default function UserPermissionAssignment({ userId, className = '' }: Use
   // Revoke permission mutation
   const revokePermissionMutation = useMutation({
     mutationFn: async (permissionId: string) => {
-      const response = await fetch(`/api/permissions/users/${userId}/permissions/${permissionId}`, {
+      const response = await fetch(`/api/v1/permissions/users/${userId}/permissions/${permissionId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (!response.ok) throw new Error('Failed to revoke permission');
       return response.json();
@@ -429,10 +429,10 @@ function AssignRoleModal({ userId, availableRoles, assignedRoleIds, isOpen, onCl
 
   const assignRoleMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/permissions/users/${userId}/roles`, {
+      const response = await fetch(`/api/v1/permissions/users/${userId}/roles`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
@@ -540,10 +540,10 @@ function GrantPermissionModal({ userId, availablePermissions, grantedPermissionI
 
   const grantPermissionMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/permissions/users/${userId}/permissions`, {
+      const response = await fetch(`/api/v1/permissions/users/${userId}/permissions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)

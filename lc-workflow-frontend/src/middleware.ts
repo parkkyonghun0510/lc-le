@@ -40,7 +40,7 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self'",
+    "connect-src 'self' http://localhost:8090 https://localhost:8090 ws://localhost:8090 wss://localhost:8090",
     "frame-ancestors 'none'",
     "form-action 'self'",
     "upgrade-insecure-requests",

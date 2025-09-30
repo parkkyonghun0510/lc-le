@@ -470,19 +470,23 @@ class PermissionService:
     
     async def _get_role_permissions(self, user_id: UUID) -> List[Dict[str, Any]]:
         """Get all permissions granted through user's roles."""
-        stmt = select(Permission, RolePermission, Role, UserRole).join(
-            RolePermission
-        ).join(Role).join(UserRole).where(
-            and_(
-                UserRole.user_id == user_id,
-                UserRole.is_active == True,
-                RolePermission.is_granted == True
+        stmt = (
+            select(Permission, RolePermission, Role, UserRole)
+            .join(RolePermission, Permission.id == RolePermission.permission_id)
+            .join(Role, RolePermission.role_id == Role.id)
+            .join(UserRole, Role.id == UserRole.role_id)
+            .where(
+                and_(
+                    UserRole.user_id == user_id,
+                    UserRole.is_active == True,
+                    RolePermission.is_granted == True
+                )
             )
         )
-        
+
         result = await self.db.execute(stmt)
         permissions = []
-        
+
         for permission, role_permission, role, user_role in result:
             permissions.append({
                 'permission': permission,
@@ -494,7 +498,7 @@ class PermissionService:
                     'branch_id': user_role.branch_id
                 }
             })
-        
+
         return permissions
     
     async def _get_direct_user_permissions(self, user_id: UUID) -> List[Dict[str, Any]]:

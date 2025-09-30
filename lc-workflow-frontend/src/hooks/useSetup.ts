@@ -13,7 +13,6 @@ export const useSetupRequired = () => {
         return response;
       } catch (error) {
         // Return a default value if the API call fails
-        console.error('Failed to check setup status:', error);
         return { setup_required: false };
       }
     },

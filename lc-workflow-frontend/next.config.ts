@@ -118,8 +118,8 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     // Enable modern formats
     dangerouslyAllowSVG: true,
-    // Content security policy for images
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Content security policy for images - relaxed for API access
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox; connect-src 'self' http://localhost:8090 https://localhost:8090;",
   },
   
   // Compression
@@ -154,6 +154,11 @@ const nextConfig: NextConfig = {
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          // Allow API connections to backend
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; connect-src 'self' http://localhost:8090 https://localhost:8090 ws://localhost:8090 wss://localhost:8090;",
           },
         ],
       },

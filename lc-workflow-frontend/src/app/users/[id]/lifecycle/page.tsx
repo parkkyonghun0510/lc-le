@@ -62,9 +62,25 @@ export default function UserLifecyclePage() {
   const fetchUserData = async () => {
     try {
       setLoading(true);
+
+      // Check if user is authenticated before making API calls
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.log('[DEBUG UserLifecycle] No access token found, redirecting to login');
+        router.push('/login');
+        return;
+      }
+
+      console.log('[DEBUG UserLifecycle] Fetching user data:', {
+        userId,
+        hasToken: !!token,
+        tokenLength: token.length,
+        timestamp: new Date().toISOString()
+      });
+
       const response = await fetch(`/api/v1/users/${userId}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
@@ -73,6 +89,11 @@ export default function UserLifecyclePage() {
           setError('User not found');
         } else if (response.status === 403) {
           setError('You do not have permission to view this user');
+        } else if (response.status === 401) {
+          console.log('[DEBUG UserLifecycle] 401 error - token may be expired');
+          setError('Session expired. Please log in again.');
+          router.push('/login');
+          return;
         } else {
           setError('Failed to fetch user data');
         }
@@ -91,14 +112,14 @@ export default function UserLifecyclePage() {
   };
 
   const getCurrentUserRole = () => {
-    // In a real app, this would come from authentication context
-    const token = localStorage.getItem('token');
-    if (token) {
+    // Get role from user data stored in localStorage (consistent with rest of app)
+    const userData = localStorage.getItem('user');
+    if (userData) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setCurrentUserRole(payload.role || '');
+        const user = JSON.parse(userData);
+        setCurrentUserRole(user.role || '');
       } catch (error) {
-        console.error('Error parsing token:', error);
+        console.error('Error parsing user data:', error);
       }
     }
   };

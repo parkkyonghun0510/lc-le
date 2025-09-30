@@ -290,7 +290,6 @@ export const useKeyboardShortcuts = (options: UseKeyboardShortcutsOptions = {}) 
           });
         }
       } catch (error) {
-        console.error('Shortcut action failed:', error);
         if (showToast) {
           toast.error('Shortcut action failed');
         }

@@ -202,8 +202,152 @@ async def create_user(
     # Invalidate user cache after creating new user
     cache_service = UserCacheService(db)
     await cache_service.invalidate_user_cache()
-    
-    return UserResponse.model_validate(db_user_loaded)
+
+    # Convert nested SQLAlchemy objects to dictionaries to avoid lazy loading issues
+    user_data = {
+        "id": db_user_loaded.id,
+        "username": db_user_loaded.username,
+        "email": db_user_loaded.email,
+        "first_name": db_user_loaded.first_name,
+        "last_name": db_user_loaded.last_name,
+        "phone_number": db_user_loaded.phone_number,
+        "role": db_user_loaded.role,
+        "status": db_user_loaded.status,
+        "status_reason": db_user_loaded.status_reason,
+        "status_changed_at": db_user_loaded.status_changed_at,
+        "status_changed_by": db_user_loaded.status_changed_by,
+        "last_activity_at": db_user_loaded.last_activity_at,
+        "login_count": db_user_loaded.login_count,
+        "failed_login_attempts": db_user_loaded.failed_login_attempts,
+        "onboarding_completed": db_user_loaded.onboarding_completed,
+        "onboarding_completed_at": db_user_loaded.onboarding_completed_at,
+        "department_id": db_user_loaded.department_id,
+        "branch_id": db_user_loaded.branch_id,
+        "position_id": db_user_loaded.position_id,
+        "portfolio_id": db_user_loaded.portfolio_id,
+        "line_manager_id": db_user_loaded.line_manager_id,
+        "profile_image_url": db_user_loaded.profile_image_url,
+        "employee_id": db_user_loaded.employee_id,
+        "created_at": db_user_loaded.created_at,
+        "updated_at": db_user_loaded.updated_at,
+        "last_login_at": db_user_loaded.last_login_at,
+        "department": db_user_loaded.department,
+        "branch": db_user_loaded.branch,
+        "position": db_user_loaded.position,
+        "portfolio": db_user_loaded.portfolio,
+        "line_manager": db_user_loaded.line_manager,
+        "status_changed_by_user": db_user_loaded.status_changed_by_user,
+    }
+
+    # Convert nested SQLAlchemy objects to dictionaries
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
+    # Handle portfolio and line_manager relationships
+    if user_data.get("portfolio"):
+        user_data["portfolio"] = {
+            "id": user_data["portfolio"].id,
+            "username": user_data["portfolio"].username,
+            "email": user_data["portfolio"].email,
+            "first_name": user_data["portfolio"].first_name,
+            "last_name": user_data["portfolio"].last_name,
+            "phone_number": user_data["portfolio"].phone_number,
+            "role": user_data["portfolio"].role,
+            "status": user_data["portfolio"].status,
+            "status_reason": user_data["portfolio"].status_reason,
+            "status_changed_at": user_data["portfolio"].status_changed_at,
+            "status_changed_by": user_data["portfolio"].status_changed_by,
+            "last_activity_at": user_data["portfolio"].last_activity_at,
+            "login_count": user_data["portfolio"].login_count,
+            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+            "onboarding_completed": user_data["portfolio"].onboarding_completed,
+            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+            "department_id": user_data["portfolio"].department_id,
+            "branch_id": user_data["portfolio"].branch_id,
+            "position_id": user_data["portfolio"].position_id,
+            "portfolio_id": user_data["portfolio"].portfolio_id,
+            "line_manager_id": user_data["portfolio"].line_manager_id,
+            "profile_image_url": user_data["portfolio"].profile_image_url,
+            "employee_id": user_data["portfolio"].employee_id,
+            "created_at": user_data["portfolio"].created_at,
+            "updated_at": user_data["portfolio"].updated_at,
+            "last_login_at": user_data["portfolio"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["portfolio"], 'id') else None
+
+    if user_data.get("line_manager"):
+        user_data["line_manager"] = {
+            "id": user_data["line_manager"].id,
+            "username": user_data["line_manager"].username,
+            "email": user_data["line_manager"].email,
+            "first_name": user_data["line_manager"].first_name,
+            "last_name": user_data["line_manager"].last_name,
+            "phone_number": user_data["line_manager"].phone_number,
+            "role": user_data["line_manager"].role,
+            "status": user_data["line_manager"].status,
+            "status_reason": user_data["line_manager"].status_reason,
+            "status_changed_at": user_data["line_manager"].status_changed_at,
+            "status_changed_by": user_data["line_manager"].status_changed_by,
+            "last_activity_at": user_data["line_manager"].last_activity_at,
+            "login_count": user_data["line_manager"].login_count,
+            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+            "onboarding_completed": user_data["line_manager"].onboarding_completed,
+            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+            "department_id": user_data["line_manager"].department_id,
+            "branch_id": user_data["line_manager"].branch_id,
+            "position_id": user_data["line_manager"].position_id,
+            "portfolio_id": user_data["line_manager"].portfolio_id,
+            "line_manager_id": user_data["line_manager"].line_manager_id,
+            "profile_image_url": user_data["line_manager"].profile_image_url,
+            "employee_id": user_data["line_manager"].employee_id,
+            "created_at": user_data["line_manager"].created_at,
+            "updated_at": user_data["line_manager"].updated_at,
+            "last_login_at": user_data["line_manager"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["line_manager"], 'id') else None
+
+    return UserResponse.model_validate(user_data)
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_users(
@@ -564,7 +708,151 @@ async def get_me(
     _ = user.portfolio
     _ = user.line_manager
 
-    return UserResponse.model_validate(user)
+    # Convert to dictionary to avoid lazy loading issues
+    user_data = {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "phone_number": user.phone_number,
+        "role": user.role,
+        "status": user.status,
+        "status_reason": user.status_reason,
+        "status_changed_at": user.status_changed_at,
+        "status_changed_by": user.status_changed_by,
+        "last_activity_at": user.last_activity_at,
+        "login_count": user.login_count,
+        "failed_login_attempts": user.failed_login_attempts,
+        "onboarding_completed": user.onboarding_completed,
+        "onboarding_completed_at": user.onboarding_completed_at,
+        "department_id": user.department_id,
+        "branch_id": user.branch_id,
+        "position_id": user.position_id,
+        "portfolio_id": user.portfolio_id,
+        "line_manager_id": user.line_manager_id,
+        "profile_image_url": user.profile_image_url,
+        "employee_id": user.employee_id,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+        "last_login_at": user.last_login_at,
+        "department": user.department,
+        "branch": user.branch,
+        "position": user.position,
+        "portfolio": user.portfolio,
+        "line_manager": user.line_manager,
+        "status_changed_by_user": user.status_changed_by_user,
+    }
+
+    # Convert nested SQLAlchemy objects to dictionaries
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
+    # Handle portfolio and line_manager relationships
+    if user_data.get("portfolio"):
+        user_data["portfolio"] = {
+            "id": user_data["portfolio"].id,
+            "username": user_data["portfolio"].username,
+            "email": user_data["portfolio"].email,
+            "first_name": user_data["portfolio"].first_name,
+            "last_name": user_data["portfolio"].last_name,
+            "phone_number": user_data["portfolio"].phone_number,
+            "role": user_data["portfolio"].role,
+            "status": user_data["portfolio"].status,
+            "status_reason": user_data["portfolio"].status_reason,
+            "status_changed_at": user_data["portfolio"].status_changed_at,
+            "status_changed_by": user_data["portfolio"].status_changed_by,
+            "last_activity_at": user_data["portfolio"].last_activity_at,
+            "login_count": user_data["portfolio"].login_count,
+            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+            "onboarding_completed": user_data["portfolio"].onboarding_completed,
+            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+            "department_id": user_data["portfolio"].department_id,
+            "branch_id": user_data["portfolio"].branch_id,
+            "position_id": user_data["portfolio"].position_id,
+            "portfolio_id": user_data["portfolio"].portfolio_id,
+            "line_manager_id": user_data["portfolio"].line_manager_id,
+            "profile_image_url": user_data["portfolio"].profile_image_url,
+            "employee_id": user_data["portfolio"].employee_id,
+            "created_at": user_data["portfolio"].created_at,
+            "updated_at": user_data["portfolio"].updated_at,
+            "last_login_at": user_data["portfolio"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["portfolio"], 'id') else None
+
+    if user_data.get("line_manager"):
+        user_data["line_manager"] = {
+            "id": user_data["line_manager"].id,
+            "username": user_data["line_manager"].username,
+            "email": user_data["line_manager"].email,
+            "first_name": user_data["line_manager"].first_name,
+            "last_name": user_data["line_manager"].last_name,
+            "phone_number": user_data["line_manager"].phone_number,
+            "role": user_data["line_manager"].role,
+            "status": user_data["line_manager"].status,
+            "status_reason": user_data["line_manager"].status_reason,
+            "status_changed_at": user_data["line_manager"].status_changed_at,
+            "status_changed_by": user_data["line_manager"].status_changed_by,
+            "last_activity_at": user_data["line_manager"].last_activity_at,
+            "login_count": user_data["line_manager"].login_count,
+            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+            "onboarding_completed": user_data["line_manager"].onboarding_completed,
+            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+            "department_id": user_data["line_manager"].department_id,
+            "branch_id": user_data["line_manager"].branch_id,
+            "position_id": user_data["line_manager"].position_id,
+            "portfolio_id": user_data["line_manager"].portfolio_id,
+            "line_manager_id": user_data["line_manager"].line_manager_id,
+            "profile_image_url": user_data["line_manager"].profile_image_url,
+            "employee_id": user_data["line_manager"].employee_id,
+            "created_at": user_data["line_manager"].created_at,
+            "updated_at": user_data["line_manager"].updated_at,
+            "last_login_at": user_data["line_manager"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["line_manager"], 'id') else None
+
+    return UserResponse.model_validate(user_data)
 
 @router.patch("/me", response_model=UserResponse)
 async def patch_me(
@@ -638,7 +926,151 @@ async def patch_me(
     _ = user_loaded.portfolio
     _ = user_loaded.line_manager
 
-    return UserResponse.model_validate(user_loaded)
+    # Convert to dictionary to avoid lazy loading issues
+    user_data = {
+        "id": user_loaded.id,
+        "username": user_loaded.username,
+        "email": user_loaded.email,
+        "first_name": user_loaded.first_name,
+        "last_name": user_loaded.last_name,
+        "phone_number": user_loaded.phone_number,
+        "role": user_loaded.role,
+        "status": user_loaded.status,
+        "status_reason": user_loaded.status_reason,
+        "status_changed_at": user_loaded.status_changed_at,
+        "status_changed_by": user_loaded.status_changed_by,
+        "last_activity_at": user_loaded.last_activity_at,
+        "login_count": user_loaded.login_count,
+        "failed_login_attempts": user_loaded.failed_login_attempts,
+        "onboarding_completed": user_loaded.onboarding_completed,
+        "onboarding_completed_at": user_loaded.onboarding_completed_at,
+        "department_id": user_loaded.department_id,
+        "branch_id": user_loaded.branch_id,
+        "position_id": user_loaded.position_id,
+        "portfolio_id": user_loaded.portfolio_id,
+        "line_manager_id": user_loaded.line_manager_id,
+        "profile_image_url": user_loaded.profile_image_url,
+        "employee_id": user_loaded.employee_id,
+        "created_at": user_loaded.created_at,
+        "updated_at": user_loaded.updated_at,
+        "last_login_at": user_loaded.last_login_at,
+        "department": user_loaded.department,
+        "branch": user_loaded.branch,
+        "position": user_loaded.position,
+        "portfolio": user_loaded.portfolio,
+        "line_manager": user_loaded.line_manager,
+        "status_changed_by_user": user_loaded.status_changed_by_user,
+    }
+
+    # Convert nested SQLAlchemy objects to dictionaries
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
+    # Handle portfolio and line_manager relationships
+    if user_data.get("portfolio"):
+        user_data["portfolio"] = {
+            "id": user_data["portfolio"].id,
+            "username": user_data["portfolio"].username,
+            "email": user_data["portfolio"].email,
+            "first_name": user_data["portfolio"].first_name,
+            "last_name": user_data["portfolio"].last_name,
+            "phone_number": user_data["portfolio"].phone_number,
+            "role": user_data["portfolio"].role,
+            "status": user_data["portfolio"].status,
+            "status_reason": user_data["portfolio"].status_reason,
+            "status_changed_at": user_data["portfolio"].status_changed_at,
+            "status_changed_by": user_data["portfolio"].status_changed_by,
+            "last_activity_at": user_data["portfolio"].last_activity_at,
+            "login_count": user_data["portfolio"].login_count,
+            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+            "onboarding_completed": user_data["portfolio"].onboarding_completed,
+            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+            "department_id": user_data["portfolio"].department_id,
+            "branch_id": user_data["portfolio"].branch_id,
+            "position_id": user_data["portfolio"].position_id,
+            "portfolio_id": user_data["portfolio"].portfolio_id,
+            "line_manager_id": user_data["portfolio"].line_manager_id,
+            "profile_image_url": user_data["portfolio"].profile_image_url,
+            "employee_id": user_data["portfolio"].employee_id,
+            "created_at": user_data["portfolio"].created_at,
+            "updated_at": user_data["portfolio"].updated_at,
+            "last_login_at": user_data["portfolio"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["portfolio"], 'id') else None
+
+    if user_data.get("line_manager"):
+        user_data["line_manager"] = {
+            "id": user_data["line_manager"].id,
+            "username": user_data["line_manager"].username,
+            "email": user_data["line_manager"].email,
+            "first_name": user_data["line_manager"].first_name,
+            "last_name": user_data["line_manager"].last_name,
+            "phone_number": user_data["line_manager"].phone_number,
+            "role": user_data["line_manager"].role,
+            "status": user_data["line_manager"].status,
+            "status_reason": user_data["line_manager"].status_reason,
+            "status_changed_at": user_data["line_manager"].status_changed_at,
+            "status_changed_by": user_data["line_manager"].status_changed_by,
+            "last_activity_at": user_data["line_manager"].last_activity_at,
+            "login_count": user_data["line_manager"].login_count,
+            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+            "onboarding_completed": user_data["line_manager"].onboarding_completed,
+            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+            "department_id": user_data["line_manager"].department_id,
+            "branch_id": user_data["line_manager"].branch_id,
+            "position_id": user_data["line_manager"].position_id,
+            "portfolio_id": user_data["line_manager"].portfolio_id,
+            "line_manager_id": user_data["line_manager"].line_manager_id,
+            "profile_image_url": user_data["line_manager"].profile_image_url,
+            "employee_id": user_data["line_manager"].employee_id,
+            "created_at": user_data["line_manager"].created_at,
+            "updated_at": user_data["line_manager"].updated_at,
+            "last_login_at": user_data["line_manager"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["line_manager"], 'id') else None
+
+    return UserResponse.model_validate(user_data)
 
 @router.put("/me", response_model=UserResponse)
 async def put_me(
@@ -712,7 +1144,151 @@ async def put_me(
     _ = user_loaded.portfolio
     _ = user_loaded.line_manager
 
-    return UserResponse.model_validate(user_loaded)
+    # Convert to dictionary to avoid lazy loading issues
+    user_data = {
+        "id": user_loaded.id,
+        "username": user_loaded.username,
+        "email": user_loaded.email,
+        "first_name": user_loaded.first_name,
+        "last_name": user_loaded.last_name,
+        "phone_number": user_loaded.phone_number,
+        "role": user_loaded.role,
+        "status": user_loaded.status,
+        "status_reason": user_loaded.status_reason,
+        "status_changed_at": user_loaded.status_changed_at,
+        "status_changed_by": user_loaded.status_changed_by,
+        "last_activity_at": user_loaded.last_activity_at,
+        "login_count": user_loaded.login_count,
+        "failed_login_attempts": user_loaded.failed_login_attempts,
+        "onboarding_completed": user_loaded.onboarding_completed,
+        "onboarding_completed_at": user_loaded.onboarding_completed_at,
+        "department_id": user_loaded.department_id,
+        "branch_id": user_loaded.branch_id,
+        "position_id": user_loaded.position_id,
+        "portfolio_id": user_loaded.portfolio_id,
+        "line_manager_id": user_loaded.line_manager_id,
+        "profile_image_url": user_loaded.profile_image_url,
+        "employee_id": user_loaded.employee_id,
+        "created_at": user_loaded.created_at,
+        "updated_at": user_loaded.updated_at,
+        "last_login_at": user_loaded.last_login_at,
+        "department": user_loaded.department,
+        "branch": user_loaded.branch,
+        "position": user_loaded.position,
+        "portfolio": user_loaded.portfolio,
+        "line_manager": user_loaded.line_manager,
+        "status_changed_by_user": user_loaded.status_changed_by_user,
+    }
+
+    # Convert nested SQLAlchemy objects to dictionaries
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
+    # Handle portfolio and line_manager relationships
+    if user_data.get("portfolio"):
+        user_data["portfolio"] = {
+            "id": user_data["portfolio"].id,
+            "username": user_data["portfolio"].username,
+            "email": user_data["portfolio"].email,
+            "first_name": user_data["portfolio"].first_name,
+            "last_name": user_data["portfolio"].last_name,
+            "phone_number": user_data["portfolio"].phone_number,
+            "role": user_data["portfolio"].role,
+            "status": user_data["portfolio"].status,
+            "status_reason": user_data["portfolio"].status_reason,
+            "status_changed_at": user_data["portfolio"].status_changed_at,
+            "status_changed_by": user_data["portfolio"].status_changed_by,
+            "last_activity_at": user_data["portfolio"].last_activity_at,
+            "login_count": user_data["portfolio"].login_count,
+            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+            "onboarding_completed": user_data["portfolio"].onboarding_completed,
+            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+            "department_id": user_data["portfolio"].department_id,
+            "branch_id": user_data["portfolio"].branch_id,
+            "position_id": user_data["portfolio"].position_id,
+            "portfolio_id": user_data["portfolio"].portfolio_id,
+            "line_manager_id": user_data["portfolio"].line_manager_id,
+            "profile_image_url": user_data["portfolio"].profile_image_url,
+            "employee_id": user_data["portfolio"].employee_id,
+            "created_at": user_data["portfolio"].created_at,
+            "updated_at": user_data["portfolio"].updated_at,
+            "last_login_at": user_data["portfolio"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["portfolio"], 'id') else None
+
+    if user_data.get("line_manager"):
+        user_data["line_manager"] = {
+            "id": user_data["line_manager"].id,
+            "username": user_data["line_manager"].username,
+            "email": user_data["line_manager"].email,
+            "first_name": user_data["line_manager"].first_name,
+            "last_name": user_data["line_manager"].last_name,
+            "phone_number": user_data["line_manager"].phone_number,
+            "role": user_data["line_manager"].role,
+            "status": user_data["line_manager"].status,
+            "status_reason": user_data["line_manager"].status_reason,
+            "status_changed_at": user_data["line_manager"].status_changed_at,
+            "status_changed_by": user_data["line_manager"].status_changed_by,
+            "last_activity_at": user_data["line_manager"].last_activity_at,
+            "login_count": user_data["line_manager"].login_count,
+            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+            "onboarding_completed": user_data["line_manager"].onboarding_completed,
+            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+            "department_id": user_data["line_manager"].department_id,
+            "branch_id": user_data["line_manager"].branch_id,
+            "position_id": user_data["line_manager"].position_id,
+            "portfolio_id": user_data["line_manager"].portfolio_id,
+            "line_manager_id": user_data["line_manager"].line_manager_id,
+            "profile_image_url": user_data["line_manager"].profile_image_url,
+            "employee_id": user_data["line_manager"].employee_id,
+            "created_at": user_data["line_manager"].created_at,
+            "updated_at": user_data["line_manager"].updated_at,
+            "last_login_at": user_data["line_manager"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["line_manager"], 'id') else None
+
+    return UserResponse.model_validate(user_data)
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
@@ -873,10 +1449,45 @@ async def get_user(
             "status_changed_by_user": None
         }
     
+    # Convert nested SQLAlchemy objects to dictionaries to avoid lazy loading issues
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
     # Create response and cache it
     response = UserResponse.model_validate(user_data)
     await cache_service.set_cached_user_detail(user_id, response, ttl=600)  # 10 minutes cache
-    
+
     return response
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -981,8 +1592,152 @@ async def update_user(
     # Invalidate user cache after updating user
     cache_service = UserCacheService(db)
     await cache_service.invalidate_user_cache(user_id)
-    
-    return UserResponse.model_validate(user_loaded)
+
+    # Convert to dictionary to avoid lazy loading issues
+    user_data = {
+        "id": user_loaded.id,
+        "username": user_loaded.username,
+        "email": user_loaded.email,
+        "first_name": user_loaded.first_name,
+        "last_name": user_loaded.last_name,
+        "phone_number": user_loaded.phone_number,
+        "role": user_loaded.role,
+        "status": user_loaded.status,
+        "status_reason": user_loaded.status_reason,
+        "status_changed_at": user_loaded.status_changed_at,
+        "status_changed_by": user_loaded.status_changed_by,
+        "last_activity_at": user_loaded.last_activity_at,
+        "login_count": user_loaded.login_count,
+        "failed_login_attempts": user_loaded.failed_login_attempts,
+        "onboarding_completed": user_loaded.onboarding_completed,
+        "onboarding_completed_at": user_loaded.onboarding_completed_at,
+        "department_id": user_loaded.department_id,
+        "branch_id": user_loaded.branch_id,
+        "position_id": user_loaded.position_id,
+        "portfolio_id": user_loaded.portfolio_id,
+        "line_manager_id": user_loaded.line_manager_id,
+        "profile_image_url": user_loaded.profile_image_url,
+        "employee_id": user_loaded.employee_id,
+        "created_at": user_loaded.created_at,
+        "updated_at": user_loaded.updated_at,
+        "last_login_at": user_loaded.last_login_at,
+        "department": user_loaded.department,
+        "branch": user_loaded.branch,
+        "position": user_loaded.position,
+        "portfolio": user_loaded.portfolio,
+        "line_manager": user_loaded.line_manager,
+        "status_changed_by_user": user_loaded.status_changed_by_user,
+    }
+
+    # Convert nested SQLAlchemy objects to dictionaries
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
+    # Handle portfolio and line_manager relationships
+    if user_data.get("portfolio"):
+        user_data["portfolio"] = {
+            "id": user_data["portfolio"].id,
+            "username": user_data["portfolio"].username,
+            "email": user_data["portfolio"].email,
+            "first_name": user_data["portfolio"].first_name,
+            "last_name": user_data["portfolio"].last_name,
+            "phone_number": user_data["portfolio"].phone_number,
+            "role": user_data["portfolio"].role,
+            "status": user_data["portfolio"].status,
+            "status_reason": user_data["portfolio"].status_reason,
+            "status_changed_at": user_data["portfolio"].status_changed_at,
+            "status_changed_by": user_data["portfolio"].status_changed_by,
+            "last_activity_at": user_data["portfolio"].last_activity_at,
+            "login_count": user_data["portfolio"].login_count,
+            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+            "onboarding_completed": user_data["portfolio"].onboarding_completed,
+            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+            "department_id": user_data["portfolio"].department_id,
+            "branch_id": user_data["portfolio"].branch_id,
+            "position_id": user_data["portfolio"].position_id,
+            "portfolio_id": user_data["portfolio"].portfolio_id,
+            "line_manager_id": user_data["portfolio"].line_manager_id,
+            "profile_image_url": user_data["portfolio"].profile_image_url,
+            "employee_id": user_data["portfolio"].employee_id,
+            "created_at": user_data["portfolio"].created_at,
+            "updated_at": user_data["portfolio"].updated_at,
+            "last_login_at": user_data["portfolio"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["portfolio"], 'id') else None
+
+    if user_data.get("line_manager"):
+        user_data["line_manager"] = {
+            "id": user_data["line_manager"].id,
+            "username": user_data["line_manager"].username,
+            "email": user_data["line_manager"].email,
+            "first_name": user_data["line_manager"].first_name,
+            "last_name": user_data["line_manager"].last_name,
+            "phone_number": user_data["line_manager"].phone_number,
+            "role": user_data["line_manager"].role,
+            "status": user_data["line_manager"].status,
+            "status_reason": user_data["line_manager"].status_reason,
+            "status_changed_at": user_data["line_manager"].status_changed_at,
+            "status_changed_by": user_data["line_manager"].status_changed_by,
+            "last_activity_at": user_data["line_manager"].last_activity_at,
+            "login_count": user_data["line_manager"].login_count,
+            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+            "onboarding_completed": user_data["line_manager"].onboarding_completed,
+            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+            "department_id": user_data["line_manager"].department_id,
+            "branch_id": user_data["line_manager"].branch_id,
+            "position_id": user_data["line_manager"].position_id,
+            "portfolio_id": user_data["line_manager"].portfolio_id,
+            "line_manager_id": user_data["line_manager"].line_manager_id,
+            "profile_image_url": user_data["line_manager"].profile_image_url,
+            "employee_id": user_data["line_manager"].employee_id,
+            "created_at": user_data["line_manager"].created_at,
+            "updated_at": user_data["line_manager"].updated_at,
+            "last_login_at": user_data["line_manager"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["line_manager"], 'id') else None
+
+    return UserResponse.model_validate(user_data)
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def patch_user(
@@ -1088,8 +1843,152 @@ async def patch_user(
     _ = user_loaded.position
     _ = user_loaded.portfolio
     _ = user_loaded.line_manager
-    
-    return UserResponse.model_validate(user_loaded)
+
+    # Convert to dictionary to avoid lazy loading issues
+    user_data = {
+        "id": user_loaded.id,
+        "username": user_loaded.username,
+        "email": user_loaded.email,
+        "first_name": user_loaded.first_name,
+        "last_name": user_loaded.last_name,
+        "phone_number": user_loaded.phone_number,
+        "role": user_loaded.role,
+        "status": user_loaded.status,
+        "status_reason": user_loaded.status_reason,
+        "status_changed_at": user_loaded.status_changed_at,
+        "status_changed_by": user_loaded.status_changed_by,
+        "last_activity_at": user_loaded.last_activity_at,
+        "login_count": user_loaded.login_count,
+        "failed_login_attempts": user_loaded.failed_login_attempts,
+        "onboarding_completed": user_loaded.onboarding_completed,
+        "onboarding_completed_at": user_loaded.onboarding_completed_at,
+        "department_id": user_loaded.department_id,
+        "branch_id": user_loaded.branch_id,
+        "position_id": user_loaded.position_id,
+        "portfolio_id": user_loaded.portfolio_id,
+        "line_manager_id": user_loaded.line_manager_id,
+        "profile_image_url": user_loaded.profile_image_url,
+        "employee_id": user_loaded.employee_id,
+        "created_at": user_loaded.created_at,
+        "updated_at": user_loaded.updated_at,
+        "last_login_at": user_loaded.last_login_at,
+        "department": user_loaded.department,
+        "branch": user_loaded.branch,
+        "position": user_loaded.position,
+        "portfolio": user_loaded.portfolio,
+        "line_manager": user_loaded.line_manager,
+        "status_changed_by_user": user_loaded.status_changed_by_user,
+    }
+
+    # Convert nested SQLAlchemy objects to dictionaries
+    if user_data.get("department"):
+        user_data["department"] = {
+            "id": user_data["department"].id,
+            "name": user_data["department"].name,
+            "code": user_data["department"].code,
+            "description": user_data["department"].description,
+            "is_active": user_data["department"].is_active,
+            "created_at": user_data["department"].created_at,
+            "updated_at": user_data["department"].updated_at,
+        } if hasattr(user_data["department"], 'id') else None
+
+    if user_data.get("branch"):
+        user_data["branch"] = {
+            "id": user_data["branch"].id,
+            "name": user_data["branch"].name,
+            "code": user_data["branch"].code,
+            "address": user_data["branch"].address,
+            "phone_number": user_data["branch"].phone_number,
+            "email": user_data["branch"].email,
+            "is_active": user_data["branch"].is_active,
+            "created_at": user_data["branch"].created_at,
+            "updated_at": user_data["branch"].updated_at,
+        } if hasattr(user_data["branch"], 'id') else None
+
+    if user_data.get("position"):
+        user_data["position"] = {
+            "id": user_data["position"].id,
+            "name": user_data["position"].name,
+            "description": user_data["position"].description,
+            "is_active": user_data["position"].is_active,
+            "created_at": user_data["position"].created_at,
+            "updated_at": user_data["position"].updated_at,
+        } if hasattr(user_data["position"], 'id') else None
+
+    # Handle portfolio and line_manager relationships
+    if user_data.get("portfolio"):
+        user_data["portfolio"] = {
+            "id": user_data["portfolio"].id,
+            "username": user_data["portfolio"].username,
+            "email": user_data["portfolio"].email,
+            "first_name": user_data["portfolio"].first_name,
+            "last_name": user_data["portfolio"].last_name,
+            "phone_number": user_data["portfolio"].phone_number,
+            "role": user_data["portfolio"].role,
+            "status": user_data["portfolio"].status,
+            "status_reason": user_data["portfolio"].status_reason,
+            "status_changed_at": user_data["portfolio"].status_changed_at,
+            "status_changed_by": user_data["portfolio"].status_changed_by,
+            "last_activity_at": user_data["portfolio"].last_activity_at,
+            "login_count": user_data["portfolio"].login_count,
+            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+            "onboarding_completed": user_data["portfolio"].onboarding_completed,
+            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+            "department_id": user_data["portfolio"].department_id,
+            "branch_id": user_data["portfolio"].branch_id,
+            "position_id": user_data["portfolio"].position_id,
+            "portfolio_id": user_data["portfolio"].portfolio_id,
+            "line_manager_id": user_data["portfolio"].line_manager_id,
+            "profile_image_url": user_data["portfolio"].profile_image_url,
+            "employee_id": user_data["portfolio"].employee_id,
+            "created_at": user_data["portfolio"].created_at,
+            "updated_at": user_data["portfolio"].updated_at,
+            "last_login_at": user_data["portfolio"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["portfolio"], 'id') else None
+
+    if user_data.get("line_manager"):
+        user_data["line_manager"] = {
+            "id": user_data["line_manager"].id,
+            "username": user_data["line_manager"].username,
+            "email": user_data["line_manager"].email,
+            "first_name": user_data["line_manager"].first_name,
+            "last_name": user_data["line_manager"].last_name,
+            "phone_number": user_data["line_manager"].phone_number,
+            "role": user_data["line_manager"].role,
+            "status": user_data["line_manager"].status,
+            "status_reason": user_data["line_manager"].status_reason,
+            "status_changed_at": user_data["line_manager"].status_changed_at,
+            "status_changed_by": user_data["line_manager"].status_changed_by,
+            "last_activity_at": user_data["line_manager"].last_activity_at,
+            "login_count": user_data["line_manager"].login_count,
+            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+            "onboarding_completed": user_data["line_manager"].onboarding_completed,
+            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+            "department_id": user_data["line_manager"].department_id,
+            "branch_id": user_data["line_manager"].branch_id,
+            "position_id": user_data["line_manager"].position_id,
+            "portfolio_id": user_data["line_manager"].portfolio_id,
+            "line_manager_id": user_data["line_manager"].line_manager_id,
+            "profile_image_url": user_data["line_manager"].profile_image_url,
+            "employee_id": user_data["line_manager"].employee_id,
+            "created_at": user_data["line_manager"].created_at,
+            "updated_at": user_data["line_manager"].updated_at,
+            "last_login_at": user_data["line_manager"].last_login_at,
+            "department": None,  # Avoid infinite nesting
+            "branch": None,      # Avoid infinite nesting
+            "position": None,    # Avoid infinite nesting
+            "portfolio": None,   # Avoid infinite nesting
+            "line_manager": None, # Avoid infinite nesting
+            "status_changed_by_user": None
+        } if hasattr(user_data["line_manager"], 'id') else None
+
+    return UserResponse.model_validate(user_data)
 
 @router.delete("/{user_id}")
 async def delete_user(

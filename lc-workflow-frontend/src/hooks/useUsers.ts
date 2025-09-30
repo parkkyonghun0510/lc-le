@@ -34,12 +34,28 @@ export const useUsers = (filters: {
   sort_by?: string;
   sort_order?: string;
 } = {}) => {
+  // Check if user is authenticated before making API calls
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const isAuthenticated = !!token;
+
+
   return useQuery({
     queryKey: userKeys.list(filters),
-    queryFn: () => apiClient.get<PaginatedResponse<User>>('/users/', {
-      params: filters,
-    }),
+    queryFn: () => {
+      return apiClient.get<PaginatedResponse<User>>('/users/', {
+        params: filters,
+      });
+    },
     staleTime: 60 * 1000, // 1 minute
+    enabled: isAuthenticated, // Only run query if user is authenticated
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors - user needs to login
+      if (error.response?.status === 401) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
   });
 };
 
@@ -80,11 +96,26 @@ export const useInfiniteUsers = (filters: {
 };
 
 export const useUser = (id: string) => {
+  // Check if user is authenticated before making API calls
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const isAuthenticated = !!token;
+
+
   return useQuery({
     queryKey: userKeys.detail(id),
-    queryFn: () => apiClient.get<User>(`/users/${id}`),
+    queryFn: () => {
+      return apiClient.get<User>(`/users/${id}`);
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!id && isValidUUID(id),
+    enabled: isAuthenticated && !!id && isValidUUID(id), // Only run if authenticated and valid ID
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors - user needs to login
+      if (error.response?.status === 401) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
   });
 };
 
@@ -139,7 +170,6 @@ export const useDeleteUser = () => {
       toast.success('User deleted successfully!');
     },
     onError: (error: any) => {
-      console.error('Delete user error:', error);
       const message = error.response?.data?.detail || 'Failed to delete user';
       toast.error(message);
     },

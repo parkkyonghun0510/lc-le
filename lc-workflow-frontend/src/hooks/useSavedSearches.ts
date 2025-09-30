@@ -37,7 +37,6 @@ export function useSavedSearches() {
       try {
         setSavedSearches(JSON.parse(saved));
       } catch (error) {
-        console.error('Error loading saved searches:', error);
         setSavedSearches([]);
       }
     }

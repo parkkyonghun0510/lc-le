@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func, update as sql_update, delete as sql_delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from app import models, schemas
 from app.database import get_db
 
@@ -66,15 +67,16 @@ async def read_positions(
         stmt = stmt.offset(offset).limit(size)
         print(f"DEBUG: Applied pagination - offset: {offset}, limit: {size}")
 
-        # Execute query
+        # Execute query with eager loading to prevent lazy loading issues
         print(f"DEBUG: About to execute main query")
+        stmt = stmt.options(selectinload(models.Position.users))
         result = await db.execute(stmt)
         positions = result.scalars().all()
         print(f"DEBUG: Fetched {len(positions)} positions")
 
-        # Convert SQLAlchemy models to Pydantic schemas
+        # Convert SQLAlchemy models to Pydantic schemas using the safe from_orm method
         print(f"DEBUG: About to convert to schemas")
-        position_schemas = [schemas.PositionResponse.model_validate(position) for position in positions]
+        position_schemas = [schemas.PositionResponse.from_orm(position) for position in positions]
         print(f"DEBUG: Converted {len(position_schemas)} position schemas")
 
         # Calculate total pages
@@ -101,12 +103,14 @@ async def read_positions(
 @router.get("/{position_id}", response_model=schemas.PositionResponse)
 async def read_position(position_id: UUID, db: AsyncSession = Depends(get_db)) -> schemas.PositionResponse:
     result = await db.execute(
-        select(models.Position).where(models.Position.id == position_id)
+        select(models.Position)
+        .options(selectinload(models.Position.users))
+        .where(models.Position.id == position_id)
     )
     position = result.scalar_one_or_none()
     if position is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Position not found")
-    return position
+    return schemas.PositionResponse.from_orm(position)
 
 @router.patch("/{position_id}", response_model=schemas.PositionResponse)
 async def update_position(

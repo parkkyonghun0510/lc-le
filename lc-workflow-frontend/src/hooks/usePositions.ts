@@ -22,12 +22,28 @@ export const positionKeys = {
 
 // List positions with optional filters (search/pagination/is_active)
 export const usePositions = (filters: PositionFilters = {}) => {
+    // Check if user is authenticated before making API calls
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const isAuthenticated = !!token;
+
+
     return useQuery({
         queryKey: positionKeys.list(filters),
-        queryFn: () => apiClient.get<PaginatedResponse<Position>>('/positions/', {
-            params: filters,
-        }),
+        queryFn: () => {
+            return apiClient.get<PaginatedResponse<Position>>('/positions/', {
+                params: filters,
+            });
+        },
         staleTime: 5 * 60 * 1000, // 5 minutes
+        enabled: isAuthenticated, // Only run query if user is authenticated
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 errors - user needs to login
+            if (error.response?.status === 401) {
+                return false;
+            }
+            // Retry other errors up to 2 times
+            return failureCount < 2;
+        },
     });
 };
 

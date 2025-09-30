@@ -26,10 +26,13 @@ from app.permission_schemas import (
     RoleCreate, RoleUpdate, RoleResponse, RoleAssignmentCreate,
     UserPermissionCreate, UserPermissionResponse,
     PermissionTemplateCreate, PermissionTemplateResponse,
-    PermissionMatrixResponse, BulkRoleAssignment
+    PermissionMatrixResponse, BulkRoleAssignment,
+    TemplateGenerationRequest, TemplateSuggestionRequest, TemplateSuggestionResponse,
+    BulkTemplateGenerationRequest, BulkTemplateGenerationResponse,
+    TemplatePreviewRequest, TemplatePreviewResponse
 )
 
-router = APIRouter(prefix="/permissions", tags=["permissions"])
+router = APIRouter(tags=["permissions"])
 logger = logging.getLogger(__name__)
 
 
@@ -612,3 +615,690 @@ async def apply_permission_template(
         raise HTTPException(status_code=400, detail="Failed to apply template")
     
     return {"message": f"Template applied to {target_type} successfully"}
+
+
+# ==================== TEMPLATE GENERATION ====================
+
+@router.post("/templates/generate-from-roles", response_model=PermissionTemplateResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.CREATE)
+async def generate_template_from_roles(
+    request: TemplateGenerationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate a permission template from existing roles."""
+    permission_service = PermissionService(db)
+
+    try:
+        # Get roles and their permissions
+        role_ids = request.source_role_ids
+        query = select(Role).where(Role.id.in_(role_ids))
+
+        if not request.include_inactive_roles:
+            query = query.where(Role.is_active == True)
+
+        result = await db.execute(query)
+        roles = result.scalars().all()
+
+        if not roles:
+            raise HTTPException(status_code=404, detail="No valid roles found")
+
+        # Collect all unique permissions from the roles
+        permission_ids = set()
+        for role in roles:
+            for role_permission in role.role_permissions:
+                if role_permission.is_granted:
+                    permission_ids.add(role_permission.permission_id)
+
+        if not permission_ids:
+            raise HTTPException(status_code=400, detail="No permissions found in the specified roles")
+
+        # Create the template
+        template = PermissionTemplate(
+            name=request.template_name,
+            description=request.template_description,
+            template_type="generated_from_roles",
+            permissions=list(permission_ids),
+            created_by=current_user.id
+        )
+
+        db.add(template)
+        await db.flush()
+        await db.refresh(template)
+
+        return PermissionTemplateResponse.from_orm(template)
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to generate template: {str(e)}")
+
+
+@router.post("/templates/suggestions", response_model=TemplateSuggestionResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
+async def get_template_suggestions(
+    request: TemplateSuggestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get template suggestions based on role analysis."""
+    try:
+        # Get active roles with their permissions
+        query = select(Role).options(
+            selectinload(Role.role_permissions).selectinload(RolePermission.permission)
+        ).where(Role.is_active == True)
+
+        result = await db.execute(query)
+        roles = result.scalars().all()
+
+        suggestions = []
+        analysis_metadata = {
+            "total_roles_analyzed": len(roles),
+            "analysis_type": request.analysis_type,
+            "role_limit": request.role_limit or 10
+        }
+
+        if request.analysis_type == "pattern":
+            # Analyze permission patterns
+            role_permission_patterns = {}
+            for role in roles:
+                permission_set = {rp.permission_id for rp in role.role_permissions if rp.is_granted}
+                pattern_key = frozenset(permission_set)
+                if pattern_key not in role_permission_patterns:
+                    role_permission_patterns[pattern_key] = []
+                role_permission_patterns[pattern_key].append(role)
+
+            # Find common patterns
+            common_patterns = [
+                {"pattern": list(pattern), "roles": [r.name for r in roles_with_pattern], "count": len(roles_with_pattern)}
+                for pattern, roles_with_pattern in role_permission_patterns.items()
+                if len(roles_with_pattern) > 1
+            ]
+
+            # Sort by frequency and take top suggestions
+            common_patterns.sort(key=lambda x: x["count"], reverse=True)
+            suggestions = common_patterns[:request.role_limit]
+
+        elif request.analysis_type == "usage":
+            # Analyze roles by usage frequency (mock implementation)
+            role_usage = []
+            for role in roles:
+                permission_count = len([rp for rp in role.role_permissions if rp.is_granted])
+                if permission_count >= (request.min_permission_count or 1):
+                    role_usage.append({
+                        "role_name": role.name,
+                        "permission_count": permission_count,
+                        "suggested_template_name": f"{role.display_name} Template"
+                    })
+
+            role_usage.sort(key=lambda x: x["permission_count"], reverse=True)
+            suggestions = role_usage[:request.role_limit]
+
+        elif request.analysis_type == "similarity":
+            # Find similar roles based on permission overlap
+            similar_roles = []
+            for i, role1 in enumerate(roles):
+                for role2 in roles[i+1:]:
+                    perm_set1 = {rp.permission_id for rp in role1.role_permissions if rp.is_granted}
+                    perm_set2 = {rp.permission_id for rp in role2.role_permissions if rp.is_granted}
+
+                    if perm_set1 and perm_set2:
+                        intersection = len(perm_set1.intersection(perm_set2))
+                        union = len(perm_set1.union(perm_set2))
+                        similarity = intersection / union if union > 0 else 0
+
+                        if similarity > 0.5:  # 50% similarity threshold
+                            similar_roles.append({
+                                "role1": role1.name,
+                                "role2": role2.name,
+                                "similarity": similarity,
+                                "suggested_template_name": f"{role1.display_name} + {role2.display_name} Template"
+                            })
+
+            similar_roles.sort(key=lambda x: x["similarity"], reverse=True)
+            suggestions = similar_roles[:request.role_limit]
+
+        return TemplateSuggestionResponse(
+            suggestions=suggestions,
+            analysis_metadata=analysis_metadata
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate suggestions: {str(e)}")
+
+
+@router.post("/templates/bulk-generate", response_model=BulkTemplateGenerationResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.CREATE)
+async def bulk_generate_templates(
+    request: BulkTemplateGenerationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate multiple permission templates in bulk."""
+    permission_service = PermissionService(db)
+    results = []
+    success_count = 0
+    failure_count = 0
+
+    try:
+        for config in request.generation_configs:
+            try:
+                # Get roles and their permissions
+                role_ids = config.source_role_ids
+                query = select(Role).where(Role.id.in_(role_ids))
+
+                if not config.include_inactive_roles:
+                    query = query.where(Role.is_active == True)
+
+                result = await db.execute(query)
+                roles = result.scalars().all()
+
+                if not roles:
+                    results.append({
+                        "template_name": config.template_name,
+                        "status": "error",
+                        "error": "No valid roles found"
+                    })
+                    failure_count += 1
+                    continue
+
+                # Collect all unique permissions from the roles
+                permission_ids = set()
+                for role in roles:
+                    for role_permission in role.role_permissions:
+                        if role_permission.is_granted:
+                            permission_ids.add(role_permission.permission_id)
+
+                if not permission_ids:
+                    results.append({
+                        "template_name": config.template_name,
+                        "status": "error",
+                        "error": "No permissions found in the specified roles"
+                    })
+                    failure_count += 1
+                    continue
+
+                # Create the template
+                template = PermissionTemplate(
+                    name=config.template_name,
+                    description=config.template_description,
+                    template_type="bulk_generated",
+                    permissions=list(permission_ids),
+                    created_by=current_user.id
+                )
+
+                db.add(template)
+                results.append({
+                    "template_name": config.template_name,
+                    "status": "success",
+                    "template_id": str(template.id),
+                    "permission_count": len(permission_ids)
+                })
+                success_count += 1
+
+            except Exception as e:
+                results.append({
+                    "template_name": config.template_name,
+                    "status": "error",
+                    "error": str(e)
+                })
+                failure_count += 1
+
+        await db.commit()
+
+        return BulkTemplateGenerationResponse(
+            results=results,
+            success_count=success_count,
+            failure_count=failure_count
+        )
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to bulk generate templates: {str(e)}")
+
+
+@router.post("/templates/preview", response_model=TemplatePreviewResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
+async def preview_template_generation(
+    request: TemplatePreviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Preview template generation without actually creating the template."""
+    try:
+        # Get roles and their permissions
+        role_ids = request.source_role_ids
+        query = select(Role).options(
+            selectinload(Role.role_permissions).selectinload(RolePermission.permission)
+        ).where(Role.id.in_(role_ids))
+
+        if not request.include_inactive_roles:
+            query = query.where(Role.is_active == True)
+
+        result = await db.execute(query)
+        roles = result.scalars().all()
+
+        if not roles:
+            raise HTTPException(status_code=404, detail="No valid roles found")
+
+        # Analyze roles
+        role_analysis = {}
+        all_permissions = set()
+
+        for role in roles:
+            role_permissions = [rp for rp in role.role_permissions if rp.is_granted]
+            permission_ids = {rp.permission_id for rp in role_permissions}
+
+            role_analysis[role.name] = {
+                "role_id": str(role.id),
+                "display_name": role.display_name,
+                "permission_count": len(permission_ids),
+                "permissions": [str(pid) for pid in permission_ids]
+            }
+
+            all_permissions.update(permission_ids)
+
+        # Get permission details
+        if all_permissions:
+            perm_query = select(Permission).where(Permission.id.in_(all_permissions))
+            perm_result = await db.execute(perm_query)
+            permission_objects = perm_result.scalars().all()
+            suggested_permissions = [PermissionResponse.from_orm(p) for p in permission_objects]
+        else:
+            suggested_permissions = []
+
+        # Generate preview data based on type
+        preview_data = {}
+
+        if request.preview_type == "summary":
+            preview_data = {
+                "total_roles": len(roles),
+                "total_unique_permissions": len(all_permissions),
+                "estimated_template_size": len(all_permissions),
+                "role_breakdown": {name: analysis["permission_count"] for name, analysis in role_analysis.items()}
+            }
+        elif request.preview_type == "detailed":
+            preview_data = {
+                "roles": role_analysis,
+                "permission_details": {
+                    str(p.id): {
+                        "name": p.name,
+                        "description": p.description,
+                        "resource_type": p.resource_type.value,
+                        "action": p.action.value
+                    }
+                    for p in permission_objects
+                }
+            }
+        elif request.preview_type == "comparison":
+            # Compare with existing templates
+            template_query = select(PermissionTemplate).where(PermissionTemplate.is_active == True)
+            template_result = await db.execute(template_query)
+            existing_templates = template_result.scalars().all()
+
+            comparisons = []
+            for template in existing_templates:
+                template_perms = set(template.permissions)
+                intersection = len(all_permissions.intersection(template_perms))
+                union = len(all_permissions.union(template_perms))
+                similarity = intersection / union if union > 0 else 0
+
+                comparisons.append({
+                    "template_name": template.name,
+                    "similarity": similarity,
+                    "common_permissions": intersection,
+                    "template_id": str(template.id)
+                })
+
+            comparisons.sort(key=lambda x: x["similarity"], reverse=True)
+            preview_data = {
+                "comparisons": comparisons[:5],  # Top 5 similar templates
+                "recommendation": "Create new template" if not comparisons or comparisons[0]["similarity"] < 0.8 else "Consider using existing template"
+            }
+
+        return TemplatePreviewResponse(
+            preview_data=preview_data,
+            role_analysis=role_analysis,
+            suggested_permissions=suggested_permissions,
+            estimated_template_size=len(all_permissions)
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
+
+
+# ==================== SYSTEM INITIALIZATION ====================
+
+@router.post("/init-defaults")
+async def initialize_default_permissions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Initialize default permissions and roles for the system."""
+    permission_service = PermissionService(db)
+
+    try:
+        # Create default permissions
+        permissions_data = [
+            # System permissions
+            {
+                "name": "system_admin",
+                "description": "Full system administration access",
+                "resource_type": ResourceType.SYSTEM,
+                "action": PermissionAction.MANAGE,
+                "scope": PermissionScope.GLOBAL,
+                "is_system_permission": True
+            },
+            {
+                "name": "system_view",
+                "description": "View system configuration and settings",
+                "resource_type": ResourceType.SYSTEM,
+                "action": PermissionAction.VIEW_ALL,
+                "scope": PermissionScope.GLOBAL,
+                "is_system_permission": True
+            },
+
+            # User permissions
+            {
+                "name": "user_create",
+                "description": "Create new user accounts",
+                "resource_type": ResourceType.USER,
+                "action": PermissionAction.CREATE,
+                "scope": PermissionScope.GLOBAL,
+                "is_system_permission": True
+            },
+            {
+                "name": "user_read",
+                "description": "View user information",
+                "resource_type": ResourceType.USER,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "user_update",
+                "description": "Update user information",
+                "resource_type": ResourceType.USER,
+                "action": PermissionAction.UPDATE,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "user_delete",
+                "description": "Delete user accounts",
+                "resource_type": ResourceType.USER,
+                "action": PermissionAction.DELETE,
+                "scope": PermissionScope.GLOBAL,
+                "is_system_permission": True
+            },
+            {
+                "name": "user_assign",
+                "description": "Assign roles and permissions to users",
+                "resource_type": ResourceType.USER,
+                "action": PermissionAction.ASSIGN,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+
+            # Application permissions
+            {
+                "name": "application_create",
+                "description": "Create new loan applications",
+                "resource_type": ResourceType.APPLICATION,
+                "action": PermissionAction.CREATE,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "application_read",
+                "description": "View loan applications",
+                "resource_type": ResourceType.APPLICATION,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "application_update",
+                "description": "Update loan applications",
+                "resource_type": ResourceType.APPLICATION,
+                "action": PermissionAction.UPDATE,
+                "scope": PermissionScope.OWN,
+                "is_system_permission": True
+            },
+            {
+                "name": "application_approve",
+                "description": "Approve loan applications",
+                "resource_type": ResourceType.APPLICATION,
+                "action": PermissionAction.APPROVE,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "application_reject",
+                "description": "Reject loan applications",
+                "resource_type": ResourceType.APPLICATION,
+                "action": PermissionAction.REJECT,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+
+            # Department permissions
+            {
+                "name": "department_read",
+                "description": "View department information",
+                "resource_type": ResourceType.DEPARTMENT,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "department_manage",
+                "description": "Manage department settings",
+                "resource_type": ResourceType.DEPARTMENT,
+                "action": PermissionAction.MANAGE,
+                "scope": PermissionScope.OWN,
+                "is_system_permission": True
+            },
+
+            # Branch permissions
+            {
+                "name": "branch_read",
+                "description": "View branch information",
+                "resource_type": ResourceType.BRANCH,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.BRANCH,
+                "is_system_permission": True
+            },
+            {
+                "name": "branch_manage",
+                "description": "Manage branch settings",
+                "resource_type": ResourceType.BRANCH,
+                "action": PermissionAction.MANAGE,
+                "scope": PermissionScope.OWN,
+                "is_system_permission": True
+            },
+
+            # File permissions
+            {
+                "name": "file_upload",
+                "description": "Upload files",
+                "resource_type": ResourceType.FILE,
+                "action": PermissionAction.CREATE,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "file_read",
+                "description": "View and download files",
+                "resource_type": ResourceType.FILE,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "file_delete",
+                "description": "Delete files",
+                "resource_type": ResourceType.FILE,
+                "action": PermissionAction.DELETE,
+                "scope": PermissionScope.OWN,
+                "is_system_permission": True
+            },
+
+            # Analytics permissions
+            {
+                "name": "analytics_view",
+                "description": "View analytics and reports",
+                "resource_type": ResourceType.ANALYTICS,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "analytics_export",
+                "description": "Export analytics data",
+                "resource_type": ResourceType.ANALYTICS,
+                "action": PermissionAction.EXPORT,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+
+            # Notification permissions
+            {
+                "name": "notification_send",
+                "description": "Send notifications",
+                "resource_type": ResourceType.NOTIFICATION,
+                "action": PermissionAction.CREATE,
+                "scope": PermissionScope.DEPARTMENT,
+                "is_system_permission": True
+            },
+            {
+                "name": "notification_view",
+                "description": "View notifications",
+                "resource_type": ResourceType.NOTIFICATION,
+                "action": PermissionAction.READ,
+                "scope": PermissionScope.OWN,
+                "is_system_permission": True
+            }
+        ]
+
+        # Create permissions
+        created_permissions = {}
+        for perm_data in permissions_data:
+            try:
+                permission = await permission_service.create_permission(
+                    name=perm_data["name"],
+                    description=perm_data["description"],
+                    resource_type=perm_data["resource_type"],
+                    action=perm_data["action"],
+                    scope=perm_data["scope"],
+                    created_by=current_user.id
+                )
+                created_permissions[perm_data["name"]] = permission
+                print(f"Created permission: {perm_data['name']}")
+            except Exception as e:
+                print(f"Permission {perm_data['name']} may already exist: {e}")
+                # Try to get existing permission
+                stmt = select(Permission).where(Permission.name == perm_data["name"])
+                result = await db.execute(stmt)
+                existing = result.scalar_one_or_none()
+                if existing:
+                    created_permissions[perm_data["name"]] = existing
+
+        # Create default roles
+        roles_data = [
+            {
+                "name": "super_admin",
+                "display_name": "Super Administrator",
+                "description": "Full system access with all permissions",
+                "level": 100,
+                "is_system_role": True,
+                "is_default": False,
+                "permissions": ["system_admin", "system_view", "user_create", "user_read", "user_update", "user_delete", "user_assign",
+                              "application_create", "application_read", "application_update", "application_approve", "application_reject",
+                              "department_read", "department_manage", "branch_read", "branch_manage",
+                              "file_upload", "file_read", "file_delete", "analytics_view", "analytics_export",
+                              "notification_send", "notification_view"]
+            },
+            {
+                "name": "admin",
+                "display_name": "Administrator",
+                "description": "Administrative access with management permissions",
+                "level": 80,
+                "is_system_role": True,
+                "is_default": False,
+                "permissions": ["system_view", "user_read", "user_update", "user_assign",
+                              "application_read", "application_approve", "application_reject",
+                              "department_read", "department_manage", "branch_read", "branch_manage",
+                              "file_upload", "file_read", "analytics_view", "analytics_export",
+                              "notification_send", "notification_view"]
+            },
+            {
+                "name": "manager",
+                "display_name": "Manager",
+                "description": "Management role with approval and oversight permissions",
+                "level": 60,
+                "is_system_role": True,
+                "is_default": False,
+                "permissions": ["user_read", "application_create", "application_read", "application_update", "application_approve",
+                              "department_read", "branch_read", "file_upload", "file_read", "analytics_view", "notification_view"]
+            },
+            {
+                "name": "officer",
+                "display_name": "Officer",
+                "description": "Standard officer role for processing applications",
+                "level": 40,
+                "is_system_role": True,
+                "is_default": True,
+                "permissions": ["application_create", "application_read", "application_update", "file_upload", "file_read", "notification_view"]
+            },
+            {
+                "name": "analyst",
+                "display_name": "Analyst",
+                "description": "Read-only access for analysis and reporting",
+                "level": 20,
+                "is_system_role": True,
+                "is_default": False,
+                "permissions": ["application_read", "analytics_view", "file_read", "notification_view"]
+            },
+            {
+                "name": "viewer",
+                "display_name": "Viewer",
+                "description": "Limited read-only access",
+                "level": 10,
+                "is_system_role": True,
+                "is_default": False,
+                "permissions": ["application_read", "file_read", "notification_view"]
+            }
+        ]
+
+        # Create roles and assign permissions
+        for role_data in roles_data:
+            try:
+                role = await permission_service.create_role(
+                    name=role_data["name"],
+                    display_name=role_data["display_name"],
+                    description=role_data["description"],
+                    level=role_data["level"],
+                    created_by=current_user.id
+                )
+                print(f"Created role: {role_data['name']}")
+
+                # Assign permissions to role
+                for perm_name in role_data["permissions"]:
+                    permission = created_permissions.get(perm_name)
+                    if permission:
+                        await permission_service.assign_permission_to_role(
+                            role_id=role.id,
+                            permission_id=permission.id,
+                            granted_by=current_user.id
+                        )
+                        print(f"Assigned permission {perm_name} to role {role_data['name']}")
+
+            except Exception as e:
+                print(f"Role {role_data['name']} may already exist: {e}")
+
+        await db.commit()
+        return {"message": "Default permissions and roles initialized successfully"}
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to initialize permissions: {str(e)}")

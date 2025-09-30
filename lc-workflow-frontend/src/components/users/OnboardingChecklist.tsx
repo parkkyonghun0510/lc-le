@@ -80,7 +80,7 @@ export default function OnboardingChecklist({ userId, onStatusUpdate, isManager 
       setLoading(true);
       const response = await fetch(`/api/v1/users/${userId}/lifecycle/onboarding`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },
       });
 
@@ -117,7 +117,7 @@ export default function OnboardingChecklist({ userId, onStatusUpdate, isManager 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },
         body: JSON.stringify({ notes }),
       });
@@ -145,7 +145,7 @@ export default function OnboardingChecklist({ userId, onStatusUpdate, isManager 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },
         body: JSON.stringify({ reason }),
       });

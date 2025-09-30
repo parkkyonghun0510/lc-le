@@ -159,6 +159,9 @@ export interface File extends BaseModel {
   uploaded_by: string;
   application_id?: string;
   folder_id?: string;
+  url?: string;
+  preview_url?: string;
+  expires_at?: string;
   metadata?: { [key: string]: any };
 }
 

@@ -51,7 +51,7 @@ export const useApplications = (filters: ApplicationFilters = {}) => {
       if (filters.date_to) params.append('date_to', filters.date_to);
       if (filters.officer_id) params.append('officer_id', filters.officer_id);
       
-      return apiClient.get<ApplicationsResponse>(`/applications/?${params.toString()}`);  // Added generic type parameter
+      return apiClient.get<ApplicationsResponse>(`/applications/?${params.toString()}`);
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
@@ -171,7 +171,7 @@ export const useDeleteApplication = () => {
   
   return useMutation<void, Error, string>({  // Added explicit type parameters
     mutationFn: async (id: string) => {
-      return apiClient.delete<void>(`/applications/${id}`);  // Added generic type parameter
+      return apiClient.delete<void>(`/applications/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });

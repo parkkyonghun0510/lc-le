@@ -121,16 +121,7 @@ const fileApi = {
       formData.append('fieldName', fieldName); // Alternative format
     }
 
-    // Debug logging
-    if (folderId) {
-      console.log(`Uploading to folder: ${folderId}`);
-      console.log('Form data parameters:', {
-        application_id: applicationId,
-        folder_id: folderId,
-        document_type: documentType,
-        field_name: fieldName
-      });
-    }
+    // Upload file to specified folder if provided
 
     return apiClient.post(`/files/upload`, formData, {
       headers: {
@@ -151,12 +142,12 @@ const fileApi = {
 
   downloadFile: (id: string): string => {
     const baseUrl = API_ORIGIN_FOR_LINKS;
-    return `${baseUrl}/api/v1/files/${id}/download`;
+    return `${baseUrl}/files/${id}/download`;
   },
   
   getThumbnailUrl: (id: string, size: 'sm' | 'md' | 'lg' = 'md'): string => {
     const baseUrl = API_ORIGIN_FOR_LINKS;
-    return `${baseUrl}/api/v1/files/${id}/thumbnail?size=${size}`;
+    return `${baseUrl}/files/${id}/thumbnail?size=${size}`;
   },
 };
 
@@ -273,7 +264,6 @@ const applicationApi = {
       return await customerApi.getCustomerApplications(customerId);
     } catch (error) {
       // Fallback to the old method if the new endpoint is not available
-      console.warn('Falling back to legacy method for getting customer applications');
       const data = await apiClient.get<PaginatedResponse<CustomerApplication>>(`/applications?size=1000`);
       return (data.items || []).filter(app => app.user_id === customerId) as ApplicationWithFileCounts[];
     }
@@ -416,7 +406,6 @@ export const useDownloadFile = () => {
           throw new Error('No download URL provided by server');
         }
       } catch (error: any) {
-        console.error('Download failed:', error);
         const errorMessage = error.response?.data?.detail || error.message || 'Failed to download file';
         toast.error(`Download failed: ${errorMessage}`);
       }

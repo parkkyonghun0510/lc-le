@@ -2,6 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { apiClient } from '@/lib/api';
+import { handleApiError } from '@/lib/handleApiError';
 
 // ==================== TYPES ====================
 
@@ -86,14 +88,9 @@ export interface PermissionTemplate {
 
 // ==================== API FUNCTIONS ====================
 
-const API_BASE = '/api/permissions';
+// Updated to use centralized apiClient for consistent error handling and authentication
 
-const getAuthHeaders = () => ({
-  'Authorization': `Bearer ${localStorage.getItem('token')}`,
-  'Content-Type': 'application/json'
-});
-
-// Permission API functions
+// Permission API functions using centralized apiClient for consistent error handling
 const permissionApi = {
   getAll: async (filters: {
     resource_type?: string;
@@ -109,20 +106,14 @@ const permissionApi = {
         params.append(key, value.toString());
       }
     });
-    
-    const response = await fetch(`${API_BASE}?${params}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch permissions');
-    return response.json();
+
+    const queryString = params.toString();
+    const url = queryString ? `/permissions?${queryString}` : '/permissions';
+    return await apiClient.get<Permission[]>(url);
   },
 
   getById: async (id: string) => {
-    const response = await fetch(`${API_BASE}/${id}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch permission');
-    return response.json();
+    return await apiClient.get<Permission>(`/permissions/${id}`);
   },
 
   create: async (data: {
@@ -133,13 +124,7 @@ const permissionApi = {
     scope: string;
     conditions?: Record<string, any>;
   }) => {
-    const response = await fetch(API_BASE, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to create permission');
-    return response.json();
+    return await apiClient.post<Permission>('/permissions', data);
   },
 
   update: async (id: string, data: {
@@ -148,26 +133,15 @@ const permissionApi = {
     is_active?: boolean;
     conditions?: Record<string, any>;
   }) => {
-    const response = await fetch(`${API_BASE}/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to update permission');
-    return response.json();
+    return await apiClient.put<Permission>(`/permissions/${id}`, data);
   },
 
   delete: async (id: string) => {
-    const response = await fetch(`${API_BASE}/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to delete permission');
-    return response.json();
+    return await apiClient.delete<Permission>(`/permissions/${id}`);
   }
 };
 
-// Role API functions
+// Role API functions using centralized apiClient for consistent error handling
 const roleApi = {
   getAll: async (filters: {
     is_active?: boolean;
@@ -181,20 +155,14 @@ const roleApi = {
         params.append(key, value.toString());
       }
     });
-    
-    const response = await fetch(`${API_BASE}/roles?${params}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch roles');
-    return response.json();
+
+    const queryString = params.toString();
+    const url = queryString ? `/permissions/roles?${queryString}` : '/permissions/roles';
+    return await apiClient.get<Role[]>(url);
   },
 
   getById: async (id: string) => {
-    const response = await fetch(`${API_BASE}/roles/${id}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch role');
-    return response.json();
+    return await apiClient.get<Role>(`/permissions/roles/${id}`);
   },
 
   create: async (data: {
@@ -208,13 +176,7 @@ const roleApi = {
     allowed_departments?: string[];
     allowed_branches?: string[];
   }) => {
-    const response = await fetch(`${API_BASE}/roles`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to create role');
-    return response.json();
+    return await apiClient.post<Role>('/permissions/roles', data);
   },
 
   update: async (id: string, data: {
@@ -227,59 +189,30 @@ const roleApi = {
     allowed_departments?: string[];
     allowed_branches?: string[];
   }) => {
-    const response = await fetch(`${API_BASE}/roles/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to update role');
-    return response.json();
+    return await apiClient.put<Role>(`/permissions/roles/${id}`, data);
   },
 
   delete: async (id: string) => {
-    const response = await fetch(`${API_BASE}/roles/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to delete role');
-    return response.json();
+    return await apiClient.delete<Role>(`/permissions/roles/${id}`);
   },
 
   assignPermission: async (roleId: string, permissionId: string) => {
-    const response = await fetch(`${API_BASE}/roles/${roleId}/permissions/${permissionId}`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to assign permission to role');
-    return response.json();
+    return await apiClient.post(`/permissions/roles/${roleId}/permissions/${permissionId}`);
   },
 
   revokePermission: async (roleId: string, permissionId: string) => {
-    const response = await fetch(`${API_BASE}/roles/${roleId}/permissions/${permissionId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to revoke permission from role');
-    return response.json();
+    return await apiClient.delete(`/permissions/roles/${roleId}/permissions/${permissionId}`);
   }
 };
 
-// User permission API functions
+// User permission API functions using centralized apiClient for consistent error handling
 const userPermissionApi = {
   getUserRoles: async (userId: string) => {
-    const response = await fetch(`${API_BASE}/users/${userId}/roles`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch user roles');
-    return response.json();
+    return await apiClient.get<UserRole[]>(`/permissions/users/${userId}/roles`);
   },
 
   getUserPermissions: async (userId: string) => {
-    const response = await fetch(`${API_BASE}/users/${userId}/permissions`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch user permissions');
-    return response.json();
+    return await apiClient.get<UserPermission[]>(`/permissions/users/${userId}/permissions`);
   },
 
   assignRole: async (userId: string, data: {
@@ -288,22 +221,11 @@ const userPermissionApi = {
     branch_id?: string;
     effective_until?: string;
   }) => {
-    const response = await fetch(`${API_BASE}/users/${userId}/roles`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to assign role to user');
-    return response.json();
+    return await apiClient.post<UserRole>(`/permissions/users/${userId}/roles`, data);
   },
 
   revokeRole: async (userId: string, roleId: string) => {
-    const response = await fetch(`${API_BASE}/users/${userId}/roles/${roleId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to revoke role from user');
-    return response.json();
+    return await apiClient.delete(`/permissions/users/${userId}/roles/${roleId}`);
   },
 
   grantPermission: async (userId: string, data: {
@@ -314,33 +236,18 @@ const userPermissionApi = {
     conditions?: Record<string, any>;
     reason?: string;
   }) => {
-    const response = await fetch(`${API_BASE}/users/${userId}/permissions`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to grant permission to user');
-    return response.json();
+    return await apiClient.post<UserPermission>(`/permissions/users/${userId}/permissions`, data);
   },
 
   revokePermission: async (userId: string, permissionId: string) => {
-    const response = await fetch(`${API_BASE}/users/${userId}/permissions/${permissionId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to revoke permission from user');
-    return response.json();
+    return await apiClient.delete(`/permissions/users/${userId}/permissions/${permissionId}`);
   }
 };
 
-// Matrix and template API functions
+// Matrix and template API functions using centralized apiClient for consistent error handling
 const matrixApi = {
   getPermissionMatrix: async () => {
-    const response = await fetch(`${API_BASE}/matrix`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch permission matrix');
-    return response.json();
+    return await apiClient.get<PermissionMatrix>('/permissions/matrix');
   }
 };
 
@@ -356,12 +263,10 @@ const templateApi = {
         params.append(key, value.toString());
       }
     });
-    
-    const response = await fetch(`${API_BASE}/templates?${params}`, {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to fetch permission templates');
-    return response.json();
+
+    const queryString = params.toString();
+    const url = queryString ? `/permissions/templates?${queryString}` : '/permissions/templates';
+    return await apiClient.get<PermissionTemplate[]>(url);
   },
 
   create: async (data: {
@@ -371,22 +276,47 @@ const templateApi = {
     permissions: string[];
     default_conditions?: Record<string, any>;
   }) => {
-    const response = await fetch(`${API_BASE}/templates`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to create permission template');
-    return response.json();
+    return await apiClient.post<PermissionTemplate>('/permissions/templates', data);
   },
 
   apply: async (templateId: string, targetType: string, targetId: string) => {
-    const response = await fetch(`${API_BASE}/templates/${templateId}/apply/${targetType}/${targetId}`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Failed to apply permission template');
-    return response.json();
+    return await apiClient.post(`/permissions/templates/${templateId}/apply/${targetType}/${targetId}`);
+  },
+
+  generateFromRoles: async (data: {
+    source_role_ids: string[];
+    template_name: string;
+    template_description: string;
+    include_inactive_roles?: boolean;
+  }) => {
+    return await apiClient.post<PermissionTemplate>('/permissions/templates/generate-from-roles', data);
+  },
+
+  getSuggestions: async (data: {
+    analysis_type: 'pattern' | 'usage' | 'similarity';
+    role_limit?: number;
+    min_permission_count?: number;
+  }) => {
+    return await apiClient.post<PermissionTemplate[]>('/permissions/templates/suggestions', data);
+  },
+
+  bulkGenerate: async (data: {
+    generation_configs: Array<{
+      source_role_ids: string[];
+      template_name: string;
+      template_description: string;
+      include_inactive_roles?: boolean;
+    }>;
+  }) => {
+    return await apiClient.post<PermissionTemplate[]>('/permissions/templates/bulk-generate', data);
+  },
+
+  previewGeneration: async (data: {
+    source_role_ids: string[];
+    include_inactive_roles?: boolean;
+    preview_type: 'summary' | 'detailed' | 'comparison';
+  }) => {
+    return await apiClient.post('/permissions/templates/preview', data);
   }
 };
 
@@ -613,7 +543,7 @@ export const useCreatePermissionTemplate = () => {
 
 export const useApplyPermissionTemplate = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ templateId, targetType, targetId }: { templateId: string; targetType: string; targetId: string }) =>
       templateApi.apply(templateId, targetType, targetId),
@@ -622,6 +552,45 @@ export const useApplyPermissionTemplate = () => {
       queryClient.invalidateQueries({ queryKey: ['user-roles'] });
       queryClient.invalidateQueries({ queryKey: ['user-permissions'] });
     }
+  });
+};
+
+export const useGenerateTemplateFromRoles = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: templateApi.generateFromRoles,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['permission-templates'] });
+    }
+  });
+};
+
+export const useTemplateSuggestions = () => {
+  return useQuery({
+    queryKey: ['template-suggestions'],
+    queryFn: () => templateApi.getSuggestions({
+      analysis_type: 'pattern',
+      role_limit: 10
+    }),
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+};
+
+export const useBulkGenerateTemplates = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: templateApi.bulkGenerate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['permission-templates'] });
+    }
+  });
+};
+
+export const usePreviewTemplateGeneration = () => {
+  return useMutation({
+    mutationFn: templateApi.previewGeneration
   });
 };
 

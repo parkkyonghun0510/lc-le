@@ -140,8 +140,151 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
         )
 
     try:
-        # Try to use model_validate first for better performance when possible
-        return UserResponse.model_validate(user)
+        # Convert to dictionary to avoid lazy loading issues
+        user_data = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "phone_number": user.phone_number,
+            "role": user.role,
+            "status": user.status,
+            "status_reason": user.status_reason,
+            "status_changed_at": user.status_changed_at,
+            "status_changed_by": user.status_changed_by,
+            "last_activity_at": user.last_activity_at,
+            "login_count": user.login_count,
+            "failed_login_attempts": user.failed_login_attempts,
+            "onboarding_completed": user.onboarding_completed,
+            "onboarding_completed_at": user.onboarding_completed_at,
+            "department_id": user.department_id,
+            "branch_id": user.branch_id,
+            "position_id": user.position_id,
+            "portfolio_id": user.portfolio_id,
+            "line_manager_id": user.line_manager_id,
+            "profile_image_url": user.profile_image_url,
+            "employee_id": user.employee_id,
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+            "last_login_at": user.last_login_at,
+            "department": user.department,
+            "branch": user.branch,
+            "position": user.position,
+            "portfolio": user.portfolio,
+            "line_manager": user.line_manager,
+            "status_changed_by_user": user.status_changed_by_user,
+        }
+
+        # Convert nested SQLAlchemy objects to dictionaries
+        if user_data.get("department"):
+            user_data["department"] = {
+                "id": user_data["department"].id,
+                "name": user_data["department"].name,
+                "code": user_data["department"].code,
+                "description": user_data["department"].description,
+                "is_active": user_data["department"].is_active,
+                "created_at": user_data["department"].created_at,
+                "updated_at": user_data["department"].updated_at,
+            } if hasattr(user_data["department"], 'id') else None
+
+        if user_data.get("branch"):
+            user_data["branch"] = {
+                "id": user_data["branch"].id,
+                "name": user_data["branch"].name,
+                "code": user_data["branch"].code,
+                "address": user_data["branch"].address,
+                "phone_number": user_data["branch"].phone_number,
+                "email": user_data["branch"].email,
+                "is_active": user_data["branch"].is_active,
+                "created_at": user_data["branch"].created_at,
+                "updated_at": user_data["branch"].updated_at,
+            } if hasattr(user_data["branch"], 'id') else None
+
+        if user_data.get("position"):
+            user_data["position"] = {
+                "id": user_data["position"].id,
+                "name": user_data["position"].name,
+                "description": user_data["position"].description,
+                "is_active": user_data["position"].is_active,
+                "created_at": user_data["position"].created_at,
+                "updated_at": user_data["position"].updated_at,
+            } if hasattr(user_data["position"], 'id') else None
+
+        # Handle portfolio and line_manager relationships
+        if user_data.get("portfolio"):
+            user_data["portfolio"] = {
+                "id": user_data["portfolio"].id,
+                "username": user_data["portfolio"].username,
+                "email": user_data["portfolio"].email,
+                "first_name": user_data["portfolio"].first_name,
+                "last_name": user_data["portfolio"].last_name,
+                "phone_number": user_data["portfolio"].phone_number,
+                "role": user_data["portfolio"].role,
+                "status": user_data["portfolio"].status,
+                "status_reason": user_data["portfolio"].status_reason,
+                "status_changed_at": user_data["portfolio"].status_changed_at,
+                "status_changed_by": user_data["portfolio"].status_changed_by,
+                "last_activity_at": user_data["portfolio"].last_activity_at,
+                "login_count": user_data["portfolio"].login_count,
+                "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
+                "onboarding_completed": user_data["portfolio"].onboarding_completed,
+                "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
+                "department_id": user_data["portfolio"].department_id,
+                "branch_id": user_data["portfolio"].branch_id,
+                "position_id": user_data["portfolio"].position_id,
+                "portfolio_id": user_data["portfolio"].portfolio_id,
+                "line_manager_id": user_data["portfolio"].line_manager_id,
+                "profile_image_url": user_data["portfolio"].profile_image_url,
+                "employee_id": user_data["portfolio"].employee_id,
+                "created_at": user_data["portfolio"].created_at,
+                "updated_at": user_data["portfolio"].updated_at,
+                "last_login_at": user_data["portfolio"].last_login_at,
+                "department": None,  # Avoid infinite nesting
+                "branch": None,      # Avoid infinite nesting
+                "position": None,    # Avoid infinite nesting
+                "portfolio": None,   # Avoid infinite nesting
+                "line_manager": None, # Avoid infinite nesting
+                "status_changed_by_user": None
+            } if hasattr(user_data["portfolio"], 'id') else None
+
+        if user_data.get("line_manager"):
+            user_data["line_manager"] = {
+                "id": user_data["line_manager"].id,
+                "username": user_data["line_manager"].username,
+                "email": user_data["line_manager"].email,
+                "first_name": user_data["line_manager"].first_name,
+                "last_name": user_data["line_manager"].last_name,
+                "phone_number": user_data["line_manager"].phone_number,
+                "role": user_data["line_manager"].role,
+                "status": user_data["line_manager"].status,
+                "status_reason": user_data["line_manager"].status_reason,
+                "status_changed_at": user_data["line_manager"].status_changed_at,
+                "status_changed_by": user_data["line_manager"].status_changed_by,
+                "last_activity_at": user_data["line_manager"].last_activity_at,
+                "login_count": user_data["line_manager"].login_count,
+                "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
+                "onboarding_completed": user_data["line_manager"].onboarding_completed,
+                "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+                "department_id": user_data["line_manager"].department_id,
+                "branch_id": user_data["line_manager"].branch_id,
+                "position_id": user_data["line_manager"].position_id,
+                "portfolio_id": user_data["line_manager"].portfolio_id,
+                "line_manager_id": user_data["line_manager"].line_manager_id,
+                "profile_image_url": user_data["line_manager"].profile_image_url,
+                "employee_id": user_data["line_manager"].employee_id,
+                "created_at": user_data["line_manager"].created_at,
+                "updated_at": user_data["line_manager"].updated_at,
+                "last_login_at": user_data["line_manager"].last_login_at,
+                "department": None,  # Avoid infinite nesting
+                "branch": None,      # Avoid infinite nesting
+                "position": None,    # Avoid infinite nesting
+                "portfolio": None,   # Avoid infinite nesting
+                "line_manager": None, # Avoid infinite nesting
+                "status_changed_by_user": None
+            } if hasattr(user_data["line_manager"], 'id') else None
+
+        return UserResponse.model_validate(user_data)
     except Exception as e:
         # Fallback to manual construction with proper circular reference handling
         print(f"Warning: model_validate failed, using manual construction with depth {max_depth}: {e}")
@@ -353,17 +496,59 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
+    # Enhanced token debugging
+    print("🔐 [DEBUG get_current_user] Token validation started:", {
+        "token_length": len(token) if token else 0,
+        "token_prefix": token[:20] + "..." if token and len(token) > 20 else token,
+        "secret_key_length": len(settings.SECRET_KEY),
+        "algorithm": settings.ALGORITHM,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+
+        # Debug payload contents
+        print("🔐 [DEBUG get_current_user] Token decoded successfully:", {
+            "payload_keys": list(payload.keys()),
+            "subject": payload.get("sub"),
+            "exp": payload.get("exp"),
+            "iat": payload.get("iat"),
+            "exp_datetime": datetime.fromtimestamp(payload.get("exp", 0), timezone.utc).isoformat() if payload.get("exp") else None,
+            "current_time": datetime.now(timezone.utc).isoformat(),
+            "is_expired": payload.get("exp", 0) < datetime.now(timezone.utc).timestamp() if payload.get("exp") else False,
+        })
+
         username_val = payload.get("sub")
         if not isinstance(username_val, str) or not username_val:
+            print("🚨 [DEBUG get_current_user] Invalid subject in token:", {
+                "username_val": username_val,
+                "type": type(username_val),
+            })
             raise credentials_exception
         username: str = username_val
-    except JWTError:
+
+        print("🔐 [DEBUG get_current_user] Username extracted:", {
+            "username": username,
+        })
+
+    except JWTError as e:
+        print("🚨 [DEBUG get_current_user] JWT decode failed:", {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "token_length": len(token) if token else 0,
+            "secret_key_length": len(settings.SECRET_KEY),
+            "algorithm": settings.ALGORITHM,
+        })
         raise credentials_exception
     
     # Eager-load relationships for current user with nested relationships
+    print("🔐 [DEBUG get_current_user] Looking up user in database:", {
+        "username": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
     stmt = (
         select(User)
         .options(
@@ -402,11 +587,36 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         )
         .where(User.username == username)
     )
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-    if user is None:
+
+    try:
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            print("🚨 [DEBUG get_current_user] User not found in database:", {
+                "username": username,
+                "searched_at": datetime.now(timezone.utc).isoformat(),
+            })
+            raise credentials_exception
+        else:
+            print("✅ [DEBUG get_current_user] User found in database:", {
+                "user_id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "status": user.status,
+                "found_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+        return user
+
+    except Exception as e:
+        print("🚨 [DEBUG get_current_user] Database error during user lookup:", {
+            "username": username,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
         raise credentials_exception
-    return user
 
 @router.post("/login", response_model=TokenResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)) -> TokenResponse:

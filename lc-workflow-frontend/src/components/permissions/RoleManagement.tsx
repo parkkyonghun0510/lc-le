@@ -63,9 +63,9 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       const params = new URLSearchParams();
       if (!showInactive) params.append('is_active', 'true');
       
-      const response = await fetch(`/api/permissions/roles?${params}`, {
+      const response = await fetch(`/api/v1/permissions/roles?${params}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
       });
       
@@ -80,10 +80,10 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   // Create role mutation
   const createRoleMutation = useMutation({
     mutationFn: async (roleData: RoleFormData) => {
-      const response = await fetch('/api/permissions/roles', {
+      const response = await fetch('/api/v1/permissions/roles', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(roleData)
@@ -104,10 +104,10 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   // Update role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, ...roleData }: RoleFormData & { id: string }) => {
-      const response = await fetch(`/api/permissions/roles/${id}`, {
+      const response = await fetch(`/api/v1/permissions/roles/${id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(roleData)
@@ -128,10 +128,10 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   // Delete role mutation
   const deleteRoleMutation = useMutation({
     mutationFn: async (roleId: string) => {
-      const response = await fetch(`/api/permissions/roles/${roleId}`, {
+      const response = await fetch(`/api/v1/permissions/roles/${roleId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
       });
       

@@ -8,6 +8,7 @@ import { ToasterClient } from "@/components/ToasterClient";
 import { AppInitializer } from "@/components/AppInitializer";
 import ErrorBoundaryProvider from "@/components/providers/ErrorBoundaryProvider";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import { ClientBodyWrapper } from "@/components/ClientBodyWrapper";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -55,6 +56,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -70,10 +72,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="LC Workflow" />
         <meta name="msapplication-TileColor" content="#3b82f6" />
         <meta name="msapplication-tap-highlight" content="no" />
-        
+
         {/* Preconnect to improve performance */}
         <link rel="preconnect" href="/api" />
-        
+
         {/* Apple touch icons */}
         <link rel="apple-touch-icon" sizes="180x180" href="/icon-180x180.png" />
         <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png" />
@@ -86,19 +88,21 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="57x57" href="/icon-57x57.png" />
       </head>
       <body className={`${inter.variable} ${notoSansKhmer.variable} font-sans antialiased`}>
-        <ErrorBoundaryProvider>
-          <QueryProvider>
-            <ThemeProvider useBackendSettings={true}>
-              <AuthProvider>
-                <AppInitializer>
-                  <ServiceWorkerRegistration />
-                  <ToasterClient />
-                  {children}
-                </AppInitializer>
-              </AuthProvider>
-            </ThemeProvider>
-          </QueryProvider>
-        </ErrorBoundaryProvider>
+        <ClientBodyWrapper>
+          <ErrorBoundaryProvider>
+            <QueryProvider>
+              <ThemeProvider useBackendSettings={true}>
+                <AuthProvider>
+                  <AppInitializer>
+                    <ServiceWorkerRegistration />
+                    <ToasterClient />
+                    {children}
+                  </AppInitializer>
+                </AuthProvider>
+              </ThemeProvider>
+            </QueryProvider>
+          </ErrorBoundaryProvider>
+        </ClientBodyWrapper>
       </body>
     </html>
   );

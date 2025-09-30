@@ -1,18 +1,22 @@
 "use client";
 
 import React, { useState } from 'react';
-import { 
-  ShieldCheckIcon, 
-  UserGroupIcon, 
+import {
+  ShieldCheckIcon,
+  UserGroupIcon,
   CogIcon,
   ChartBarIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import PermissionMatrix from '@/components/permissions/PermissionMatrix';
 import RoleManagement from '@/components/permissions/RoleManagement';
+import GenerateTemplatesModal from '@/components/permissions/GenerateTemplatesModal';
+import { useRoles, useApplyPermissionTemplate, usePermissionTemplates } from '@/hooks/usePermissions';
 
 export default function PermissionsPage() {
   const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'users' | 'templates' | 'audit'>('matrix');
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
 
   const tabs = [
     {
@@ -149,7 +153,7 @@ export default function PermissionsPage() {
                 Create and manage permission templates for common role configurations. Apply templates to quickly set up new roles.
               </p>
             </div>
-            <PermissionTemplates />
+            <PermissionTemplates onGenerateClick={() => setIsGenerateModalOpen(true)} />
           </div>
         )}
 
@@ -165,6 +169,16 @@ export default function PermissionsPage() {
           </div>
         )}
       </div>
+
+      {/* Generate Templates Modal */}
+      <GenerateTemplatesModal
+        isOpen={isGenerateModalOpen}
+        onClose={() => setIsGenerateModalOpen(false)}
+        onTemplateGenerated={(template) => {
+          console.log('Template generated:', template);
+          // You could add a toast notification here
+        }}
+      />
     </div>
   );
 }
@@ -198,39 +212,56 @@ function UserPermissionManagement() {
   );
 }
 
-function PermissionTemplates() {
-  const templates = [
-    {
-      name: 'Department Manager',
-      description: 'Standard permissions for department managers',
-      permissionCount: 25,
-      usageCount: 12
-    },
-    {
-      name: 'Branch Officer',
-      description: 'Basic permissions for branch officers',
-      permissionCount: 15,
-      usageCount: 45
-    },
-    {
-      name: 'Senior Analyst',
-      description: 'Analytics and reporting permissions',
-      permissionCount: 18,
-      usageCount: 8
+function PermissionTemplates({ onGenerateClick }: { onGenerateClick: () => void }) {
+  const { data: templates = [], isLoading: templatesLoading } = usePermissionTemplates();
+  const { data: roles = [] } = useRoles();
+  const applyTemplate = useApplyPermissionTemplate();
+  const [showRoleSelector, setShowRoleSelector] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+
+  const handleApplyTemplate = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    setShowRoleSelector(templateId);
+  };
+
+  const handleRoleSelection = async (roleId: string) => {
+    if (!selectedTemplate) return;
+
+    try {
+      await applyTemplate.mutateAsync({
+        templateId: selectedTemplate,
+        targetType: 'role',
+        targetId: roleId
+      });
+      setShowRoleSelector(null);
+      setSelectedTemplate(null);
+      // You could add a success toast here
+    } catch (error) {
+      console.error('Failed to apply template:', error);
+      // You could add an error toast here
     }
-  ];
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header with Create Button */}
+      {/* Header with Create Buttons */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium text-gray-900">Available Templates</h3>
           <p className="text-sm text-gray-500">Pre-configured permission sets for common roles</p>
         </div>
-        <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-          Create Template
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={onGenerateClick}
+            className="inline-flex items-center px-4 py-2 border border-indigo-600 shadow-sm text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Generate Default Templates
+          </button>
+          <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+            Create Template
+          </button>
+        </div>
       </div>
 
       {/* Templates Grid */}
@@ -239,14 +270,17 @@ function PermissionTemplates() {
           <div key={index} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <DocumentTextIcon className="h-8 w-8 text-indigo-500" />
-              <span className="text-xs text-gray-500">Used {template.usageCount} times</span>
+              <span className="text-xs text-gray-500">Used {template.usage_count} times</span>
             </div>
             <h4 className="text-lg font-medium text-gray-900 mb-2">{template.name}</h4>
             <p className="text-sm text-gray-600 mb-4">{template.description}</p>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">{template.permissionCount} permissions</span>
+              <span className="text-sm text-gray-500">{template.permissions?.length || 0} permissions</span>
               <div className="flex space-x-2">
-                <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                <button
+                  onClick={() => handleApplyTemplate(template.id)}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                >
                   Apply
                 </button>
                 <button className="text-gray-600 hover:text-gray-800 text-sm font-medium">
@@ -257,6 +291,58 @@ function PermissionTemplates() {
           </div>
         ))}
       </div>
+
+      {/* Role Selection Modal */}
+      {showRoleSelector && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Select Role to Apply Template</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Choose which role should receive the permissions from this template.
+                </p>
+              </div>
+
+              <div className="bg-white px-6 py-4 max-h-96 overflow-y-auto">
+                {roles.map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => handleRoleSelection(role.id)}
+                    disabled={applyTemplate.isPending}
+                    className="w-full text-left p-3 mb-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{role.display_name}</p>
+                        <p className="text-xs text-gray-500">{role.description}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        role.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {role.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowRoleSelector(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

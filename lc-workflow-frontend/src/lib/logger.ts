@@ -26,6 +26,7 @@ export interface LoggerConfig {
   enableConsole: boolean;
   enableRemote: boolean;
   remoteEndpoint?: string;
+  baseUrl?: string;
   apiKey?: string;
   environment: string;
   appVersion: string;
@@ -36,7 +37,7 @@ export interface LoggerConfig {
 class Logger {
   private config: LoggerConfig;
   private buffer: LogEntry[] = [];
-  private flushTimer?: NodeJS.Timeout;
+  private flushTimer?: ReturnType<typeof setInterval>;
   private sessionId: string;
 
   constructor(config: Partial<LoggerConfig> = {}) {
@@ -44,8 +45,8 @@ class Logger {
       level: LogLevel.INFO,
       enableConsole: true,
       enableRemote: false,
-      environment: process.env.NODE_ENV || 'development',
-      appVersion: process.env.npm_package_version || '1.0.0',
+      environment: this.getEnvironment(),
+      appVersion: this.getAppVersion(),
       bufferSize: 50,
       flushInterval: 5000,
       ...config,
@@ -58,15 +59,91 @@ class Logger {
     }
 
     // Flush logs on page unload
-    if (typeof window !== 'undefined') {
+    if (this.isBrowser() && typeof window.addEventListener === 'function') {
       window.addEventListener('beforeunload', () => {
-        this.flush();
+        this.flush().catch(() => {
+          // Ignore errors during page unload
+        });
       });
     }
   }
 
   private generateSessionId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private getEnvironment(): string {
+    // Use process.env if available (Node.js), otherwise default to development
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) {
+      return process.env.NODE_ENV;
+    }
+    return 'development';
+  }
+
+  private getAppVersion(): string {
+    // Use process.env if available (Node.js), otherwise default to 1.0.0
+    if (typeof process !== 'undefined' && process.env && process.env.npm_package_version) {
+      return process.env.npm_package_version;
+    }
+    return '1.0.0';
+  }
+
+  private isBrowser(): boolean {
+    return typeof window !== 'undefined';
+  }
+
+  private isNode(): boolean {
+    return typeof process !== 'undefined' && process.versions && !!process.versions.node;
+  }
+
+  private getUserAgent(): string | undefined {
+    if (this.isBrowser() && typeof window.navigator !== 'undefined') {
+      return window.navigator.userAgent;
+    }
+    return undefined;
+  }
+
+  private getCurrentUrl(): string | undefined {
+    if (this.isBrowser() && typeof window.location !== 'undefined') {
+      return window.location.href;
+    }
+    return undefined;
+  }
+
+  private getLocalStorageItem(key: string): string | null {
+    if (this.isBrowser() && typeof Storage !== 'undefined') {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        // localStorage might not be available in some environments
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private buildEndpointUrl(endpoint?: string): string | null {
+    // If a full remoteEndpoint is provided, use it directly
+    if (this.config.remoteEndpoint && !this.config.baseUrl) {
+      return this.config.remoteEndpoint;
+    }
+
+    // If baseUrl is provided, build the full URL
+    if (this.config.baseUrl) {
+      const baseUrl = this.config.baseUrl.endsWith('/')
+        ? this.config.baseUrl.slice(0, -1)
+        : this.config.baseUrl;
+
+      const endpointPath = endpoint || '';
+      const path = endpointPath.startsWith('/')
+        ? endpointPath
+        : `/${endpointPath}`;
+
+      return `${baseUrl}${path}`;
+    }
+
+    // Fallback to the direct remoteEndpoint
+    return this.config.remoteEndpoint || null;
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -91,21 +168,17 @@ class Logger {
     };
 
     // Add browser context if available
-    if (typeof window !== 'undefined') {
-      entry.userAgent = window.navigator.userAgent;
-      entry.url = window.location.href;
-    }
+    entry.userAgent = this.getUserAgent();
+    entry.url = this.getCurrentUrl();
 
     // Add user context if available
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const user = localStorage.getItem('user');
-      if (user) {
-        try {
-          const userData = JSON.parse(user);
-          entry.userId = userData.id || userData.userId;
-        } catch (e) {
-          // Ignore invalid user data
-        }
+    const user = this.getLocalStorageItem('user');
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        entry.userId = userData.id || userData.userId;
+      } catch (e) {
+        // Ignore invalid user data
       }
     }
 
@@ -113,12 +186,18 @@ class Logger {
   }
 
   private async sendToRemote(entry: LogEntry): Promise<void> {
-    if (!this.config.enableRemote || !this.config.remoteEndpoint) {
+    const endpointUrl = this.buildEndpointUrl();
+    if (!this.config.enableRemote || !endpointUrl) {
+      return;
+    }
+
+    // Check if fetch is available
+    if (typeof fetch !== 'function') {
       return;
     }
 
     try {
-      await fetch(this.config.remoteEndpoint, {
+      await fetch(endpointUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,17 +207,22 @@ class Logger {
       });
     } catch (error) {
       // Fallback to console if remote logging fails
-      console.error('Failed to send log to remote endpoint:', error);
     }
   }
 
   private async sendToRemoteBatch(entries: LogEntry[]): Promise<void> {
-    if (!this.config.enableRemote || !this.config.remoteEndpoint) {
+    const endpointUrl = this.buildEndpointUrl();
+    if (!this.config.enableRemote || !endpointUrl) {
+      return;
+    }
+
+    // Check if fetch is available
+    if (typeof fetch !== 'function') {
       return;
     }
 
     try {
-      await fetch(this.config.remoteEndpoint, {
+      await fetch(endpointUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +232,6 @@ class Logger {
       });
     } catch (error) {
       // Fallback to console if remote logging fails
-      console.error('Failed to send log batch to remote endpoint:', error);
     }
   }
 
@@ -170,7 +253,6 @@ class Logger {
         break;
       case LogLevel.ERROR:
       case LogLevel.FATAL:
-        console.error(prefix, entry.message, entry.error || entry.context);
         break;
     }
   }
@@ -186,6 +268,7 @@ class Logger {
   private startFlushTimer(): void {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
+      this.flushTimer = undefined;
     }
 
     this.flushTimer = setInterval(() => {
@@ -200,7 +283,12 @@ class Logger {
     this.buffer = [];
 
     if (this.config.enableRemote) {
-      await this.sendToRemoteBatch(entriesToFlush);
+      try {
+        await this.sendToRemoteBatch(entriesToFlush);
+      } catch (error) {
+        // If remote logging fails, we could optionally re-queue the logs
+        // For now, we just log the error and continue
+      }
     }
   }
 
@@ -300,9 +388,11 @@ class Logger {
 
     if (!oldEnableRemote && this.config.enableRemote && this.config.flushInterval > 0) {
       this.startFlushTimer();
-    } else if (oldEnableRemote && !this.config.enableRemote && this.flushTimer) {
-      clearInterval(this.flushTimer);
-      this.flushTimer = undefined;
+    } else if (oldEnableRemote && !this.config.enableRemote) {
+      if (this.flushTimer) {
+        clearInterval(this.flushTimer);
+        this.flushTimer = undefined;
+      }
     }
   }
 
@@ -310,13 +400,61 @@ class Logger {
   getSessionId(): string {
     return this.sessionId;
   }
+
+  // Test connection with health check endpoint
+  async testConnection(endpoint?: string): Promise<boolean> {
+    const testUrl = this.buildEndpointUrl(endpoint || 'healthz');
+    if (!testUrl) {
+      return false;
+    }
+
+    // Check if fetch is available
+    if (typeof fetch !== 'function') {
+      return false;
+    }
+
+    try {
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.config.apiKey && { 'Authorization': `Bearer ${this.config.apiKey}` }),
+        },
+      });
+
+      const success = response.ok;
+      return success;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Get the current endpoint URL for testing
+  getEndpointUrl(endpoint?: string): string | null {
+    return this.buildEndpointUrl(endpoint);
+  }
+
+  // Cleanup method to prevent memory leaks
+  destroy(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = undefined;
+    }
+    // Flush any remaining logs
+    if (this.buffer.length > 0) {
+      this.flush().catch(() => {
+        // Ignore errors during cleanup
+      });
+    }
+  }
 }
 
 // Create default logger instance
 export const logger = new Logger({
   level: process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG,
   enableConsole: true,
-  enableRemote: process.env.NEXT_PUBLIC_LOGGING_ENDPOINT ? true : false,
+  enableRemote: process.env.NEXT_PUBLIC_LOGGING_BASE_URL ? true : false,
+  baseUrl: process.env.NEXT_PUBLIC_LOGGING_BASE_URL,
   remoteEndpoint: process.env.NEXT_PUBLIC_LOGGING_ENDPOINT,
   apiKey: process.env.NEXT_PUBLIC_LOGGING_API_KEY,
 });

@@ -92,10 +92,13 @@ async def get_customers(
         file_count = file_count_result.scalar_one() or 0
         customer_file_counts[str(customer.id)] = file_count
     
-    # Prepare response
+    # Prepare response - use safe serialization to avoid async context issues
     customer_responses = []
     for customer in customers:
-        customer_dict = UserResponse.from_orm(customer).model_dump()
+        # Use safe serialization to handle circular references and async context issues
+        from app.routers.auth import create_safe_user_response
+        customer_response = create_safe_user_response(customer, max_depth=1)
+        customer_dict = customer_response.model_dump()
         customer_dict["file_count"] = customer_file_counts.get(str(customer.id), 0)
         customer_responses.append(customer_dict)
     
@@ -157,9 +160,24 @@ async def get_customer_applications(
         file_count_result = await db.execute(file_count_query)
         file_count = file_count_result.scalar_one() or 0
         
-        # Use Pydantic schema for proper serialization
-        app_response = CustomerApplicationResponse.from_orm(application)
-        app_dict = app_response.model_dump()
+        # Use safe serialization to avoid async context issues
+        try:
+            app_response = CustomerApplicationResponse.from_orm(application)
+            app_dict = app_response.model_dump()
+        except Exception as e:
+            print(f"Warning: Failed to serialize application {application.id}: {e}")
+            # Fallback to manual serialization
+            app_dict = {
+                "id": application.id,
+                "user_id": application.user_id,
+                "application_type": application.application_type,
+                "status": application.status,
+                "submitted_at": application.submitted_at,
+                "reviewed_at": application.reviewed_at,
+                "reviewed_by": application.reviewed_by,
+                "created_at": application.created_at,
+                "updated_at": application.updated_at,
+            }
         app_dict["file_count"] = file_count
         application_responses.append(app_dict)
     

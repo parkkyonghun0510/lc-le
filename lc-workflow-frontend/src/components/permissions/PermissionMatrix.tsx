@@ -62,9 +62,9 @@ export default function PermissionMatrix({ className = '' }: PermissionMatrixPro
   const { data: matrixData, isLoading, error } = useQuery<PermissionMatrixData>({
     queryKey: ['permission-matrix'],
     queryFn: async () => {
-      const response = await fetch('/api/permissions/matrix', {
+      const response = await fetch('/api/v1/permissions/matrix', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
       });
       if (!response.ok) {
@@ -81,11 +81,11 @@ export default function PermissionMatrix({ className = '' }: PermissionMatrixPro
       permissionId: string; 
       grant: boolean; 
     }) => {
-      const url = `/api/permissions/roles/${roleId}/permissions/${permissionId}`;
+      const url = `/api/v1/permissions/roles/${roleId}/permissions/${permissionId}`;
       const response = await fetch(url, {
         method: grant ? 'POST' : 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
         }
       });

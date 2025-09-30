@@ -124,3 +124,51 @@ class BulkRoleAssignment(BaseSchema):
     """Schema for bulk role assignments."""
     user_ids: List[UUID] = Field(..., min_items=1)
     role_id: UUID
+
+
+class TemplateGenerationRequest(BaseSchema):
+    """Schema for template generation requests."""
+    source_role_ids: List[UUID] = Field(..., min_items=1)
+    template_name: str = Field(..., min_length=1, max_length=100)
+    template_description: str = Field(..., min_length=1, max_length=500)
+    include_inactive_roles: bool = False
+
+
+class TemplateSuggestionRequest(BaseSchema):
+    """Schema for template suggestion requests."""
+    analysis_type: str = Field(..., pattern="^(pattern|usage|similarity)$")
+    role_limit: Optional[int] = Field(10, ge=1, le=100)
+    min_permission_count: Optional[int] = Field(1, ge=1)
+
+
+class TemplateSuggestionResponse(BaseSchema):
+    """Schema for template suggestion responses."""
+    suggestions: List[Dict[str, Any]]
+    analysis_metadata: Dict[str, Any]
+
+
+class BulkTemplateGenerationRequest(BaseSchema):
+    """Schema for bulk template generation requests."""
+    generation_configs: List[TemplateGenerationRequest] = Field(..., min_items=1, max_items=50)
+
+
+class BulkTemplateGenerationResponse(BaseSchema):
+    """Schema for bulk template generation responses."""
+    results: List[Dict[str, Any]]
+    success_count: int
+    failure_count: int
+
+
+class TemplatePreviewRequest(BaseSchema):
+    """Schema for template preview requests."""
+    source_role_ids: List[UUID] = Field(..., min_items=1)
+    include_inactive_roles: bool = False
+    preview_type: str = Field("summary", pattern="^(summary|detailed|comparison)$")
+
+
+class TemplatePreviewResponse(BaseSchema):
+    """Schema for template preview responses."""
+    preview_data: Dict[str, Any]
+    role_analysis: Dict[str, Any]
+    suggested_permissions: List[PermissionResponse]
+    estimated_template_size: int

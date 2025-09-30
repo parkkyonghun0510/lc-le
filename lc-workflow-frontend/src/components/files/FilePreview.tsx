@@ -281,9 +281,9 @@ export default function FilePreview({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative max-w-6xl w-full bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900/50 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden max-h-[90vh] transform transition-all duration-300 scale-100 hover:scale-[1.01]">
+      <div className="relative max-w-6xl w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-[90vh] transform transition-all duration-300 scale-100 hover:scale-[1.01]">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-900/80 backdrop-blur-sm">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 backdrop-blur-sm">
           <div className="flex items-center gap-4 flex-1 min-w-0">
             {/* Navigation buttons */}
             {onNavigate && files.length > 1 && (
@@ -369,7 +369,7 @@ export default function FilePreview({
         </div>
 
         {/* Preview Content */}
-        <div className="h-[calc(100%-96px)] overflow-auto bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
+        <div className="h-[calc(100%-96px)] overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
           {renderPreview()}
           
           {/* Enhanced navigation buttons for better visibility */}

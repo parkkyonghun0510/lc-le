@@ -572,7 +572,9 @@ class ServerSettings(BaseSettings):
             "http://127.0.0.1:8090",
             "http://127.0.0.1:8000",
             "https://le-workflow-03fc.up.railway.app",
-            "https://bucket-production-9546.up.railway.app:443"
+            "https://bucket-production-9546.up.railway.app:443",
+            # Production frontend URL - update this with your actual frontend domain
+            "https://le-workflow-03fc.up.railway.app"
         ],
         description="Allowed CORS origins"
     )

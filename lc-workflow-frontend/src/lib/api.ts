@@ -3,19 +3,19 @@ import { AuthResponse, LoginCredentials } from '@/types/models';
 import { handleApiError } from './handleApiError';
 import { logger } from './logger';
 
-// Enhanced API URL detection with multiple fallback strategies
+// Enhanced API URL detection with safe fallback strategies
 function detectApiBaseUrl(): string {
-  // 1. Use environment variable if provided
+  // 1. Use environment variable if provided (highest priority)
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
 
-  // 2. Auto-detect based on current location (for development)
+  // 2. Auto-detect based on current location (development only)
   if (typeof window !== 'undefined' && window.location) {
     const currentHost = window.location.hostname;
     const currentPort = window.location.port;
 
-    // If running on localhost with a port, assume backend is on 8090
+    // Only use localhost detection for development
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
       if (currentPort && currentPort !== '3000') {
         return `http://localhost:8090/api/v1`;
@@ -26,18 +26,17 @@ function detectApiBaseUrl(): string {
       }
     }
 
-    // If running on a deployed domain, try to construct backend URL
+    // 3. For production deployments without NEXT_PUBLIC_API_URL set, log warning but don't fallback to internal networking
     if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-      // For Railway or similar platforms, try common patterns
-      if (currentHost.includes('railway.app')) {
-        // Extract app name and construct backend URL
-        const appName = currentHost.split('.')[0];
-        return `https://${appName}-backend.railway.internal/api/v1`;
-      }
+      console.warn('NEXT_PUBLIC_API_URL not set for production deployment. Please configure this environment variable.');
+      console.warn('Current host:', currentHost);
+      // Don't attempt internal networking - it can cause timeouts
+      // Instead, throw an error to make the configuration issue obvious
+      throw new Error('NEXT_PUBLIC_API_URL environment variable is required for production deployments');
     }
   }
 
-  // 3. Fallback to localhost (original behavior)
+  // 4. Final fallback for development/testing
   return 'http://localhost:8090/api/v1';
 }
 

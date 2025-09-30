@@ -21,8 +21,8 @@ PYTHON_VERSION = "3.11"
 PIP_NO_CACHE_DIR = "1"
 PIP_DISABLE_PIP_VERSION_CHECK = "1"
 
-# CORS - Railway will inject the correct frontend URL
-CORS_ORIGINS = "${{FRONTEND_URL}}"
+# CORS - Allow frontend to access backend
+CORS_ORIGINS = "https://le-workflow-03fc.up.railway.app"
 
 # Production optimizations - reduce resource usage
 UVICORN_WORKERS = "1"

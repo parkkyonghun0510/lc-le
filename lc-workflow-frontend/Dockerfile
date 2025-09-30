@@ -75,7 +75,7 @@ EXPOSE 3000
 
 ENV PORT 3000
 # Optimize Node.js for production
-ENV NODE_OPTIONS="--max-old-space-size=4096 --optimize-for-size"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

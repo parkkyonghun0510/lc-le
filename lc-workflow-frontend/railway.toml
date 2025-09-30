@@ -39,15 +39,4 @@ NODE_OPTIONS = "--max-old-space-size=4096"
 # Garbage collection optimization
 NODE_OPTIONS = "${NODE_OPTIONS} --optimize-for-size --max-semi-space-size=128"
 
-# Security optimizations
-[env.security]
-# Disable unnecessary features in production
-NEXT_TELEMETRY_DISABLED = "1"
-# Enable strict mode
-NODE_ENV = "production"
 
-# Build arguments - these will be populated from Railway environment variables
-[build.args]
-NEXT_PUBLIC_API_URL = "${NEXT_PUBLIC_API_URL}"
-NEXT_PUBLIC_WS_URL = "${NEXT_PUBLIC_WS_URL}"
-NEXT_PUBLIC_FORCE_HTTPS = "${NEXT_PUBLIC_FORCE_HTTPS:-true}"

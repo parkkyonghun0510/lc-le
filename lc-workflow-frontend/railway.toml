@@ -34,9 +34,6 @@ NEXT_TELEMETRY_DISABLED = "1"
 
 # Production optimizations
 [env.production]
-# Memory optimization
-NODE_OPTIONS = "--max-old-space-size=4096"
-# Garbage collection optimization
-NODE_OPTIONS = "${NODE_OPTIONS} --optimize-for-size --max-semi-space-size=128"
+NODE_OPTIONS = "--max-old-space-size=4096 --optimize-for-size --max-semi-space-size=128"
 
 

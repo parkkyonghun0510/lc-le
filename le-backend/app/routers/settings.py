@@ -375,42 +375,78 @@ async def get_theme_settings(
                 Setting.is_public == True
             )
         )
-        
+
         result = await db.execute(query)
         settings = result.scalars().all()
-        
-        # Structure the theme settings for easy frontend consumption
-        theme_config = {
-            "mode": "system",  # default
+
+        # Default theme configuration (fallback when no settings exist)
+        default_config = {
+            "mode": "light",
             "colors": {
-                "light": {},
-                "dark": {}
+                "light": {
+                    "background": "#FFFFFF",
+                    "surface": "#F5F5F5",
+                    "primary": "#2196F3",
+                    "secondary": "#FF5722",
+                    "text_primary": "#212121",
+                    "text_secondary": "#757575",
+                    "text_disabled": "#BDBDBD",
+                    "divider": "#E0E0E0",
+                    "success": "#4CAF50",
+                    "warning": "#FF9800",
+                    "error": "#F44336",
+                    "info": "#2196F3"
+                },
+                "dark": {
+                    "background": "#121212",
+                    "surface": "#1E1E1E",
+                    "primary": "#2196F3",
+                    "secondary": "#FF5722",
+                    "text_primary": "#FFFFFF",
+                    "text_secondary": "#B3B3B3",
+                    "text_disabled": "#666666",
+                    "divider": "#333333",
+                    "success": "#4CAF50",
+                    "warning": "#FF9800",
+                    "error": "#F44336",
+                    "info": "#2196F3"
+                }
             },
-            "accessibility": {},
-            "preferences": {}
+            "accessibility": {
+                "text_contrast_ratio": 4.5,
+                "enable_high_contrast": False,
+                "font_scale_factor": 1.0
+            },
+            "preferences": {
+                "primary_color": "#2196F3",
+                "secondary_color": "#FF5722",
+                "allow_user_theme_choice": True
+            }
         }
-        
+
+        # Override defaults with actual settings from database
         for setting in settings:
             key = setting.key
             value = setting.value
-            
+
             if key == "default_theme_mode":
-                theme_config["mode"] = value
+                default_config["mode"] = value
             elif key == "light_theme_colors":
-                theme_config["colors"]["light"] = value
+                default_config["colors"]["light"] = value
             elif key == "dark_theme_colors":
-                theme_config["colors"]["dark"] = value
+                default_config["colors"]["dark"] = value
             elif key in ["text_contrast_ratio", "enable_high_contrast", "font_scale_factor"]:
-                theme_config["accessibility"][key] = value
+                default_config["accessibility"][key] = value
             else:
-                theme_config["preferences"][key] = value
-        
+                default_config["preferences"][key] = value
+
         return {
-            "theme_config": theme_config,
+            "theme_config": default_config,
             "last_updated": settings[0].updated_at.isoformat() if settings else None,
-            "settings_count": len(settings)
+            "settings_count": len(settings),
+            "using_defaults": len(settings) == 0
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -418,6 +454,55 @@ async def get_theme_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching theme settings: {str(e)}"
         )
+
+
+@router.post("/theme/initialize")
+async def initialize_theme_settings(
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Initialize default theme settings (public endpoint)
+    This endpoint can be called by anyone to ensure theme settings exist
+    """
+    try:
+        created_count = 0
+
+        # Only initialize theme-related settings
+        theme_settings = DEFAULT_SETTINGS.get("ui_theme", {})
+
+        for key, config in theme_settings.items():
+            # Check if setting already exists
+            existing_query = select(Setting).where(Setting.key == key)
+            existing_result = await db.execute(existing_query)
+            existing_setting = existing_result.scalar_one_or_none()
+
+            if not existing_setting:
+                # Create new setting (no user required for theme settings)
+                new_setting = Setting(
+                    key=key,
+                    value=config["value"],
+                    category="ui_theme",
+                    description=config["description"],
+                    is_public=config["is_public"]
+                )
+                db.add(new_setting)
+                created_count += 1
+
+        await db.commit()
+
+        return {
+            "message": "Theme settings initialized successfully",
+            "created": created_count,
+            "category": "ui_theme"
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error initializing theme settings: {str(e)}"
+        )
+
 
 @router.put("/theme")
 async def update_theme_settings(

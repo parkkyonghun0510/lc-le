@@ -45,6 +45,7 @@ export interface ThemeSettingsResponse {
   theme_config: ThemeConfig;
   last_updated: string;
   settings_count: number;
+  using_defaults?: boolean;
 }
 
 // Theme settings query keys
@@ -59,7 +60,21 @@ export const useThemeSettings = () => {
   return useQuery({
     queryKey: themeKeys.config(),
     queryFn: async (): Promise<ThemeSettingsResponse> => {
-      return await apiClient.get('/settings/theme');
+      const response = await apiClient.get('/settings/theme');
+
+      // If using defaults (no settings in database), initialize them
+      if (response.using_defaults) {
+        try {
+          await apiClient.post('/settings/theme/initialize');
+          // After initialization, refetch to get the initialized settings
+          return await apiClient.get('/settings/theme');
+        } catch (error) {
+          // If initialization fails, still return the defaults
+          console.warn('Failed to initialize theme settings:', error);
+        }
+      }
+
+      return response;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes

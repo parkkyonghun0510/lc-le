@@ -60,14 +60,14 @@ export const useThemeSettings = () => {
   return useQuery({
     queryKey: themeKeys.config(),
     queryFn: async (): Promise<ThemeSettingsResponse> => {
-      const response = await apiClient.get('/settings/theme');
+      const response = await apiClient.get<ThemeSettingsResponse>('/settings/theme');
 
       // If using defaults (no settings in database), initialize them
       if (response.using_defaults) {
         try {
           await apiClient.post('/settings/theme/initialize');
           // After initialization, refetch to get the initialized settings
-          return await apiClient.get('/settings/theme');
+          return await apiClient.get<ThemeSettingsResponse>('/settings/theme');
         } catch (error) {
           // If initialization fails, still return the defaults
           console.warn('Failed to initialize theme settings:', error);

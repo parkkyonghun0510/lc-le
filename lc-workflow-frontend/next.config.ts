@@ -164,7 +164,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' http://localhost:8090 https://localhost:8090 ws://localhost:8090 wss://localhost:8090 https://*.railway.app wss://*.railway.app",
+              "connect-src 'self' http://localhost:8090 https://localhost:8090 ws://localhost:8090 wss://localhost:8090 https://*.railway.app wss://*.railway.app https://*.railway.internal wss://*.railway.internal",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

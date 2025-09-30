@@ -1,7 +1,7 @@
 [build]
 builder = "dockerfile"
 buildContext = "."
-dockerfilePath = "/lc-workflow-frontend/Dockerfile"
+dockerfilePath = "./Dockerfile"
 
 # Build optimizations
 [build.cache]

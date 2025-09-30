@@ -10,7 +10,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models import User, Position
-from app.schemas import TokenResponse, UserResponse, UserLogin, UserCreate
+from app.schemas import TokenResponse, UserResponse, UserLogin, UserCreate, UserSummary
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from typing import Optional as TypingOptional
@@ -192,78 +192,42 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
                 "updated_at": user_data["position"].updated_at,
             } if hasattr(user_data["position"], 'id') else None
 
-        # Handle portfolio and line_manager relationships
-        if user_data.get("portfolio"):
-            user_data["portfolio"] = {
+        # Handle portfolio and line_manager relationships using UserSummary to avoid circular refs
+        if user_data.get("portfolio") and hasattr(user_data["portfolio"], 'id'):
+            user_data["portfolio"] = UserSummary.model_validate({
                 "id": user_data["portfolio"].id,
                 "username": user_data["portfolio"].username,
-                "email": user_data["portfolio"].email,
                 "first_name": user_data["portfolio"].first_name,
                 "last_name": user_data["portfolio"].last_name,
-                "phone_number": user_data["portfolio"].phone_number,
+                "email": user_data["portfolio"].email,
                 "role": user_data["portfolio"].role,
                 "status": user_data["portfolio"].status,
-                "status_reason": user_data["portfolio"].status_reason,
-                "status_changed_at": user_data["portfolio"].status_changed_at,
-                "status_changed_by": user_data["portfolio"].status_changed_by,
-                "last_activity_at": user_data["portfolio"].last_activity_at,
-                "login_count": user_data["portfolio"].login_count,
-                "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-                "onboarding_completed": user_data["portfolio"].onboarding_completed,
-                "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-                "department_id": user_data["portfolio"].department_id,
-                "branch_id": user_data["portfolio"].branch_id,
-                "position_id": user_data["portfolio"].position_id,
-                "portfolio_id": user_data["portfolio"].portfolio_id,
-                "line_manager_id": user_data["portfolio"].line_manager_id,
-                "profile_image_url": user_data["portfolio"].profile_image_url,
                 "employee_id": user_data["portfolio"].employee_id,
-                "created_at": user_data["portfolio"].created_at,
-                "updated_at": user_data["portfolio"].updated_at,
-                "last_login_at": user_data["portfolio"].last_login_at,
-                "department": None,  # Avoid infinite nesting
-                "branch": None,      # Avoid infinite nesting
-                "position": None,    # Avoid infinite nesting
-                "portfolio": None,   # Avoid infinite nesting
-                "line_manager": None, # Avoid infinite nesting
-                "status_changed_by_user": None
-            } if hasattr(user_data["portfolio"], 'id') else None
+            })
 
-        if user_data.get("line_manager"):
-            user_data["line_manager"] = {
+        if user_data.get("line_manager") and hasattr(user_data["line_manager"], 'id'):
+            user_data["line_manager"] = UserSummary.model_validate({
                 "id": user_data["line_manager"].id,
                 "username": user_data["line_manager"].username,
-                "email": user_data["line_manager"].email,
                 "first_name": user_data["line_manager"].first_name,
                 "last_name": user_data["line_manager"].last_name,
-                "phone_number": user_data["line_manager"].phone_number,
+                "email": user_data["line_manager"].email,
                 "role": user_data["line_manager"].role,
                 "status": user_data["line_manager"].status,
-                "status_reason": user_data["line_manager"].status_reason,
-                "status_changed_at": user_data["line_manager"].status_changed_at,
-                "status_changed_by": user_data["line_manager"].status_changed_by,
-                "last_activity_at": user_data["line_manager"].last_activity_at,
-                "login_count": user_data["line_manager"].login_count,
-                "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-                "onboarding_completed": user_data["line_manager"].onboarding_completed,
-                "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-                "department_id": user_data["line_manager"].department_id,
-                "branch_id": user_data["line_manager"].branch_id,
-                "position_id": user_data["line_manager"].position_id,
-                "portfolio_id": user_data["line_manager"].portfolio_id,
-                "line_manager_id": user_data["line_manager"].line_manager_id,
-                "profile_image_url": user_data["line_manager"].profile_image_url,
                 "employee_id": user_data["line_manager"].employee_id,
-                "created_at": user_data["line_manager"].created_at,
-                "updated_at": user_data["line_manager"].updated_at,
-                "last_login_at": user_data["line_manager"].last_login_at,
-                "department": None,  # Avoid infinite nesting
-                "branch": None,      # Avoid infinite nesting
-                "position": None,    # Avoid infinite nesting
-                "portfolio": None,   # Avoid infinite nesting
-                "line_manager": None, # Avoid infinite nesting
-                "status_changed_by_user": None
-            } if hasattr(user_data["line_manager"], 'id') else None
+            })
+
+        if user_data.get("status_changed_by_user") and hasattr(user_data["status_changed_by_user"], 'id'):
+            user_data["status_changed_by_user"] = UserSummary.model_validate({
+                "id": user_data["status_changed_by_user"].id,
+                "username": user_data["status_changed_by_user"].username,
+                "first_name": user_data["status_changed_by_user"].first_name,
+                "last_name": user_data["status_changed_by_user"].last_name,
+                "email": user_data["status_changed_by_user"].email,
+                "role": user_data["status_changed_by_user"].role,
+                "status": user_data["status_changed_by_user"].status,
+                "employee_id": user_data["status_changed_by_user"].employee_id,
+            })
 
         return UserResponse.model_validate(user_data)
     except Exception as e:
@@ -283,11 +247,17 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
             portfolio_response = None
             if portfolio and portfolio.id != user.id:  # Avoid self-reference
                 try:
-                    portfolio_response = create_safe_user_response(
-                        portfolio,
-                        max_depth - 1,
-                        visited_users.copy()
-                    )
+                    # Use UserSummary format to avoid circular references
+                    portfolio_response = UserSummary.model_validate({
+                        "id": portfolio.id,
+                        "username": portfolio.username,
+                        "first_name": portfolio.first_name,
+                        "last_name": portfolio.last_name,
+                        "email": portfolio.email,
+                        "role": portfolio.role,
+                        "status": portfolio.status,
+                        "employee_id": portfolio.employee_id,
+                    })
                 except Exception as portfolio_error:
                     print(f"Warning: Failed to process portfolio relationship: {portfolio_error}")
                     portfolio_response = None
@@ -295,11 +265,17 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
             line_manager_response = None
             if line_manager and line_manager.id != user.id:  # Avoid self-reference
                 try:
-                    line_manager_response = create_safe_user_response(
-                        line_manager,
-                        max_depth - 1,
-                        visited_users.copy()
-                    )
+                    # Use UserSummary format to avoid circular references
+                    line_manager_response = UserSummary.model_validate({
+                        "id": line_manager.id,
+                        "username": line_manager.username,
+                        "first_name": line_manager.first_name,
+                        "last_name": line_manager.last_name,
+                        "email": line_manager.email,
+                        "role": line_manager.role,
+                        "status": line_manager.status,
+                        "employee_id": line_manager.employee_id,
+                    })
                 except Exception as line_manager_error:
                     print(f"Warning: Failed to process line_manager relationship: {line_manager_error}")
                     line_manager_response = None
@@ -307,11 +283,17 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
             status_changed_by_user_response = None
             if status_changed_by_user and status_changed_by_user.id != user.id:  # Avoid self-reference
                 try:
-                    status_changed_by_user_response = create_safe_user_response(
-                        status_changed_by_user,
-                        max_depth - 1,
-                        visited_users.copy()
-                    )
+                    # Use UserSummary format to avoid circular references
+                    status_changed_by_user_response = UserSummary.model_validate({
+                        "id": status_changed_by_user.id,
+                        "username": status_changed_by_user.username,
+                        "first_name": status_changed_by_user.first_name,
+                        "last_name": status_changed_by_user.last_name,
+                        "email": status_changed_by_user.email,
+                        "role": status_changed_by_user.role,
+                        "status": status_changed_by_user.status,
+                        "employee_id": status_changed_by_user.employee_id,
+                    })
                 except Exception as status_error:
                     print(f"Warning: Failed to process status_changed_by_user relationship: {status_error}")
                     status_changed_by_user_response = None

@@ -10,7 +10,7 @@ import io
 
 from app.database import get_db
 from app.models import User, BulkOperation, Department, Branch, Position
-from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse, UserStatusChange, UserStatusChangeResponse, BulkStatusUpdate, BulkStatusUpdateResponse, CSVImportRequest, CSVImportResponse, CSVImportRowResult
+from app.schemas import UserCreate, UserUpdate, UserResponse, UserSummary, PaginatedResponse, UserStatusChange, UserStatusChangeResponse, BulkStatusUpdate, BulkStatusUpdateResponse, CSVImportRequest, CSVImportResponse, CSVImportRowResult
 from app.routers.auth import get_current_user
 from app.core.security import get_password_hash
 from app.services.async_validation_service import AsyncValidationService, DuplicateValidationError
@@ -20,7 +20,7 @@ from app.services.user_cache_service import UserCacheService
 from app.services.optimized_user_queries import OptimizedUserQueries
 from app.services.database_monitoring_service import DatabaseMonitoringService
 from app.core.user_status import UserStatus, can_transition_status, get_allowed_transitions
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, noload
 
 router = APIRouter()
 
@@ -1384,15 +1384,21 @@ async def get_user(
         .options(
             selectinload(User.department),
             selectinload(User.branch),
-            selectinload(User.position),
+            selectinload(User.position).options(
+                noload(Position.users)
+            ),
             selectinload(User.status_changed_by_user),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
+                selectinload(User.position).options(
+                    noload(Position.users)
+                ),
                 selectinload(User.department),
                 selectinload(User.branch)
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
+                selectinload(User.position).options(
+                    noload(Position.users)
+                ),
                 selectinload(User.department),
                 selectinload(User.branch)
             )
@@ -1439,84 +1445,13 @@ async def get_user(
         "department": user.department,
         "branch": user.branch,
         "position": user.position,
-        "status_changed_by_user": user.status_changed_by_user,
+        "status_changed_by_user": None,
         "portfolio": None,
         "line_manager": None
     }
     
-    # Manually construct portfolio relationship to avoid deep nesting
-    if user.portfolio:
-        user_data["portfolio"] = {
-            "id": user.portfolio.id,
-            "username": user.portfolio.username,
-            "email": user.portfolio.email,
-            "first_name": user.portfolio.first_name,
-            "last_name": user.portfolio.last_name,
-            "phone_number": user.portfolio.phone_number,
-            "role": user.portfolio.role,
-            "status": user.portfolio.status,
-            "status_reason": user.portfolio.status_reason,
-            "status_changed_at": user.portfolio.status_changed_at,
-            "status_changed_by": user.portfolio.status_changed_by,
-            "last_activity_at": user.portfolio.last_activity_at,
-            "login_count": user.portfolio.login_count,
-            "failed_login_attempts": user.portfolio.failed_login_attempts,
-            "onboarding_completed": user.portfolio.onboarding_completed,
-            "onboarding_completed_at": user.portfolio.onboarding_completed_at,
-            "department_id": user.portfolio.department_id,
-            "branch_id": user.portfolio.branch_id,
-            "position_id": user.portfolio.position_id,
-            "portfolio_id": user.portfolio.portfolio_id,
-            "line_manager_id": user.portfolio.line_manager_id,
-            "profile_image_url": user.portfolio.profile_image_url,
-            "employee_id": user.portfolio.employee_id,
-            "created_at": user.portfolio.created_at,
-            "updated_at": user.portfolio.updated_at,
-            "last_login_at": user.portfolio.last_login_at,
-            "department": user.portfolio.department,
-            "branch": user.portfolio.branch,
-            "position": user.portfolio.position,
-            "portfolio": None,  # Avoid infinite nesting
-            "line_manager": None,  # Avoid infinite nesting
-            "status_changed_by_user": None
-        }
-    
-    # Manually construct line_manager relationship to avoid deep nesting
-    if user.line_manager:
-        user_data["line_manager"] = {
-            "id": user.line_manager.id,
-            "username": user.line_manager.username,
-            "email": user.line_manager.email,
-            "first_name": user.line_manager.first_name,
-            "last_name": user.line_manager.last_name,
-            "phone_number": user.line_manager.phone_number,
-            "role": user.line_manager.role,
-            "status": user.line_manager.status,
-            "status_reason": user.line_manager.status_reason,
-            "status_changed_at": user.line_manager.status_changed_at,
-            "status_changed_by": user.line_manager.status_changed_by,
-            "last_activity_at": user.line_manager.last_activity_at,
-            "login_count": user.line_manager.login_count,
-            "failed_login_attempts": user.line_manager.failed_login_attempts,
-            "onboarding_completed": user.line_manager.onboarding_completed,
-            "onboarding_completed_at": user.line_manager.onboarding_completed_at,
-            "department_id": user.line_manager.department_id,
-            "branch_id": user.line_manager.branch_id,
-            "position_id": user.line_manager.position_id,
-            "portfolio_id": user.line_manager.portfolio_id,
-            "line_manager_id": user.line_manager.line_manager_id,
-            "profile_image_url": user.line_manager.profile_image_url,
-            "employee_id": user.line_manager.employee_id,
-            "created_at": user.line_manager.created_at,
-            "updated_at": user.line_manager.updated_at,
-            "last_login_at": user.line_manager.last_login_at,
-            "department": user.line_manager.department,
-            "branch": user.line_manager.branch,
-            "position": user.line_manager.position,
-            "portfolio": None,  # Avoid infinite nesting
-            "line_manager": None,  # Avoid infinite nesting
-            "status_changed_by_user": None
-        }
+    # Convert portfolio, line_manager, and status_changed_by_user to UserSummary objects
+    # to avoid circular references while preserving the relationship data
     
     # Convert nested SQLAlchemy objects to dictionaries to avoid lazy loading issues
     if user_data.get("department"):
@@ -1552,6 +1487,43 @@ async def get_user(
             "created_at": user_data["position"].created_at,
             "updated_at": user_data["position"].updated_at,
         } if hasattr(user_data["position"], 'id') else None
+
+    # Convert portfolio and line_manager to UserSummary objects to avoid circular references
+    if user.portfolio and hasattr(user.portfolio, 'id'):
+        user_data["portfolio"] = UserSummary.model_validate({
+            "id": user.portfolio.id,
+            "username": user.portfolio.username,
+            "first_name": user.portfolio.first_name,
+            "last_name": user.portfolio.last_name,
+            "email": user.portfolio.email,
+            "role": user.portfolio.role,
+            "status": user.portfolio.status,
+            "employee_id": user.portfolio.employee_id,
+        })
+
+    if user.line_manager and hasattr(user.line_manager, 'id'):
+        user_data["line_manager"] = UserSummary.model_validate({
+            "id": user.line_manager.id,
+            "username": user.line_manager.username,
+            "first_name": user.line_manager.first_name,
+            "last_name": user.line_manager.last_name,
+            "email": user.line_manager.email,
+            "role": user.line_manager.role,
+            "status": user.line_manager.status,
+            "employee_id": user.line_manager.employee_id,
+        })
+
+    if user.status_changed_by_user and hasattr(user.status_changed_by_user, 'id'):
+        user_data["status_changed_by_user"] = UserSummary.model_validate({
+            "id": user.status_changed_by_user.id,
+            "username": user.status_changed_by_user.username,
+            "first_name": user.status_changed_by_user.first_name,
+            "last_name": user.status_changed_by_user.last_name,
+            "email": user.status_changed_by_user.email,
+            "role": user.status_changed_by_user.role,
+            "status": user.status_changed_by_user.status,
+            "employee_id": user.status_changed_by_user.employee_id,
+        })
 
     # Create response and cache it
     response = UserResponse.model_validate(user_data)

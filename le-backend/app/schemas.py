@@ -103,7 +103,7 @@ class PositionResponse(PositionBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
-    users: Optional[List[UserResponse]] = None
+    users: Optional[List[UserSummary]] = None
     user_count: int = 0
 
     @classmethod
@@ -137,17 +137,21 @@ class PositionResponse(PositionBase):
             'user_count': user_count
         }
 
-        # Add nested user objects if relationships are loaded and accessible
-        if users:
-            try:
-                data['users'] = [UserResponse.from_orm(user) for user in users]
-            except Exception:
-                # If processing users fails, set to None
-                data['users'] = None
-        else:
-            data['users'] = None
+        # Don't load users to avoid circular references - set to None
+        data['users'] = None
 
         return cls(**data)
+
+class UserSummary(BaseSchema):
+    """Simplified user model to avoid circular references"""
+    id: UUID
+    username: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    role: str
+    status: str
+    employee_id: Optional[str] = None
 
 class UserResponse(UserBase):
     id: UUID
@@ -170,11 +174,11 @@ class UserResponse(UserBase):
     branch: Optional['BranchResponse'] = None
     # Replace prior string placeholder with nested position
     position: Optional['PositionResponse'] = None
-    # Portfolio and line manager relationships
-    portfolio: Optional['UserResponse'] = None
-    line_manager: Optional['UserResponse'] = None
-    # Status changed by user relationship
-    status_changed_by_user: Optional['UserResponse'] = None
+    # Portfolio and line manager relationships (using UserSummary to avoid circular refs)
+    portfolio: Optional[UserSummary] = None
+    line_manager: Optional[UserSummary] = None
+    # Status changed by user relationship (using UserSummary to avoid circular refs)
+    status_changed_by_user: Optional[UserSummary] = None
 
 class UserLogin(BaseSchema):
     username: str
@@ -308,7 +312,7 @@ class DepartmentResponse(DepartmentBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
-    manager: Optional['UserResponse'] = None
+    manager: Optional[UserSummary] = None
 
 # Branch schemas
 class BranchBase(BaseSchema):
@@ -1168,8 +1172,8 @@ class SettingResponse(SettingBase):
     updated_at: datetime
     created_by: Optional[UUID] = None
     updated_by: Optional[UUID] = None
-    creator: Optional[UserResponse] = None
-    updater: Optional[UserResponse] = None
+    creator: Optional[UserSummary] = None
+    updater: Optional[UserSummary] = None
 
     @classmethod
     def from_orm(cls, setting):
@@ -1189,9 +1193,27 @@ class SettingResponse(SettingBase):
 
         # Add nested user objects if relationships are loaded
         if hasattr(setting, 'creator') and setting.creator:
-            data['creator'] = UserResponse.from_orm(setting.creator)
+            data['creator'] = UserSummary(
+                id=setting.creator.id,
+                username=setting.creator.username,
+                first_name=setting.creator.first_name,
+                last_name=setting.creator.last_name,
+                email=setting.creator.email,
+                role=setting.creator.role,
+                status=setting.creator.status,
+                employee_id=setting.creator.employee_id,
+            )
         if hasattr(setting, 'updater') and setting.updater:
-            data['updater'] = UserResponse.from_orm(setting.updater)
+            data['updater'] = UserSummary(
+                id=setting.updater.id,
+                username=setting.updater.username,
+                first_name=setting.updater.first_name,
+                last_name=setting.updater.last_name,
+                email=setting.updater.email,
+                role=setting.updater.role,
+                status=setting.updater.status,
+                employee_id=setting.updater.employee_id,
+            )
 
         return cls(**data)
 
@@ -1274,7 +1296,7 @@ class BulkOperationResponse(BulkOperationBase):
     id: UUID
     created_at: datetime
     completed_at: Optional[datetime] = None
-    performer: Optional[UserResponse] = None
+    performer: Optional[UserSummary] = None
 
     @classmethod
     def from_orm(cls, bulk_operation):
@@ -1297,7 +1319,16 @@ class BulkOperationResponse(BulkOperationBase):
 
         # Add nested user object if relationship is loaded
         if hasattr(bulk_operation, 'performer') and bulk_operation.performer:
-            data['performer'] = UserResponse.from_orm(bulk_operation.performer)
+            data['performer'] = UserSummary(
+                id=bulk_operation.performer.id,
+                username=bulk_operation.performer.username,
+                first_name=bulk_operation.performer.first_name,
+                last_name=bulk_operation.performer.last_name,
+                email=bulk_operation.performer.email,
+                role=bulk_operation.performer.role,
+                status=bulk_operation.performer.status,
+                employee_id=bulk_operation.performer.employee_id,
+            )
 
         return cls(**data)
 
@@ -1353,8 +1384,8 @@ class SelfieResponse(SelfieBase):
     updated_at: datetime
     application: Optional[CustomerApplicationResponse] = None
     file: Optional[FileResponse] = None
-    captured_by: Optional[UserResponse] = None
-    validator: Optional[UserResponse] = None
+    captured_by: Optional[UserSummary] = None
+    validator: Optional[UserSummary] = None
 
     @classmethod
     def from_orm(cls, selfie):
@@ -1389,9 +1420,27 @@ class SelfieResponse(SelfieBase):
         if hasattr(selfie, 'file') and selfie.file:
             data['file'] = FileResponse.from_orm(selfie.file)
         if hasattr(selfie, 'captured_by') and selfie.captured_by:
-            data['captured_by'] = UserResponse.from_orm(selfie.captured_by)
+            data['captured_by'] = UserSummary(
+                id=selfie.captured_by.id,
+                username=selfie.captured_by.username,
+                first_name=selfie.captured_by.first_name,
+                last_name=selfie.captured_by.last_name,
+                email=selfie.captured_by.email,
+                role=selfie.captured_by.role,
+                status=selfie.captured_by.status,
+                employee_id=selfie.captured_by.employee_id,
+            )
         if hasattr(selfie, 'validator') and selfie.validator:
-            data['validator'] = UserResponse.from_orm(selfie.validator)
+            data['validator'] = UserSummary(
+                id=selfie.validator.id,
+                username=selfie.validator.username,
+                first_name=selfie.validator.first_name,
+                last_name=selfie.validator.last_name,
+                email=selfie.validator.email,
+                role=selfie.validator.role,
+                status=selfie.validator.status,
+                employee_id=selfie.validator.employee_id,
+            )
 
         return cls(**data)
 
@@ -1417,7 +1466,7 @@ class SelfieListResponse(BaseSchema):
     customer_name: Optional[str] = None
     selfie_type: SelfieType
     captured_at: datetime
-    captured_by: Optional[UserResponse] = None
+    captured_by: Optional[UserSummary] = None
     status: str
     is_validated: bool
     thumbnail_url: Optional[str] = None
@@ -1431,7 +1480,16 @@ class SelfieListResponse(BaseSchema):
             customer_name=selfie.customer_name,
             selfie_type=selfie.selfie_type,
             captured_at=selfie.captured_at,
-            captured_by=UserResponse.from_orm(selfie.captured_by) if hasattr(selfie, 'captured_by') and selfie.captured_by else None,
+            captured_by=UserSummary(
+                id=selfie.captured_by.id,
+                username=selfie.captured_by.username,
+                first_name=selfie.captured_by.first_name,
+                last_name=selfie.captured_by.last_name,
+                email=selfie.captured_by.email,
+                role=selfie.captured_by.role,
+                status=selfie.captured_by.status,
+                employee_id=selfie.captured_by.employee_id,
+            ) if hasattr(selfie, 'captured_by') and selfie.captured_by else None,
             status=selfie.status,
             is_validated=selfie.is_validated,
             thumbnail_url=None  # Would be computed based on file path

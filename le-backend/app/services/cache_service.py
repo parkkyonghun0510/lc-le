@@ -30,8 +30,18 @@ class CacheService:
     
     def _serialize_data(self, data: Any) -> str:
         """Serialize data for caching with timestamp"""
+        # Handle Pydantic models by converting to dict
+        if hasattr(data, 'model_dump'):
+            # Pydantic v2
+            serialized_data = data.model_dump()
+        elif hasattr(data, 'dict'):
+            # Pydantic v1
+            serialized_data = data.dict()
+        else:
+            serialized_data = data
+
         cache_data = {
-            "data": data,
+            "data": serialized_data,
             "cached_at": datetime.now(timezone.utc).isoformat(),
             "version": "1.0"
         }

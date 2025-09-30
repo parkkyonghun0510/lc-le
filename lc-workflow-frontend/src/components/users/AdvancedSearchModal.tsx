@@ -156,7 +156,7 @@ export default function AdvancedSearchModal({
               <div className="flex flex-wrap gap-2">
                 {savedSearches.map((search, index) => (
                   <button
-                    key={index}
+                    key={search.id || search.name || index}
                     onClick={() => onLoadSearch(search)}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
                   >

@@ -11,7 +11,8 @@ import io
 from app.database import get_db
 from app.models import User, BulkOperation, Department, Branch, Position
 from app.schemas import UserCreate, UserUpdate, UserResponse, PaginatedResponse, UserStatusChange, UserStatusChangeResponse, BulkStatusUpdate, BulkStatusUpdateResponse, CSVImportRequest, CSVImportResponse, CSVImportRowResult
-from app.routers.auth import get_current_user, get_password_hash
+from app.routers.auth import get_current_user
+from app.core.security import get_password_hash
 from app.services.async_validation_service import AsyncValidationService, DuplicateValidationError
 from app.services.activity_management_service import ActivityManagementService
 from app.services.user_lifecycle_service import UserLifecycleService
@@ -349,7 +350,7 @@ async def create_user(
 
     return UserResponse.model_validate(user_data)
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/")
 async def list_users(
     role: Optional[str] = Query(None, description="Filter by role"),
     branch_id: Optional[str] = Query(None, description="Filter by branch"),
@@ -642,15 +643,83 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
     
-    # Create response using safe helper function to avoid circular reference issues
-    from app.routers.auth import create_safe_user_response
-    response = PaginatedResponse(
-        items=[create_safe_user_response(user, max_depth=2) for user in users],
-        total=total,
-        page=page,
-        size=size,
-        pages=(total + size - 1) // size
-    )
+    # Create response with simplified user data to avoid circular reference issues
+    user_responses = []
+    for user in users:
+        # Create a simplified UserResponse without nested user relationships
+        user_data = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "phone_number": user.phone_number,
+            "role": user.role,
+            "status": user.status,
+            "status_reason": user.status_reason,
+            "status_changed_at": user.status_changed_at,
+            "status_changed_by": user.status_changed_by,
+            "last_activity_at": user.last_activity_at,
+            "login_count": user.login_count,
+            "failed_login_attempts": user.failed_login_attempts,
+            "onboarding_completed": user.onboarding_completed,
+            "onboarding_completed_at": user.onboarding_completed_at,
+            "department_id": user.department_id,
+            "branch_id": user.branch_id,
+            "position_id": user.position_id,
+            "portfolio_id": user.portfolio_id,
+            "line_manager_id": user.line_manager_id,
+            "profile_image_url": user.profile_image_url,
+            "employee_id": user.employee_id,
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+            "last_login_at": user.last_login_at,
+            # Include basic relationship data without full objects
+            "department": {
+                "id": user.department.id,
+                "name": user.department.name,
+                "code": user.department.code,
+                "description": user.department.description,
+                "is_active": user.department.is_active,
+                "created_at": user.department.created_at,
+                "updated_at": user.department.updated_at,
+                "manager": None
+            } if user.department else None,
+            "branch": {
+                "id": user.branch.id,
+                "name": user.branch.name,
+                "code": user.branch.code,
+                "address": user.branch.address,
+                "phone_number": user.branch.phone_number,
+                "email": user.branch.email,
+                "is_active": user.branch.is_active,
+                "created_at": user.branch.created_at,
+                "updated_at": user.branch.updated_at
+            } if user.branch else None,
+            "position": {
+                "id": user.position.id,
+                "name": user.position.name,
+                "description": user.position.description,
+                "is_active": user.position.is_active,
+                "created_at": user.position.created_at,
+                "updated_at": user.position.updated_at,
+                "users": None,
+                "user_count": 0
+            } if user.position else None,
+            # Set portfolio and line_manager to None to avoid circular references
+            "portfolio": None,
+            "line_manager": None,
+            "status_changed_by_user": None
+        }
+        user_responses.append(UserResponse.model_validate(user_data))
+    
+    response = {
+        "items": user_responses,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size
+    }
     
     # Cache the result for future requests
     await cache_service.set_cached_user_list(

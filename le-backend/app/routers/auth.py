@@ -6,53 +6,18 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import or_
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from typing import Optional
 
 from app.database import get_db
 from app.models import User, Position
 from app.schemas import TokenResponse, UserResponse, UserLogin, UserCreate
 from app.core.config import settings
+from app.core.security import get_password_hash, verify_password
 from typing import Optional as TypingOptional
 
 router = APIRouter()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-# def verify_password(plain_password: str, hashed_password: str) -> bool:
-#     # Truncate password to 72 bytes to comply with bcrypt limitation
-#     password_bytes = plain_password.encode('utf-8')
-#     if len(password_bytes) > 72:
-#         truncated_password = password_bytes[:72].decode('utf-8', errors='ignore')
-#     else:
-#         truncated_password = plain_password
-#     return pwd_context.verify(truncated_password, hashed_password)
-
-# def get_password_hash(password: str) -> str:
-#     # Truncate password to 72 bytes to comply with bcrypt limitation
-#     password_bytes = password.encode('utf-8')
-#     if len(password_bytes) > 72:
-#         truncated_password = password_bytes[:72].decode('utf-8', errors='ignore')
-#     else:
-#         truncated_password = password
-#     return pwd_context.hash(truncated_password)
-
-# In /app/routers/auth.py
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifies a password, truncating it to 72 bytes first."""
-    password_bytes = plain_password.encode('utf-8')
-    # Pass the truncated bytes directly to the verify function
-    return pwd_context.verify(password_bytes[:72], hashed_password)
-
-def get_password_hash(password: str) -> str:
-    """Hashes a password, truncating it to 72 bytes first."""
-    password_bytes = password.encode('utf-8')
-    # Pass the truncated bytes directly to the hash function
-    return pwd_context.hash(password_bytes[:72])
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

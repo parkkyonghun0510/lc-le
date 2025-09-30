@@ -1222,7 +1222,7 @@ export default function UsersPage() {
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
                             {importResults.results.map((result: any, index: number) => (
-                              <tr key={index} className={result.action === 'failed' ? 'bg-red-50' : ''}>
+                              <tr key={result.row_number || index} className={result.action === 'failed' ? 'bg-red-50' : ''}>
                                 <td className="px-4 py-2 text-sm text-gray-900">{result.row_number}</td>
                                 <td className="px-4 py-2">
                                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

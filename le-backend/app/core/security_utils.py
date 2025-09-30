@@ -3,11 +3,7 @@ Security utilities for enhanced password validation and security functions.
 """
 import re
 from typing import List, Optional
-from passlib.context import CryptContext
 from app.core.config import settings
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def validate_password_strength(password: str) -> List[str]:
     """
@@ -48,13 +44,9 @@ def validate_password_strength(password: str) -> List[str]:
     
     return errors
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    """Hash a password."""
-    return pwd_context.hash(password)
+# Password hashing functions are now centralized in app.core.security
+# Import them from there to avoid duplication
+from app.core.security import verify_password, get_password_hash
 
 def sanitize_filename(filename: str) -> str:
     """

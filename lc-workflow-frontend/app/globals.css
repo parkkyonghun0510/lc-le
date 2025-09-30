@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../../src/styles/mobile.css";
+@import "../src/styles/mobile.css";
 
 :root {
   /* Base Colors */

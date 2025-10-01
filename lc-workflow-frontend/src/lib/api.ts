@@ -526,6 +526,7 @@ export const testApiConnection = async (customUrl?: string): Promise<{
   url: string;
   error?: string;
   responseTime?: number;
+  details?: any;
 }> => {
   const testUrls = customUrl ? [customUrl] : [
     API_BASE_URL,
@@ -533,11 +534,24 @@ export const testApiConnection = async (customUrl?: string): Promise<{
     'http://127.0.0.1:8090/api/v1',
   ];
 
-  // Test API connectivity
+  // Test API connectivity with enhanced logging
+  logger.info('🔍 [API Diagnostic] Starting connectivity test', {
+    category: 'api_connectivity_test',
+    testUrls,
+    currentApiBaseUrl: API_BASE_URL,
+    timestamp: new Date().toISOString(),
+  });
 
   for (const url of testUrls) {
     const startTime = Date.now();
     try {
+      logger.info(`🔍 [API Diagnostic] Testing URL: ${url}`, {
+        category: 'api_connectivity_test',
+        url,
+        method: 'GET',
+        endpoint: '/settings/theme',
+      });
+
       // Use direct fetch for testing to avoid interceptor complexity
       const response = await fetch(`${url}/settings/theme`, {
         method: 'GET',
@@ -549,6 +563,15 @@ export const testApiConnection = async (customUrl?: string): Promise<{
 
       const responseTime = Date.now() - startTime;
 
+      logger.info(`✅ [API Diagnostic] Request successful`, {
+        category: 'api_connectivity_test',
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        responseTime,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+
       if (response.ok) {
         return {
           success: true,
@@ -556,19 +579,65 @@ export const testApiConnection = async (customUrl?: string): Promise<{
           responseTime,
         };
       } else {
-        // HTTP error response
+        logger.warn(`⚠️ [API Diagnostic] HTTP error response`, {
+          category: 'api_connectivity_test',
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          responseTime,
+        });
       }
     } catch (error) {
       const responseTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      // Connection failed
+
+      logger.error(`❌ [API Diagnostic] Connection failed`, error instanceof Error ? error : new Error(errorMessage), {
+        category: 'api_connectivity_test',
+        url,
+        errorMessage,
+        responseTime,
+        errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+      });
+
+      // Enhanced error details for debugging
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+      logger.error(`⏱️ [API Diagnostic] Request timeout after 5 seconds`, new Error(`Request timeout after 5 seconds`), {
+        category: 'api_connectivity_test',
+        url,
+        timeout: 5000,
+      });
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      logger.error(`🌐 [API Diagnostic] Network error - possibly CORS or server not running`, error instanceof Error ? error : new Error(errorMessage), {
+        category: 'api_connectivity_test',
+        url,
+        errorMessage,
+      });
+        }
+      }
     }
   }
+
+  logger.error(`💥 [API Diagnostic] All connection attempts failed`, new Error('All connection attempts failed'), {
+    category: 'api_connectivity_test',
+    testUrls,
+    finalUrl: API_BASE_URL,
+    timestamp: new Date().toISOString(),
+  });
 
   return {
     success: false,
     url: API_BASE_URL,
     error: 'All connection attempts failed',
+    details: {
+      testedUrls: testUrls,
+      suggestions: [
+        'Check if backend server is running on port 8090',
+        'Verify NEXT_PUBLIC_API_URL environment variable',
+        'Check Railway deployment status for backend service',
+        'Try Railway internal networking if both services are on Railway'
+      ]
+    }
   };
 };
 
@@ -742,6 +811,191 @@ export const getLoginTroubleshootingInfo = (): {
     suggestedActions,
     environmentInfo,
   };
+};
+
+// Diagnostic function to test both API and icon loading
+export const runFullDiagnostic = async (): Promise<{
+  apiConnectivity: Awaited<ReturnType<typeof testApiConnection>>;
+  iconLoading: {
+    success: boolean;
+    testedIcons: string[];
+    failedIcons: string[];
+    error?: string;
+  };
+  manifestValidation: {
+    valid: boolean;
+    issues: string[];
+  };
+  recommendations: string[];
+}> => {
+  logger.info('🔧 [Diagnostic] Starting full system diagnostic', {
+    category: 'system_diagnostic',
+    timestamp: new Date().toISOString(),
+  });
+
+  // Test API connectivity
+  const apiConnectivity = await testApiConnection();
+
+  // Test icon loading
+  const iconLoadingResult = await testIconLoading();
+
+  // Validate manifest
+  const manifestValidation = validateManifest();
+
+  // Generate recommendations
+  const recommendations = generateRecommendations(apiConnectivity, iconLoadingResult, manifestValidation);
+
+  logger.info('🔧 [Diagnostic] Full diagnostic completed', {
+    category: 'system_diagnostic',
+    apiSuccess: apiConnectivity.success,
+    iconSuccess: iconLoadingResult.success,
+    manifestValid: manifestValidation.valid,
+    recommendationCount: recommendations.length,
+  });
+
+  return {
+    apiConnectivity,
+    iconLoading: iconLoadingResult,
+    manifestValidation,
+    recommendations,
+  };
+};
+
+// Test icon loading functionality
+const testIconLoading = async (): Promise<{
+  success: boolean;
+  testedIcons: string[];
+  failedIcons: string[];
+  error?: string;
+}> => {
+  const iconsToTest = [
+    '/icon-72x72.png',
+    '/icon-96x96.png',
+    '/icon-128x128.png',
+    '/icon-144x144.png',
+    '/icon-152x152.png',
+    '/icon-192x192.png',
+  ];
+
+  const results: {
+    success: boolean;
+    testedIcons: string[];
+    failedIcons: string[];
+    error?: string;
+  } = {
+    success: true,
+    testedIcons: [],
+    failedIcons: [],
+  };
+
+  for (const iconPath of iconsToTest) {
+    try {
+      results.testedIcons.push(iconPath);
+
+      // Test if icon can be loaded
+      const response = await fetch(iconPath, { method: 'HEAD' });
+      if (!response.ok) {
+        results.failedIcons.push(iconPath);
+        results.success = false;
+      }
+    } catch (error) {
+      results.failedIcons.push(iconPath);
+      results.success = false;
+      results.error = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  return results;
+};
+
+// Validate manifest.json
+const validateManifest = (): {
+  valid: boolean;
+  issues: string[];
+} => {
+  const issues: string[] = [];
+
+  try {
+    // Check if manifest exists and is valid JSON
+    const manifestPath = '/manifest.json';
+
+    // In browser environment, we can't directly read the manifest file
+    // but we can check if the link tag exists in the document
+    if (typeof document !== 'undefined') {
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (!manifestLink) {
+        issues.push('Manifest link tag not found in document head');
+      } else {
+        const href = manifestLink.getAttribute('href');
+        if (!href) {
+          issues.push('Manifest link tag has no href attribute');
+        }
+      }
+    }
+
+    // Check for common icon issues
+    const testIcon = '/icon-144x144.png';
+    if (typeof window !== 'undefined') {
+      const iconElement = document.querySelector(`link[rel*="icon"][href="${testIcon}"]`);
+      if (!iconElement) {
+        issues.push(`Icon ${testIcon} not found in document head`);
+      }
+    }
+
+  } catch (error) {
+    issues.push(`Manifest validation error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+  };
+};
+
+// Generate diagnostic recommendations
+const generateRecommendations = (
+  apiConnectivity: Awaited<ReturnType<typeof testApiConnection>>,
+  iconLoading: Awaited<ReturnType<typeof testIconLoading>>,
+  manifestValidation: ReturnType<typeof validateManifest>
+): string[] => {
+  const recommendations: string[] = [];
+
+  if (!apiConnectivity.success) {
+    recommendations.push('🚨 API Connection Failed:');
+    recommendations.push('  - Check if backend service is running on Railway');
+    recommendations.push('  - Verify NEXT_PUBLIC_API_URL environment variable');
+    recommendations.push('  - Try Railway internal networking if both services are deployed');
+    recommendations.push('  - Check Railway deployment logs for backend service');
+
+    if (apiConnectivity.details?.suggestions) {
+      recommendations.push(...apiConnectivity.details.suggestions.map((s: string) => `  - ${s}`));
+    }
+  }
+
+  if (!iconLoading.success) {
+    recommendations.push('🖼️ Icon Loading Issues:');
+    recommendations.push('  - Verify icon files exist in public directory');
+    recommendations.push('  - Check file permissions on deployed icons');
+    recommendations.push('  - Ensure Railway deployment includes all public files');
+    recommendations.push('  - Check if CDN or static file serving is working');
+  }
+
+  if (!manifestValidation.valid) {
+    recommendations.push('📋 Manifest Issues:');
+    recommendations.push('  - Verify manifest.json is properly linked in HTML');
+    recommendations.push('  - Check icon paths in manifest.json');
+    recommendations.push('  - Ensure all referenced icons exist');
+    manifestValidation.issues.forEach(issue => {
+      recommendations.push(`  - ${issue}`);
+    });
+  }
+
+  if (apiConnectivity.success && iconLoading.success && manifestValidation.valid) {
+    recommendations.push('✅ All systems operational');
+    recommendations.push('  - No issues detected in diagnostic');
+  }
+
+  return recommendations;
 };
 
 // Comprehensive token debugging utility

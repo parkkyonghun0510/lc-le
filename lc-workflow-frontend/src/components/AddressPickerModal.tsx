@@ -80,7 +80,7 @@ const AddressPickerModal: React.FC<AddressPickerModalProps> = ({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
-        <div className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 w-full max-w-sm sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden transform transition-all duration-300 ${isAnimating ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+        <div className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 w-full max-w-sm sm:max-w-md max-h-[75vh] sm:max-h-[70vh] overflow-hidden transform transition-all duration-300 ${isAnimating ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
           }`}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">

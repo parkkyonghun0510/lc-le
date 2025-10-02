@@ -113,15 +113,18 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           required
         />
 
-
-        <AddressField
-          label="អស័យដ្ឋាន"
-          name="current_address"
-          value={formValues.current_address}
-          required
+        <SelectField
+          label="ភេទ"
+          name="sex"
+          value={formValues.sex}
           onChange={onInputChange}
-          placeholder="ជ្រើសរើសអាសយដ្ឋាន"
+          options={sexOptions}
+          placeholder="សូមជ្រើសរើស"
+          icon={UserIcon}
+          required
         />
+
+
 
         <FormField
           label="ថ្ងៃខែឆ្នាំកំណើត"
@@ -132,18 +135,8 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           icon={UserIcon}
         />
 
-        {/* <SelectField
-          label="ភេទ"
-          name="sex"
-          value={formValues.sex}
-          onChange={onInputChange}
-          options={sexOptions}
-          placeholder="សូមជ្រើសរើស"
-          icon={UserIcon}
-          required
-        /> */}
 
-        {/* <SelectField
+        <SelectField
           label="ស្ថានភាពគ្រួសារ"
           name="marital_status"
           value={formValues.marital_status}
@@ -152,7 +145,15 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           placeholder="សូមជ្រើសរើស"
           icon={UserIcon}
           required
-        /> */}
+        />
+        <AddressField
+          label="អស័យដ្ឋាន"
+          name="current_address"
+          value={formValues.current_address}
+          required
+          onChange={onInputChange}
+          placeholder="ជ្រើសរើសអាសយដ្ឋាន"
+        />
 
         <FormField
           label="មន្រ្តី ទទួលបន្ទុក"

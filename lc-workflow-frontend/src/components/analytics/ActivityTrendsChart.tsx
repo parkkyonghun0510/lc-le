@@ -49,15 +49,25 @@ export default function ActivityTrendsChart({ data, isLoading, timeRange }: Acti
     );
   }
 
-  // Prepare chart data
-  const chartData = data.user_creation.map((item, index) => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
+  // Debug logging to understand data structure
+  console.log('ActivityTrendsChart data:', {
+    user_creation: data.user_creation,
+    login_activity: data.login_activity,
+    status_changes: data.status_changes,
+    hasUserCreation: !!data.user_creation,
+    userCreationType: typeof data.user_creation,
+    userCreationLength: data.user_creation?.length || 0
+  });
+
+  // Prepare chart data with null checks
+  const chartData = (data.user_creation || []).map((item, index) => ({
+    date: new Date(item.date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     }),
     'User Creation': item.count,
-    'Login Activity': data.login_activity[index]?.count || 0,
-    'Status Changes': data.status_changes[index]?.count || 0
+    'Login Activity': (data.login_activity || [])[index]?.count || 0,
+    'Status Changes': (data.status_changes || [])[index]?.count || 0
   }));
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -96,57 +106,77 @@ export default function ActivityTrendsChart({ data, isLoading, timeRange }: Acti
       </div>
       
       <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="date" 
-              tick={{ fontSize: 12 }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend 
-              formatter={formatLegendValue}
-              wrapperStyle={{ paddingTop: '20px' }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="User Creation" 
-              stroke={TREND_COLORS.user_creation} 
-              strokeWidth={2}
-              dot={{ fill: TREND_COLORS.user_creation, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="Login Activity" 
-              stroke={TREND_COLORS.login_activity} 
-              strokeWidth={2}
-              dot={{ fill: TREND_COLORS.login_activity, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="Status Changes" 
-              stroke={TREND_COLORS.status_changes} 
-              strokeWidth={2}
-              dot={{ fill: TREND_COLORS.status_changes, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend
+                formatter={formatLegendValue}
+                wrapperStyle={{ paddingTop: '20px' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="User Creation"
+                stroke={TREND_COLORS.user_creation}
+                strokeWidth={2}
+                dot={{ fill: TREND_COLORS.user_creation, strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Login Activity"
+                stroke={TREND_COLORS.login_activity}
+                strokeWidth={2}
+                dot={{ fill: TREND_COLORS.login_activity, strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Status Changes"
+                stroke={TREND_COLORS.status_changes}
+                strokeWidth={2}
+                dot={{ fill: TREND_COLORS.status_changes, strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No chart data available</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
         {Object.entries(data).map(([key, values]) => {
+          // Skip if values is not an array or is empty
+          if (!Array.isArray(values) || values.length === 0) {
+            return null;
+          }
+
           const Icon = TREND_ICONS[key as keyof typeof TREND_ICONS];
-          const total = values.reduce((sum, item) => sum + item.count, 0);
+          // Ensure Icon is defined before using it
+          if (!Icon) {
+            console.warn(`Icon not found for key: ${key}`);
+            return null;
+          }
+
+          const total = values.reduce((sum, item) => sum + (item?.count || 0), 0);
           const average = values.length > 0 ? total / values.length : 0;
-          
+
           return (
             <div key={key} className="text-center">
               <div className="flex items-center justify-center space-x-2 mb-2">

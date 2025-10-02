@@ -38,9 +38,40 @@ export default function GeographicDistribution({ data, isLoading }: GeographicDi
     );
   }
 
-  const total = Object.values(data).reduce((sum, count) => sum + count, 0);
-  const sortedData = Object.entries(data)
-    .map(([location, count]) => ({
+  // Debug logging to understand the data structure
+  console.log('GeographicDistribution data structure:', {
+    data,
+    dataType: typeof data,
+    dataKeys: data ? Object.keys(data) : [],
+    firstValue: data ? Object.values(data)[0] : null,
+    firstValueType: data ? typeof Object.values(data)[0] : null
+  });
+
+  // Handle nested object structure from API
+  let processedData: Record<string, number> = {};
+  if (data) {
+    const firstValue = Object.values(data)[0];
+    if (firstValue && typeof firstValue === 'object' && !Array.isArray(firstValue)) {
+      // Flatten nested structure: { "Department": { "City": count } } -> { "City": count }
+      console.log('Detected nested structure, flattening...');
+      Object.values(data).forEach((locationObj: any) => {
+        if (locationObj && typeof locationObj === 'object') {
+          Object.entries(locationObj).forEach(([city, count]) => {
+            const numCount = typeof count === 'number' ? count : 0;
+            processedData[city] = (processedData[city] || 0) + numCount;
+          });
+        }
+      });
+      console.log('Flattened data:', processedData);
+    } else {
+      // Data is already in the correct format
+      processedData = data as Record<string, number>;
+    }
+  }
+
+  const total = Object.values(processedData).reduce((sum: number, count: number) => sum + count, 0);
+  const sortedData = Object.entries(processedData)
+    .map(([location, count]: [string, number]) => ({
       location,
       count,
       percentage: total > 0 ? (count / total) * 100 : 0

@@ -64,6 +64,13 @@ export default function OrganizationalBreakdown({ data, isLoading }: Organizatio
     );
   }
 
+  // Debug logging to identify the source of undefined values
+  console.log('OrganizationalBreakdown Debug:', {
+    average_users_per_department: data.summary.average_users_per_department,
+    average_users_per_branch: data.summary.average_users_per_branch,
+    summary: data.summary
+  });
+
   const summaryMetrics = [
     {
       label: 'Total Departments',
@@ -88,76 +95,105 @@ export default function OrganizationalBreakdown({ data, isLoading }: Organizatio
     },
     {
       label: 'Avg Users/Dept',
-      value: data.summary.average_users_per_department.toFixed(1),
+      value: data.summary.average_users_per_department?.toFixed(1) || '0.0',
       icon: Users,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50'
     },
     {
       label: 'Avg Users/Branch',
-      value: data.summary.average_users_per_branch.toFixed(1),
+      value: data.summary.average_users_per_branch?.toFixed(1) || '0.0',
       icon: TrendingUp,
       color: 'text-red-600',
       bgColor: 'bg-red-50'
     }
   ];
 
-  const renderBreakdownTable = (title: string, items: any[], type: string) => (
-    <div className="space-y-4">
-      <h4 className="text-md font-semibold text-gray-900">{title}</h4>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Total Users
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Active Users
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Completion Rate
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.slice(0, 5).map((item) => (
-              <tr key={item[`${type}_id`]}>
-                <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {item[`${type}_name`]}
-                </td>
-                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                  {item.user_count}
-                </td>
-                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                  {item.active_users}
-                </td>
-                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex items-center">
-                    <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${item.completion_rate}%` }}
-                      />
-                    </div>
-                    <span>{item.completion_rate.toFixed(1)}%</span>
-                  </div>
-                </td>
+  const renderBreakdownTable = (title: string, items: any[], type: string) => {
+    // Debug logging for completion_rate values and items structure
+    console.log(`${title} data:`, {
+      items,
+      itemsType: typeof items,
+      itemsLength: items?.length || 0,
+      firstItem: items?.[0]
+    });
+
+    // Handle case where items is undefined or null
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return (
+        <div className="space-y-4">
+          <h4 className="text-md font-semibold text-gray-900">{title}</h4>
+          <div className="text-center py-4">
+            <p className="text-gray-500 text-sm">No data available</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Debug logging for completion_rate values
+    console.log(`${title} completion_rate values:`, items.map(item => ({
+      name: item[`${type}_name`],
+      completion_rate: item.completion_rate,
+      completion_rate_type: typeof item.completion_rate
+    })));
+
+    return (
+      <div className="space-y-4">
+        <h4 className="text-md font-semibold text-gray-900">{title}</h4>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Users
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Active Users
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Completion Rate
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {items.length > 5 && (
-          <p className="text-sm text-gray-500 mt-2">
-            Showing top 5 of {items.length} {type}s
-          </p>
-        )}
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {items.slice(0, 5).map((item) => (
+                <tr key={item[`${type}_id`]}>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {item[`${type}_name`]}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    {item.user_count}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    {item.active_users}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${item.completion_rate || 0}%` }}
+                        />
+                      </div>
+                      <span>{(item.completion_rate || 0).toFixed(1)}%</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {items.length > 5 && (
+            <p className="text-sm text-gray-500 mt-2">
+              Showing top 5 of {items.length} {type}s
+            </p>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">

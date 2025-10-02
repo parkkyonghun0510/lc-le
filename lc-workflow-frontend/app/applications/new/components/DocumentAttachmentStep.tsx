@@ -46,6 +46,23 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
     { id: 'collateral_other', label: 'បញ្ចាំផ្សេងៗ', role: 'collateral' },
   ];
 
+  // Map frontend document IDs to backend document types
+  const getBackendDocumentType = (docId: string): 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other' => {
+    const mapping: Record<string, 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other'> = {
+      'borrower_photo': 'borrower_photo',
+      'borrower_nid_front': 'borrower_id',
+      'guarantor_photo': 'guarantor_photo',
+      'guarantor_nid_front': 'guarantor_id',
+      'driver_license': 'borrower_id',
+      'passport': 'borrower_id',
+      'business_license': 'borrower_income_proof',
+      'land_title': 'land_title',
+      'house_photo': 'collateral_photo',
+      'collateral_other': 'collateral_document',
+    };
+    return mapping[docId] || 'other';
+  };
+
   // Mobile device detection
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -205,7 +222,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
             file,
             applicationId,
             folderId,
-            documentType: 'photos',
+            documentType: getBackendDocumentType(docType),
             fieldName: docType,
             onProgress: (progress) => {
               setUploadProgress(prev => ({ ...prev, [key]: progress }));
@@ -292,7 +309,7 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
           file: capture.file,
           applicationId,
           folderId,
-          documentType: 'photos',
+          documentType: getBackendDocumentType(currentDocType),
           fieldName: currentDocType,
           onProgress: (progress) => {
             setUploadProgress(prev => ({ ...prev, [key]: progress }));

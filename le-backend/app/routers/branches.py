@@ -47,14 +47,20 @@ async def create_branch(
     
 
     
-    db_branch = Branch(**branch.dict())
-    db.add(db_branch)
+    try:
+        db_branch = Branch(**branch.dict())
+        db.add(db_branch)
 
-    await db.flush()
-
-    await db.refresh(db_branch)
-    await db.refresh(db_branch)
-    return BranchResponse.from_orm(db_branch)
+        await db.flush()
+        await db.commit()
+        await db.refresh(db_branch)
+        return BranchResponse.from_orm(db_branch)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create branch: {str(e)}"
+        )
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_branches(

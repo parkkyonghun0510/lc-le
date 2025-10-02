@@ -253,9 +253,15 @@ export default function CustomerFileExplorer({
     } else if (currentPath.length === 2) {
       // Application level
       // Prefer folders if they exist; otherwise, show files directly under the application
-      const hasFolders = Array.isArray(foldersData) && foldersData.length > 0;
+      // Ensure foldersData is always an array, handling both paginated and direct array responses
+      const foldersArray: DocumentFolder[] = Array.isArray(foldersData)
+        ? foldersData
+        : (foldersData as any)?.items && Array.isArray((foldersData as any).items)
+          ? (foldersData as any).items
+          : [];
+      const hasFolders = foldersArray.length > 0;
       if (hasFolders) {
-        const appFolders: DocumentFolder[] = (foldersData || []).map((f) => ({
+        const appFolders: DocumentFolder[] = foldersArray.map((f: DocumentFolder) => ({
           id: f.id,
           name: f.name,
           type: 'folder' as const,
@@ -385,7 +391,7 @@ export default function CustomerFileExplorer({
 
   const getBreadcrumbPath = () => {
     const paths = [{ name: 'Customers', index: -1 }];
-    
+
     if (currentPath.length > 0) {
       const customers = customersData?.items || [];
       const customer = (customers as User[]).find(c => c.id === currentPath[0]);
@@ -393,7 +399,7 @@ export default function CustomerFileExplorer({
         const displayName = `${customer.first_name} ${customer.last_name}`.trim() || customer.username;
         paths.push({ name: displayName, index: 0 });
       }
-      
+
       if (currentPath.length > 1) {
         const application = (applicationsList as CustomerApplication[]).find(a => a.id === currentPath[1]);
         if (application) {
@@ -404,14 +410,20 @@ export default function CustomerFileExplorer({
         }
 
         if (currentPath.length > 2) {
-          const folder = (foldersData || []).find((f) => f.id === currentPath[2]);
+          // Ensure foldersData is always an array, handling both paginated and direct array responses
+          const foldersArray: DocumentFolder[] = Array.isArray(foldersData)
+            ? foldersData
+            : (foldersData as any)?.items && Array.isArray((foldersData as any).items)
+              ? (foldersData as any).items
+              : [];
+          const folder = foldersArray.find((f: DocumentFolder) => f.id === currentPath[2]);
           if (folder) {
             paths.push({ name: folder.name, index: 2 });
           }
         }
       }
     }
-    
+
     return paths;
   };
 

@@ -97,28 +97,24 @@ const fileApi = {
     applicationId?: string,
     onProgress?: (progress: number) => void,
     folderId?: string,
-    documentType?: 'photos' | 'references' | 'supporting_docs',
+    documentType?: 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other',
     fieldName?: string
   ): Promise<ApiFile> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Send parameters as form data (try multiple parameter formats)
+    // Send parameters as form data
     if (applicationId) {
       formData.append('application_id', applicationId);
-      formData.append('applicationId', applicationId); // Alternative format
     }
     if (folderId) {
       formData.append('folder_id', folderId);
-      formData.append('folderId', folderId); // Alternative format
     }
     if (documentType) {
       formData.append('document_type', documentType);
-      formData.append('documentType', documentType); // Alternative format
     }
     if (fieldName) {
       formData.append('field_name', fieldName);
-      formData.append('fieldName', fieldName); // Alternative format
     }
 
     // Upload file to specified folder if provided
@@ -336,7 +332,7 @@ export const useUploadFile = () => {
       applicationId?: string; 
       onProgress?: (progress: number) => void;
       folderId?: string;
-      documentType?: 'photos' | 'references' | 'supporting_docs';
+      documentType?: 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other';
       fieldName?: string;
     }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType, fieldName),
     onSuccess: (data) => {

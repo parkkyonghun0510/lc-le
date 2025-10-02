@@ -36,7 +36,9 @@ interface FileWithCategory {
 
 const getDocumentTypeInfo = (type: DocumentType) => {
   switch (type) {
-    case 'photos':
+    case 'borrower_photo':
+    case 'guarantor_photo':
+    case 'collateral_photo':
       return {
         icon: PhotoIcon,
         color: 'text-green-600',
@@ -44,21 +46,41 @@ const getDocumentTypeInfo = (type: DocumentType) => {
         borderColor: 'border-green-300',
         description: 'Photos and images'
       };
-    case 'references':
+    case 'borrower_id':
+    case 'guarantor_id':
       return {
-        icon: UserGroupIcon,
+        icon: DocumentIcon,
         color: 'text-blue-600',
         bgColor: 'bg-blue-100',
         borderColor: 'border-blue-300',
-        description: 'Reference documents'
+        description: 'ID documents'
       };
-    case 'supporting_docs':
+    case 'borrower_income_proof':
+    case 'guarantor_income_proof':
       return {
         icon: DocumentDuplicateIcon,
         color: 'text-purple-600',
         bgColor: 'bg-purple-100',
         borderColor: 'border-purple-300',
-        description: 'Supporting documents'
+        description: 'Income proof documents'
+      };
+    case 'land_title':
+    case 'collateral_document':
+    case 'contract':
+      return {
+        icon: DocumentDuplicateIcon,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-100',
+        borderColor: 'border-orange-300',
+        description: 'Legal documents'
+      };
+    case 'other':
+      return {
+        icon: DocumentIcon,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        borderColor: 'border-gray-300',
+        description: 'Other documents'
       };
     default:
       return {

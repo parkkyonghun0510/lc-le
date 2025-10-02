@@ -167,37 +167,45 @@ async def create_user(
     # Validate branch-based assignments
     await validate_branch_assignments(db, user.branch_id, user.portfolio_id, user.line_manager_id)
     
-    db_user = User(
-        **user.dict(exclude={"password"}),
-        password_hash=get_password_hash(user.password)
-    )
-    db.add(db_user)
-    await db.flush()
-    await db.refresh(db_user)
-    # Re-fetch with relationships eagerly loaded to avoid lazy IO during serialization
-    result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.department),
-            selectinload(User.branch),
-            selectinload(User.position),
-            selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
+    try:
+        db_user = User(
+            **user.dict(exclude={"password"}),
+            password_hash=get_password_hash(user.password)
         )
-        .where(User.id == db_user.id)
-    )
+        db.add(db_user)
+        await db.flush()
+        await db.commit()
+        await db.refresh(db_user)
+        # Re-fetch with relationships eagerly loaded to avoid lazy IO during serialization
+        result = await db.execute(
+            select(User)
+            .options(
+                selectinload(User.department),
+                selectinload(User.branch),
+                selectinload(User.position),
+                selectinload(User.portfolio).options(
+                    selectinload(User.position),
+                    selectinload(User.department),
+                    selectinload(User.branch),
+                    selectinload(User.portfolio),
+                    selectinload(User.line_manager)
+                ),
+                selectinload(User.line_manager).options(
+                    selectinload(User.position),
+                    selectinload(User.department),
+                    selectinload(User.branch),
+                    selectinload(User.portfolio),
+                    selectinload(User.line_manager)
+                ),
+            )
+            .where(User.id == db_user.id)
+        )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
     db_user_loaded = result.scalar_one_or_none()
     
     # Invalidate user cache after creating new user

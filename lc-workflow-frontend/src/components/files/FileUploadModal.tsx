@@ -14,7 +14,7 @@ interface FileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   applicationId?: string;
-  documentType?: 'photos' | 'references' | 'supporting_docs';
+  documentType?: 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other';
 }
 
 interface FileWithProgress {

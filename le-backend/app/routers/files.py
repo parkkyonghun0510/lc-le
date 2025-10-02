@@ -360,10 +360,17 @@ async def upload_file(
             f"filename={db_file.filename}, file_size={db_file.file_size}"
         )
         
-        db.add(db_file)
-        await db.flush()
-        await db.refresh(db_file)
-        await db.refresh(db_file)
+        try:
+            db.add(db_file)
+            await db.flush()
+            await db.commit()
+            await db.refresh(db_file)
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to save file record: {str(e)}"
+            )
         
         logger.info(
             f"File record created successfully [correlation_id: {correlation_id}]: "
@@ -490,11 +497,18 @@ async def finalize_uploaded_file(
         application_id=payload.application_id,
         folder_id=payload.folder_id,
     )
-    db.add(db_file)
-    await db.flush()
-    await db.refresh(db_file)
-    await db.refresh(db_file)
-    return FileResponse.from_orm(db_file)
+    try:
+        db.add(db_file)
+        await db.flush()
+        await db.commit()
+        await db.refresh(db_file)
+        return FileResponse.from_orm(db_file)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to finalize file: {str(e)}"
+        )
 
 @router.get("/", response_model=PaginatedResponse)
 async def get_files(

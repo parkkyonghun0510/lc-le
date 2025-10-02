@@ -3,7 +3,7 @@ export type LoanPurpose = 'commerce' | 'agriculture' | 'education' | 'housing' |
 export type ProductType = 'monthly_loan' | 'biweekly_loan' | 'weekly_loan' | 'daily_loan';
 export type IDCardType = 'cambodian_identity' | 'passport' | 'driver-license' | 'gov-card' | 'monk-card' | 'family-book' | 'birth-certificate' | 'other';
 export type LoanTerm = number;
-export type DocumentType = 'photos' | 'references' | 'supporting_docs';
+export type DocumentType = 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other';
 
 // Form values interface aligned with backend schema
 export interface ApplicationFormValues {
@@ -85,7 +85,15 @@ export const ID_CARD_TYPES: IDCardType[] = ['cambodian_identity', 'passport', 'd
 // Removed LOAN_TERMS constant as loan term is now a manual numeric input
 
 export const DOCUMENT_TYPES: DocumentTypeInfo[] = [
-  { type: 'photos', label: 'Photos' },
-  { type: 'references', label: 'References' },
-  { type: 'supporting_docs', label: 'Supporting Documents' },
+  { type: 'borrower_photo', label: 'Borrower Photo' },
+  { type: 'borrower_id', label: 'Borrower ID' },
+  { type: 'borrower_income_proof', label: 'Borrower Income Proof' },
+  { type: 'guarantor_photo', label: 'Guarantor Photo' },
+  { type: 'guarantor_id', label: 'Guarantor ID' },
+  { type: 'guarantor_income_proof', label: 'Guarantor Income Proof' },
+  { type: 'collateral_photo', label: 'Collateral Photo' },
+  { type: 'collateral_document', label: 'Collateral Document' },
+  { type: 'land_title', label: 'Land Title' },
+  { type: 'contract', label: 'Contract' },
+  { type: 'other', label: 'Other' },
 ];

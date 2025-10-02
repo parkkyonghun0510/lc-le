@@ -45,14 +45,20 @@ async def create_department(
             detail="Department code already exists"
         )
     
-    db_department = Department(**department.dict())
-    db.add(db_department)
+    try:
+        db_department = Department(**department.dict())
+        db.add(db_department)
 
-    await db.flush()
-
-    await db.refresh(db_department)
-    await db.refresh(db_department)
-    return DepartmentResponse.from_orm(db_department)
+        await db.flush()
+        await db.commit()
+        await db.refresh(db_department)
+        return DepartmentResponse.from_orm(db_department)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create department: {str(e)}"
+        )
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_departments(

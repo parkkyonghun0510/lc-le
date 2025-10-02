@@ -165,8 +165,13 @@ export default function FolderFileExplorer({
     const items: ExplorerItem[] = [];
 
     // Add folders (for current parent path)
-    const apiFolders = foldersData || [];
-    const folderItems: FolderItem[] = apiFolders.map((f) => ({
+    // Ensure foldersData is always an array, handling both paginated and direct array responses
+    const foldersArray: any[] = Array.isArray(foldersData)
+      ? foldersData
+      : (foldersData as any)?.items && Array.isArray((foldersData as any).items)
+        ? (foldersData as any).items
+        : [];
+    const folderItems: FolderItem[] = foldersArray.map((f: any) => ({
       id: f.id,
       name: f.name,
       type: 'folder' as const,

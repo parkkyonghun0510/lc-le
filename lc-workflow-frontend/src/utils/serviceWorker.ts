@@ -28,47 +28,13 @@ class ServiceWorkerManager {
   }
 
   /**
-   * Register the service worker
-   */
-  async register(): Promise<ServiceWorkerRegistration | null> {
-    if (!this.status.isSupported) {
-      console.warn('Service Worker not supported');
-      return null;
-    }
-
-    try {
-      this.registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
-
-      this.status.isRegistered = true;
-      this.status.registration = this.registration;
-
-      // Listen for updates
-      this.registration.addEventListener('updatefound', () => {
-        const newWorker = this.registration!.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              this.status.hasUpdate = true;
-              this.notifyListeners();
-            }
-          });
-        }
-      });
-
-      // Listen for messages from service worker
-      navigator.serviceWorker.addEventListener('message', this.handleMessage.bind(this));
-
-      this.notifyListeners();
-      console.log('Service Worker registered successfully');
-      
-      return this.registration;
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-      return null;
-    }
-  }
+    * Register the service worker (DISABLED - PWA functionality removed)
+    */
+   async register(): Promise<ServiceWorkerRegistration | null> {
+     // PWA functionality has been disabled
+     console.log('Service Worker registration disabled - PWA functionality removed');
+     return null;
+   }
 
   /**
    * Update the service worker
@@ -173,14 +139,12 @@ class ServiceWorkerManager {
   }
 
   /**
-   * Check if app is running in standalone mode (PWA)
-   */
-  isStandalone(): boolean {
-    return (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true
-    );
-  }
+    * Check if app is running in standalone mode (PWA) - DISABLED
+    */
+   isStandalone(): boolean {
+     // PWA functionality disabled
+     return false;
+   }
 
   /**
    * Request notification permission
@@ -401,7 +365,8 @@ export function isServiceWorkerSupported(): boolean {
 }
 
 export function isPWAInstallable(): boolean {
-  return 'BeforeInstallPromptEvent' in window;
+  // PWA functionality disabled
+  return false;
 }
 
 export function isOffline(): boolean {

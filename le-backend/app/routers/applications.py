@@ -83,13 +83,20 @@ async def create_application(
         po_created_at=datetime.now(timezone.utc),
         po_created_by=current_user.id
     )
-    db.add(db_application)
-    await db.flush()
-    await db.refresh(db_application)
-    await db.refresh(db_application)
-    resp = CustomerApplicationResponse.from_orm(db_application)
-    enrich_application_response(resp)
-    return resp
+    try:
+        db.add(db_application)
+        await db.flush()
+        await db.commit()
+        await db.refresh(db_application)
+        resp = CustomerApplicationResponse.from_orm(db_application)
+        enrich_application_response(resp)
+        return resp
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create application: {str(e)}"
+        )
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_applications(

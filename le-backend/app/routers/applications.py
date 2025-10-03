@@ -28,45 +28,92 @@ from app.services.minio_service import minio_service
 DEFAULT_MINIO_URL_EXPIRES = 3600  # 1 hour
 
 def enrich_documents_with_minio_urls(documents: Optional[List[Dict[str, Any]]], expires: int = DEFAULT_MINIO_URL_EXPIRES) -> Optional[List[Dict[str, Any]]]:
+    import logging
+    logger = logging.getLogger(__name__)
+
     if not documents:
+        logger.info("No documents to enrich with MinIO URLs")
         return documents
+
+    logger.info(f"Enriching {len(documents)} documents with MinIO URLs")
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(seconds=expires)
-    for doc in documents:
+
+    success_count = 0
+    error_count = 0
+
+    for i, doc in enumerate(documents):
         object_name = doc.get("object_name")
+        logger.info(f"Processing document {i+1}/{len(documents)}: object_name={object_name}")
+
         if object_name:
             try:
+                logger.info(f"Generating MinIO URL for object: {object_name}")
                 doc["url"] = minio_service.get_file_url(object_name, expires=expires)
                 doc["expires_at"] = expires_at
-            except Exception:
+                success_count += 1
+                logger.info(f"Successfully generated URL for object: {object_name}")
+            except Exception as e:
+                logger.error(f"Failed to generate MinIO URL for object {object_name}: {str(e)}")
                 doc["url"] = None
                 doc["expires_at"] = None
+                error_count += 1
         else:
+            logger.info(f"No object_name for document {i+1}, setting URL to None")
             doc["url"] = None
             doc["expires_at"] = None
+
         preview_object_name = doc.get("preview_object_name") or doc.get("thumbnail_object_name") or doc.get("thumbnail")
+        logger.info(f"Processing preview for document {i+1}: preview_object_name={preview_object_name}")
+
         if preview_object_name:
             try:
+                logger.info(f"Generating MinIO preview URL for object: {preview_object_name}")
                 doc["preview_url"] = minio_service.get_file_url(preview_object_name, expires=expires)
-            except Exception:
+                success_count += 1
+                logger.info(f"Successfully generated preview URL for object: {preview_object_name}")
+            except Exception as e:
+                logger.error(f"Failed to generate MinIO preview URL for object {preview_object_name}: {str(e)}")
                 doc["preview_url"] = None
+                error_count += 1
         else:
+            logger.info(f"No preview_object_name for document {i+1}, setting preview_url to None")
             doc["preview_url"] = None
+
+    logger.info(f"Document enrichment completed: {success_count} successes, {error_count} errors")
     return documents
 
 def enrich_application_response(app_data: Any, expires: int = DEFAULT_MINIO_URL_EXPIRES):
-    # app_data can be a dict, pydantic model, or list thereof
-    if isinstance(app_data, list):
-        for item in app_data:
-            enrich_application_response(item, expires)
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Enriching application response with MinIO URLs (expires: {expires}s)")
+
+    try:
+        # app_data can be a dict, pydantic model, or list thereof
+        if isinstance(app_data, list):
+            logger.info(f"Enriching list of {len(app_data)} applications")
+            for item in app_data:
+                enrich_application_response(item, expires)
+            return app_data
+
+        if hasattr(app_data, "documents"):
+            docs = getattr(app_data, "documents", None)
+            logger.info(f"Enriching documents for application object, docs count: {len(docs) if docs else 0}")
+            enriched = enrich_documents_with_minio_urls(docs, expires)
+            setattr(app_data, "documents", enriched)
+        elif isinstance(app_data, dict) and "documents" in app_data:
+            docs = app_data.get("documents")
+            logger.info(f"Enriching documents for application dict, docs count: {len(docs) if docs else 0}")
+            app_data["documents"] = enrich_documents_with_minio_urls(docs, expires)
+
+        logger.info("Successfully enriched application response with MinIO URLs")
         return app_data
-    if hasattr(app_data, "documents"):
-        docs = getattr(app_data, "documents", None)
-        enriched = enrich_documents_with_minio_urls(docs, expires)
-        setattr(app_data, "documents", enriched)
-    elif isinstance(app_data, dict) and "documents" in app_data:
-        app_data["documents"] = enrich_documents_with_minio_urls(app_data.get("documents"), expires)
-    return app_data
+
+    except Exception as e:
+        logger.error(f"Error enriching application response with MinIO URLs: {str(e)}", exc_info=True)
+        # Don't re-raise - let the application continue without MinIO URLs
+        return app_data
 
 router = APIRouter()
 
@@ -557,41 +604,66 @@ async def submit_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
-    result = await db.execute(
-        select(CustomerApplication).where(CustomerApplication.id == application_id)
-    )
-    application = result.scalar_one_or_none()
-    
-    if not application:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found"
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Starting submission for application {application_id} by user {current_user.id}")
+
+    try:
+        result = await db.execute(
+            select(CustomerApplication).where(CustomerApplication.id == application_id)
         )
-    
-    # Check permissions
-    if application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to submit this application"
-        )
-    
-    if application.workflow_status != WorkflowStatus.PO_CREATED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Application is not in the correct status for submission"
-        )
-    
-    application.workflow_status = WorkflowStatus.USER_COMPLETED
-    application.user_completed_at = datetime.now(timezone.utc)
-    application.status = "submitted"
-    application.submitted_at = datetime.now(timezone.utc)
-    
-    await db.commit()
-    await db.refresh(application)
-    
-    resp = CustomerApplicationResponse.from_orm(application)
-    enrich_application_response(resp)
-    return resp
+        application = result.scalar_one_or_none()
+
+        if not application:
+            logger.error(f"Application {application_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Application not found"
+            )
+
+        logger.info(f"Found application {application_id}, current status: {application.workflow_status}")
+
+        # Check permissions
+        if application.user_id != current_user.id:
+            logger.error(f"User {current_user.id} not authorized to submit application {application_id}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to submit this application"
+            )
+
+        if application.workflow_status != WorkflowStatus.PO_CREATED:
+            logger.error(f"Application {application_id} in wrong status for submission: {application.workflow_status}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Application is not in the correct status for submission"
+            )
+
+        logger.info(f"Updating application {application_id} status to submitted")
+        application.workflow_status = WorkflowStatus.USER_COMPLETED
+        application.user_completed_at = datetime.now(timezone.utc)
+        application.status = "submitted"
+        application.submitted_at = datetime.now(timezone.utc)
+
+        logger.info(f"Committing application {application_id} changes")
+        await db.commit()
+
+        logger.info(f"Refreshing application {application_id} from database")
+        await db.refresh(application)
+
+        logger.info(f"Creating response model for application {application_id}")
+        resp = CustomerApplicationResponse.from_orm(application)
+
+        logger.info(f"Enriching application {application_id} response with MinIO URLs")
+        enrich_application_response(resp)
+
+        logger.info(f"Successfully completed submission for application {application_id}")
+        return resp
+
+    except Exception as e:
+        logger.error(f"Error during submission of application {application_id}: {str(e)}", exc_info=True)
+        # Don't rollback here - let the error handlers handle it
+        raise
 
 @router.patch("/{application_id}/approve", response_model=CustomerApplicationResponse)
 async def approve_application(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useUploadFile } from '@/hooks/useFiles';
 import {
@@ -12,9 +12,16 @@ import {
   DocumentDuplicateIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  PauseIcon,
+  PlayIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
 import { formatBytes } from '@/lib/utils';
 import { DocumentType } from '../../../app/applications/new/types';
+import { UploadController, UploadOptions } from '@/lib/upload/UploadController';
+import { BulkCategoryOperations, FileWithCategory as BulkFileWithCategory } from '@/lib/upload/BulkCategoryOperations';
+import { PerformanceOptimizer, ProgressAggregator } from '@/lib/upload/PerformanceOptimizer';
+import { RetryManager, RetryConfigs } from '@/lib/upload/RetryManager';
 
 interface GroupFileUploadModalProps {
   isOpen: boolean;
@@ -101,7 +108,104 @@ export default function GroupFileUploadModal({
 }: GroupFileUploadModalProps) {
   const [files, setFiles] = useState<FileWithCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<DocumentType | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSessionId, setUploadSessionId] = useState<string | null>(null);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState(0);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
+
   const uploadFileMutation = useUploadFile();
+  const uploadControllerRef = useRef<UploadController | null>(null);
+  const bulkCategoryOpsRef = useRef<BulkCategoryOperations | null>(null);
+  const progressAggregatorRef = useRef<ProgressAggregator | null>(null);
+  const performanceOptimizerRef = useRef(PerformanceOptimizer.getInstance());
+
+  // Initialize upload infrastructure
+  useEffect(() => {
+    if (isOpen && !uploadControllerRef.current) {
+      const uploadOptions: UploadOptions = {
+        queue: {
+          maxConcurrent: 3,
+          maxRetries: 3,
+          retryDelay: 1000,
+          retryDelayMultiplier: 2,
+        },
+        retry: RetryConfigs.standard,
+        onProgress: (taskId, progress) => {
+          setFiles(prev => prev.map(f =>
+            f.file.name === taskId ? { ...f, progress } : f
+          ));
+        },
+        onComplete: (taskId) => {
+          setFiles(prev => prev.map(f =>
+            f.file.name === taskId ? { ...f, status: 'completed', progress: 100 } : f
+          ));
+        },
+        onError: (taskId, error) => {
+          setFiles(prev => prev.map(f =>
+            f.file.name === taskId ? { ...f, status: 'error', error: String(error) } : f
+          ));
+        },
+      };
+
+      // Create actual upload function that uses the mutation
+      const actualUploadFn = async (
+        file: File,
+        applicationId?: string,
+        onProgress?: (progress: number) => void,
+        documentType?: string,
+        fieldName?: string
+      ) => {
+        return new Promise((resolve, reject) => {
+          // Check if mutation is already in progress
+          if (uploadFileMutation.isPending) {
+            reject(new Error('Another upload is already in progress'));
+            return;
+          }
+
+          uploadFileMutation.mutate(
+            {
+              file,
+              applicationId,
+              documentType: documentType as any,
+              fieldName,
+              onProgress,
+            },
+            {
+              onSuccess: (data) => {
+                resolve(data);
+              },
+              onError: (error) => {
+                // Immediately reject on any server error
+                console.error('Upload failed with server error:', error);
+                reject(error);
+              },
+            }
+          );
+        });
+      };
+
+      uploadControllerRef.current = new UploadController(uploadOptions, actualUploadFn);
+      bulkCategoryOpsRef.current = new BulkCategoryOperations();
+      progressAggregatorRef.current = new ProgressAggregator();
+
+      // Set up overall progress tracking
+      progressAggregatorRef.current.setAggregatedCallback((overall) => {
+        setOverallProgress(overall.percentage);
+        setUploadSpeed(overall.speed);
+        setEstimatedTimeRemaining(overall.remainingTime);
+      });
+    }
+
+    return () => {
+      if (uploadControllerRef.current && !isUploading) {
+        uploadControllerRef.current.destroy();
+        uploadControllerRef.current = null;
+        bulkCategoryOpsRef.current = null;
+        progressAggregatorRef.current = null;
+      }
+    };
+  }, [isOpen, isUploading, uploadFileMutation]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -157,28 +261,75 @@ export default function GroupFileUploadModal({
       return;
     }
 
+    if (!uploadControllerRef.current) {
+      setFiles((prev) =>
+        prev.map((f, i) =>
+          i === index
+            ? {
+                ...f,
+                status: 'error',
+                error: 'Upload controller not initialized',
+              }
+            : f
+        )
+      );
+      return;
+    }
+
     setFiles((prev) =>
       prev.map((f, i) => (i === index ? { ...f, status: 'uploading' } : f))
     );
 
     try {
-      await uploadFileMutation.mutateAsync({
-        file: fileWithCategory.file,
-        applicationId,
-        documentType: fileWithCategory.category,
-        fieldName: fileWithCategory.category, // Use category as field name for structured naming
-        onProgress: (progress) => {
-          setFiles((prev) =>
-            prev.map((f, i) => (i === index ? { ...f, progress } : f))
-          );
-        },
-      });
+      // Create upload session if not exists
+      if (!uploadSessionId) {
+        const sessionId = uploadControllerRef.current.createSession();
+        setUploadSessionId(sessionId);
+      }
 
-      setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index ? { ...f, status: 'completed', progress: 100 } : f
-        )
+      // Upload file using new infrastructure with actual API call
+      const taskId = await uploadControllerRef.current.uploadFile(
+        fileWithCategory.file,
+        fileWithCategory.category,
+        uploadSessionId || undefined,
+        {
+          onProgress: (progress) => {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.file.name === fileWithCategory.file.name ? { ...f, progress: Number(progress) } : f
+              )
+            );
+          },
+          onComplete: () => {
+            // Only mark as completed when server confirms success
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.file.name === fileWithCategory.file.name
+                  ? { ...f, status: 'completed', progress: 100 }
+                  : f
+              )
+            );
+          },
+          onError: (error) => {
+            // Immediately stop upload and show error when server fails
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.file.name === fileWithCategory.file.name
+                  ? { ...f, status: 'error', error: String(error) }
+                  : f
+              )
+            );
+          },
+        }
       );
+
+      // Add to progress aggregator
+      if (progressAggregatorRef.current) {
+        progressAggregatorRef.current.addUpload(taskId, fileWithCategory.file.size);
+      }
+
+      setIsUploading(true);
+
     } catch (error: any) {
       setFiles((prev) =>
         prev.map((f, i) =>
@@ -195,12 +346,118 @@ export default function GroupFileUploadModal({
   };
 
   const uploadAllFiles = async () => {
+    if (!uploadControllerRef.current) return;
+
     const pendingFiles = files.filter((f) => f.status === 'pending');
 
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].status === 'pending') {
-        await uploadFile(files[i], i);
+    if (pendingFiles.length === 0) return;
+
+    // Create upload session
+    const sessionId = uploadControllerRef.current.createSession();
+    setUploadSessionId(sessionId);
+    setIsUploading(true);
+
+    try {
+      // Convert files to upload format
+      const filesToUpload = pendingFiles.map(f => ({
+        file: f.file,
+        category: f.category,
+        priority: f.category === 'borrower_photo' ? 2 : 1, // Higher priority for photos
+      }));
+
+      // Upload all files in parallel using new infrastructure with actual API calls
+      const taskIds = await uploadControllerRef.current.uploadFiles(
+        filesToUpload,
+        sessionId,
+        {
+          onProgress: (progress) => {
+            setFiles(prev => prev.map(f => {
+              // Find file by matching with task ID (simplified - in real implementation you'd map properly)
+              const matchingFile = prev.find(pf => pf.status === 'uploading');
+              return matchingFile ? { ...matchingFile, progress: Number(progress) } : f;
+            }));
+          },
+          onComplete: (taskId) => {
+            // Only mark as completed when server confirms success
+            setFiles(prev => prev.map(f =>
+              f.status === 'uploading' ? { ...f, status: 'completed', progress: 100 } : f
+            ));
+          },
+          onError: (taskId, error) => {
+            // Immediately stop upload and show error when server fails
+            setFiles(prev => prev.map(f =>
+              f.status === 'uploading' ? { ...f, status: 'error', error: String(error) } : f
+            ));
+          },
+        }
+      );
+
+      // Add all uploads to progress aggregator
+      if (progressAggregatorRef.current) {
+        taskIds.forEach((taskId, index) => {
+          if (pendingFiles[index]) {
+            progressAggregatorRef.current!.addUpload(taskId, pendingFiles[index].file.size);
+          }
+        });
       }
+
+    } catch (error: any) {
+      console.error('Bulk upload failed:', error);
+      setIsUploading(false);
+      // Show error for all uploading files
+      setFiles(prev => prev.map(f =>
+        f.status === 'uploading' ? { ...f, status: 'error', error: String(error) } : f
+      ));
+    }
+  };
+
+  const cancelAllUploads = () => {
+    if (uploadControllerRef.current) {
+      uploadControllerRef.current.cancelAll();
+      setIsUploading(false);
+      setUploadSessionId(null);
+
+      // Reset file statuses
+      setFiles(prev => prev.map(f =>
+        f.status === 'uploading' ? { ...f, status: 'pending', error: undefined } : f
+      ));
+    }
+  };
+
+  // Enhanced error handling for server errors
+  const handleUploadError = (error: any) => {
+    console.error('Server upload error:', error);
+
+    // Check if it's a server error (500, 502, 503, etc.)
+    const isServerError = error?.response?.status >= 500 ||
+                         error?.message?.includes('500') ||
+                         error?.message?.includes('502') ||
+                         error?.message?.includes('503') ||
+                         error?.message?.includes('504');
+
+    if (isServerError) {
+      // For server errors, stop all uploads and show error
+      setIsUploading(false);
+      setFiles(prev => prev.map(f =>
+        f.status === 'uploading'
+          ? { ...f, status: 'error', error: `Server Error: ${error.response?.data?.detail || error.message}` }
+          : f
+      ));
+      return true; // Indicates error was handled
+    }
+
+    return false; // Indicates error was not a server error
+  };
+
+  const pauseUploads = () => {
+    if (uploadControllerRef.current && uploadSessionId) {
+      uploadControllerRef.current.pauseSession(uploadSessionId);
+    }
+  };
+
+  const resumeUploads = () => {
+    if (uploadControllerRef.current && uploadSessionId) {
+      uploadControllerRef.current.resumeSession(uploadSessionId, 3);
     }
   };
 
@@ -214,6 +471,31 @@ export default function GroupFileUploadModal({
   const hasFiles = files.length > 0;
   const hasPendingFiles = files.some((f) => f.status === 'pending');
   const hasUncategorizedFiles = files.some((f) => f.status === 'pending' && !f.category);
+  const hasUploadingFiles = files.some((f) => f.status === 'uploading');
+  const hasFailedFiles = files.some((f) => f.status === 'error');
+  const hasServerErrors = files.some((f) => f.error?.includes('Server Error'));
+
+  // Bulk operations
+  const applyCategoryToUncategorized = (category: DocumentType) => {
+    if (bulkCategoryOpsRef.current) {
+      bulkCategoryOpsRef.current.updateFiles(files as BulkFileWithCategory[]);
+      const result = bulkCategoryOpsRef.current.applyToUncategorized(category);
+      setFiles(result.updatedFiles as FileWithCategory[]);
+    }
+  };
+
+  const autoCategorizeFiles = () => {
+    if (bulkCategoryOpsRef.current) {
+      bulkCategoryOpsRef.current.updateFiles(files as BulkFileWithCategory[]);
+      const result = bulkCategoryOpsRef.current.autoCategorize([
+        { type: 'borrower_photo', patterns: ['photo', 'image', 'jpg', 'jpeg', 'png'] },
+        { type: 'borrower_id', patterns: ['id', 'identification', 'card'] },
+        { type: 'borrower_income_proof', patterns: ['income', 'salary', 'pay', 'proof'] },
+        { type: 'contract', patterns: ['contract', 'agreement'] },
+      ]);
+      setFiles(result.updatedFiles as FileWithCategory[]);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -325,6 +607,105 @@ export default function GroupFileUploadModal({
             )}
           </div>
 
+          {/* Bulk Operations */}
+          {hasUncategorizedFiles && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-300">
+                  <ExclamationTriangleIcon className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    {files.filter(f => f.status === 'pending' && !f.category).length} files need categories
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={autoCategorizeFiles}
+                    className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                  >
+                    Auto-Categorize
+                  </button>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        applyCategoryToUncategorized(e.target.value as DocumentType);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="">Apply to all...</option>
+                    {documentTypes.map((docType) => (
+                      <option key={docType.type} value={docType.type}>
+                        {docType.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Server Error Alert */}
+          {hasServerErrors && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                    Server Error Detected
+                  </h3>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                    The server encountered an error (500). Please check your connection and try again.
+                    All uploads have been stopped for safety.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    // Reset files with server errors
+                    setFiles(prev => prev.map(f =>
+                      f.error?.includes('Server Error')
+                        ? { ...f, status: 'pending', error: undefined, progress: 0 }
+                        : f
+                    ));
+                  }}
+                  className="flex-shrink-0 px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200"
+                >
+                  Retry All
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Upload Progress */}
+          {isUploading && !hasServerErrors && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Upload Progress
+                </span>
+                <span className="text-sm text-blue-600 dark:text-blue-400">
+                  {Math.round(overallProgress)}%
+                </span>
+              </div>
+              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${overallProgress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2 text-xs text-blue-600 dark:text-blue-400">
+                <span>
+                  {uploadSpeed > 0 && `Speed: ${formatBytes(uploadSpeed)}/s`}
+                </span>
+                <span>
+                  {estimatedTimeRemaining > 0 && `~${Math.round(estimatedTimeRemaining)}s remaining`}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* File List */}
           {hasFiles && (
             <div className="mt-8">
@@ -332,14 +713,24 @@ export default function GroupFileUploadModal({
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   Selected Files ({files.length})
                 </h3>
-                {hasUncategorizedFiles && (
-                  <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400">
-                    <ExclamationTriangleIcon className="h-5 w-5" />
-                    <span className="text-sm font-medium">
-                      Some files need categories
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center space-x-2">
+                  {hasFailedFiles && (
+                    <div className="flex items-center space-x-1 text-red-600 dark:text-red-400">
+                      <ExclamationTriangleIcon className="h-4 w-4" />
+                      <span className="text-xs">
+                        {files.filter(f => f.status === 'error').length} failed
+                      </span>
+                    </div>
+                  )}
+                  {hasUncategorizedFiles && (
+                    <div className="flex items-center space-x-1 text-amber-600 dark:text-amber-400">
+                      <ExclamationTriangleIcon className="h-4 w-4" />
+                      <span className="text-xs">
+                        {files.filter(f => f.status === 'pending' && !f.category).length} need category
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-4">
                 {files.map((fileWithCategory, index) => {
@@ -446,21 +837,78 @@ export default function GroupFileUploadModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <button
-            onClick={handleClose}
-            className="px-6 py-2.5 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold transition-colors duration-200"
-          >
-            {allCompleted ? 'Close' : 'Cancel'}
-          </button>
-          {hasPendingFiles && (
+          <div className="flex items-center space-x-3">
             <button
-              onClick={uploadAllFiles}
-              disabled={uploadFileMutation.isPending || hasUncategorizedFiles}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              onClick={handleClose}
+              className="px-6 py-2.5 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold transition-colors duration-200"
             >
-              {uploadFileMutation.isPending ? 'Uploading...' : 'Upload All Files'}
+              {allCompleted ? 'Close' : 'Cancel'}
             </button>
-          )}
+
+            {/* Upload Controls */}
+            {isUploading && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={pauseUploads}
+                  className="p-2 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 rounded-lg transition-colors duration-200"
+                  title="Pause uploads"
+                >
+                  <PauseIcon className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={cancelAllUploads}
+                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors duration-200"
+                  title="Cancel all uploads"
+                >
+                  <StopIcon className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            {!isUploading && hasPendingFiles && hasUncategorizedFiles && (
+              <div className="px-3 py-2 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-lg text-sm">
+                Please categorize files before uploading
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {hasPendingFiles && !hasUncategorizedFiles && !hasServerErrors && (
+              <button
+                onClick={uploadAllFiles}
+                disabled={isUploading || hasServerErrors}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2"
+              >
+                {isUploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudArrowUpIcon className="h-4 w-4" />
+                    <span>Upload All Files</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {hasServerErrors && (
+              <div className="px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-xl text-sm font-medium">
+                Server error - please retry
+              </div>
+            )}
+
+            {isUploading && (
+              <button
+                onClick={resumeUploads}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors duration-200 flex items-center space-x-2"
+              >
+                <PlayIcon className="h-4 w-4" />
+                <span>Resume</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

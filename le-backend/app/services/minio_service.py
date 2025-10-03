@@ -159,24 +159,38 @@ class MinIOService:
 
     def get_file_url(self, object_name: str, expires: int = 3600) -> str:
         """Get presigned URL for file download"""
+        import logging
+        logger = logging.getLogger(__name__)
+
         if not self.enabled:
+            logger.error("MinIO service not configured or enabled")
             raise Exception("MinIO service not configured. Please check environment variables.")
-        
+
+        logger.info(f"Generating presigned URL for object: {object_name} (expires: {expires}s)")
+
         try:
             # Convert seconds to timedelta for MinIO client
             expires_delta = timedelta(seconds=expires)
+            logger.info(f"Calling presigned_get_object for bucket: {self.bucket_name}, object: {object_name}")
             url = self.client.presigned_get_object(
                 bucket_name=self.bucket_name,
                 object_name=object_name,
                 expires=expires_delta
             )
+
             # Hard guard: if production is secure, ensure presigned URL uses https
             if bool(getattr(settings, 'MINIO_SECURE', False)) and url.startswith('http://'):
+                logger.info("Converting HTTP URL to HTTPS for security")
                 url = 'https://' + url[len('http://'):]
+
+            logger.info(f"Successfully generated presigned URL for object: {object_name}")
             return url
+
         except S3Error as e:
+            logger.error(f"S3Error generating file URL for object {object_name}: {str(e)}", exc_info=True)
             raise Exception(f"Failed to generate file URL: {e}")
         except Exception as e:
+            logger.error(f"General error generating file URL for object {object_name}: {str(e)}", exc_info=True)
             raise Exception(f"Failed to generate file URL: {e}")
 
     def delete_file(self, object_name: str):

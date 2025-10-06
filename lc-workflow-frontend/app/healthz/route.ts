@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
     // API connectivity check
     try {
       const apiCheckStart = Date.now();
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090'}/health`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiResponse = await fetch(`${apiUrl.replace(/\/$/, '')}/health`, {
         signal: AbortSignal.timeout(5000),
       });
       const apiResponseTime = Date.now() - apiCheckStart;

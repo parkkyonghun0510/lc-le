@@ -14,7 +14,9 @@ export async function GET(
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
-    const response = await fetch(`${BACKEND_URL}/users/${id}`, {
+    const backendUrl = `${BACKEND_URL.replace(/\/$/, '')}/users/${id}`;
+
+    const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,
@@ -23,8 +25,9 @@ export async function GET(
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
       return NextResponse.json(
-        { error: 'Failed to fetch user data' },
+        { error: 'Failed to fetch user data', details: errorText },
         { status: response.status }
       );
     }
@@ -34,7 +37,7 @@ export async function GET(
   } catch (error) {
     console.error('Error proxying user request:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

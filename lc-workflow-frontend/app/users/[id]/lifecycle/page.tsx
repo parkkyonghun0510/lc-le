@@ -78,34 +78,27 @@ export default function UserLifecyclePage() {
         timestamp: new Date().toISOString()
       });
 
-      const response = await fetch(`/api/v1/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError('User not found');
-        } else if (response.status === 403) {
-          setError('You do not have permission to view this user');
-        } else if (response.status === 401) {
-          console.log('[DEBUG UserLifecycle] 401 error - token may be expired');
-          setError('Session expired. Please log in again.');
-          router.push('/login');
-          return;
-        } else {
-          setError('Failed to fetch user data');
-        }
-        return;
-      }
-
-      const userData = await response.json();
+      // Use the API client instead of direct fetch
+      const { apiClient } = await import('@/lib/api');
+      const userData = await apiClient.get(`/users/${userId}`);
+      
       setUser(userData);
       setError(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching user data:', error);
-      setError('Failed to fetch user data');
+      
+      if (error.response?.status === 404) {
+        setError('User not found');
+      } else if (error.response?.status === 403) {
+        setError('You do not have permission to view this user');
+      } else if (error.response?.status === 401) {
+        console.log('[DEBUG UserLifecycle] 401 error - token may be expired');
+        setError('Session expired. Please log in again.');
+        router.push('/login');
+        return;
+      } else {
+        setError('Failed to fetch user data');
+      }
     } finally {
       setLoading(false);
     }

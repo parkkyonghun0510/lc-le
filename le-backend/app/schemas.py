@@ -157,7 +157,7 @@ class UserResponse(UserBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
-    last_login_at: Optional[datetime]
+    last_login_at: Optional[datetime] = None
     # Enhanced status management fields
     status_reason: Optional[str] = None
     status_changed_at: Optional[datetime] = None
@@ -1796,7 +1796,7 @@ class ApprovalRequest(BaseSchema):
 # --- Resolve forward references after all models are defined ---
 # List all models that need rebuilding to resolve forward references
 _models_to_rebuild = [
-    UserBase, UserCreate, UserUpdate, UserResponse, UserLogin, 
+    UserBase, UserCreate, UserUpdate, UserResponse, UserSummary, UserLogin, 
     UserStatusChange, UserStatusChangeResponse,
     BulkStatusUpdate, BulkStatusUpdateResponse, BulkOperationResponse,
     CSVImportRequest, CSVImportResponse, CSVImportRowResult,

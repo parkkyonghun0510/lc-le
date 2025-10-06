@@ -80,7 +80,7 @@ export default function UserLifecyclePage() {
 
       // Use the API client instead of direct fetch
       const { apiClient } = await import('@/lib/api');
-      const userData = await apiClient.get(`/users/${userId}`);
+      const userData = await apiClient.get<UserData>(`/users/${userId}`);
       
       setUser(userData);
       setError(null);

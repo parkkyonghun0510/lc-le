@@ -60,6 +60,7 @@ export enum ApiErrorCategory {
   RATE_LIMIT = 'rate_limit',
   SERVER_ERROR = 'server_error',
   CLIENT_ERROR = 'client_error',
+  CONFLICT = 'conflict',
   UNKNOWN = 'unknown',
 }
 
@@ -76,9 +77,10 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
   retryDelay: 1000,
   retryCondition: (error: AxiosError) => {
-    // Retry on network errors, timeouts, and 5xx errors
+    // Retry on network errors, timeouts, 5xx errors, and 409 conflicts
     if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') return true;
     if (error.response?.status && error.response.status >= 500) return true;
+    if (error.response?.status === 409) return true; // Retry on conflicts
     return false;
   },
 };
@@ -164,6 +166,8 @@ class ApiClient {
         return ApiErrorCategory.AUTHORIZATION;
       case 404:
         return ApiErrorCategory.NOT_FOUND;
+      case 409:
+        return ApiErrorCategory.CONFLICT;
       case 422:
         return ApiErrorCategory.VALIDATION;
       case 429:
@@ -198,6 +202,8 @@ class ApiClient {
         return 'Server error occurred. Our team has been notified. Please try again later.';
       case ApiErrorCategory.CLIENT_ERROR:
         return 'There was a problem with your request. Please try again.';
+      case ApiErrorCategory.CONFLICT:
+        return 'A conflict occurred. The resource may have been modified by another user. Please refresh and try again.';
       default:
         return 'An unexpected error occurred. Please try again.';
     }
@@ -504,7 +510,11 @@ class ApiClient {
   }
 
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response: AxiosResponse<T> = await this.client.delete(url, config);
+    const response: AxiosResponse<T> = await this.retryRequest(
+      () => this.client.delete(url, config),
+      url,
+      'DELETE'
+    );
     return response.data as unknown as T;
   }
 

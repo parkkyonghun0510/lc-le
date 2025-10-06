@@ -22,7 +22,45 @@ from app.services.database_monitoring_service import DatabaseMonitoringService
 from app.core.user_status import UserStatus, can_transition_status, get_allowed_transitions
 from sqlalchemy.orm import selectinload, noload
 
+# Import new controllers
+from app.routers.users.controllers.user_controller import UserController
+from app.routers.users.controllers.profile_controller import ProfileController
+from app.routers.users.controllers.status_controller import StatusController
+
 router = APIRouter()
+
+# Initialize controllers
+user_controller = None
+profile_controller = None
+status_controller = None
+
+@router.on_event("startup")
+async def startup_event():
+    """Initialize controllers on startup."""
+    global user_controller, profile_controller, status_controller
+    # Controllers will be initialized with database sessions when needed
+    pass
+
+def get_user_controller(db: AsyncSession = Depends(get_db)) -> UserController:
+    """Dependency to get user controller instance."""
+    global user_controller
+    if user_controller is None or user_controller.db != db:
+        user_controller = UserController(db)
+    return user_controller
+
+def get_profile_controller(db: AsyncSession = Depends(get_db)) -> ProfileController:
+    """Dependency to get profile controller instance."""
+    global profile_controller
+    if profile_controller is None or profile_controller.db != db:
+        profile_controller = ProfileController(db)
+    return profile_controller
+
+def get_status_controller(db: AsyncSession = Depends(get_db)) -> StatusController:
+    """Dependency to get status controller instance."""
+    global status_controller
+    if status_controller is None or status_controller.db != db:
+        status_controller = StatusController(db)
+    return status_controller
 
 # Cache management endpoints
 @router.get("/cache/stats")
@@ -124,7 +162,7 @@ async def validate_branch_assignments(db: AsyncSession, user_branch_id: Optional
     
     # Check portfolio manager
     if portfolio_id:
-        result = await db.execute(select(User).where(User.id == portfolio_id))
+        result = await db.execute(select(User).where(User.id == portfolio_id, User.is_deleted == False))
         portfolio_manager = result.scalar_one_or_none()
         if portfolio_manager and portfolio_manager.branch_id != user_branch_id:
             raise HTTPException(
@@ -134,7 +172,7 @@ async def validate_branch_assignments(db: AsyncSession, user_branch_id: Optional
     
     # Check line manager
     if line_manager_id:
-        result = await db.execute(select(User).where(User.id == line_manager_id))
+        result = await db.execute(select(User).where(User.id == line_manager_id, User.is_deleted == False))
         line_manager = result.scalar_one_or_none()
         if line_manager and line_manager.branch_id != user_branch_id:
             raise HTTPException(
@@ -146,217 +184,10 @@ async def validate_branch_assignments(db: AsyncSession, user_branch_id: Optional
 async def create_user(
     user: UserCreate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    user_controller: UserController = Depends(get_user_controller)
 ):
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create users"
-        )
-    
-    # Use comprehensive validation service for duplicate checking
-    try:
-        validation_service = AsyncValidationService(db)
-        await validation_service.validate_user_duplicates(user.dict())
-    except DuplicateValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    
-    # Validate branch-based assignments
-    await validate_branch_assignments(db, user.branch_id, user.portfolio_id, user.line_manager_id)
-    
-    try:
-        db_user = User(
-            **user.dict(exclude={"password"}),
-            password_hash=get_password_hash(user.password)
-        )
-        db.add(db_user)
-        await db.flush()
-        await db.commit()
-        await db.refresh(db_user)
-        # Re-fetch with relationships eagerly loaded to avoid lazy IO during serialization
-        result = await db.execute(
-            select(User)
-            .options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position),
-                selectinload(User.portfolio).options(
-                    selectinload(User.position),
-                    selectinload(User.department),
-                    selectinload(User.branch),
-                    selectinload(User.portfolio),
-                    selectinload(User.line_manager)
-                ),
-                selectinload(User.line_manager).options(
-                    selectinload(User.position),
-                    selectinload(User.department),
-                    selectinload(User.branch),
-                    selectinload(User.portfolio),
-                    selectinload(User.line_manager)
-                ),
-            )
-            .where(User.id == db_user.id)
-        )
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user: {str(e)}"
-        )
-    db_user_loaded = result.scalar_one_or_none()
-    
-    # Invalidate user cache after creating new user
-    cache_service = UserCacheService(db)
-    await cache_service.invalidate_user_cache()
-
-    # Convert nested SQLAlchemy objects to dictionaries to avoid lazy loading issues
-    user_data = {
-        "id": db_user_loaded.id,
-        "username": db_user_loaded.username,
-        "email": db_user_loaded.email,
-        "first_name": db_user_loaded.first_name,
-        "last_name": db_user_loaded.last_name,
-        "phone_number": db_user_loaded.phone_number,
-        "role": db_user_loaded.role,
-        "status": db_user_loaded.status,
-        "status_reason": db_user_loaded.status_reason,
-        "status_changed_at": db_user_loaded.status_changed_at,
-        "status_changed_by": db_user_loaded.status_changed_by,
-        "last_activity_at": db_user_loaded.last_activity_at,
-        "login_count": db_user_loaded.login_count,
-        "failed_login_attempts": db_user_loaded.failed_login_attempts,
-        "onboarding_completed": db_user_loaded.onboarding_completed,
-        "onboarding_completed_at": db_user_loaded.onboarding_completed_at,
-        "department_id": db_user_loaded.department_id,
-        "branch_id": db_user_loaded.branch_id,
-        "position_id": db_user_loaded.position_id,
-        "portfolio_id": db_user_loaded.portfolio_id,
-        "line_manager_id": db_user_loaded.line_manager_id,
-        "profile_image_url": db_user_loaded.profile_image_url,
-        "employee_id": db_user_loaded.employee_id,
-        "created_at": db_user_loaded.created_at,
-        "updated_at": db_user_loaded.updated_at,
-        "last_login_at": db_user_loaded.last_login_at,
-        "department": db_user_loaded.department,
-        "branch": db_user_loaded.branch,
-        "position": db_user_loaded.position,
-        "portfolio": db_user_loaded.portfolio,
-        "line_manager": db_user_loaded.line_manager,
-        "status_changed_by_user": db_user_loaded.status_changed_by_user,
-    }
-
-    # Convert nested SQLAlchemy objects to dictionaries
-    if user_data.get("department"):
-        user_data["department"] = {
-            "id": user_data["department"].id,
-            "name": user_data["department"].name,
-            "code": user_data["department"].code,
-            "description": user_data["department"].description,
-            "is_active": user_data["department"].is_active,
-            "created_at": user_data["department"].created_at,
-            "updated_at": user_data["department"].updated_at,
-        } if hasattr(user_data["department"], 'id') else None
-
-    if user_data.get("branch"):
-        user_data["branch"] = {
-            "id": user_data["branch"].id,
-            "name": user_data["branch"].name,
-            "code": user_data["branch"].code,
-            "address": user_data["branch"].address,
-            "phone_number": user_data["branch"].phone_number,
-            "email": user_data["branch"].email,
-            "is_active": user_data["branch"].is_active,
-            "created_at": user_data["branch"].created_at,
-            "updated_at": user_data["branch"].updated_at,
-        } if hasattr(user_data["branch"], 'id') else None
-
-    if user_data.get("position"):
-        user_data["position"] = {
-            "id": user_data["position"].id,
-            "name": user_data["position"].name,
-            "description": user_data["position"].description,
-            "is_active": user_data["position"].is_active,
-            "created_at": user_data["position"].created_at,
-            "updated_at": user_data["position"].updated_at,
-        } if hasattr(user_data["position"], 'id') else None
-
-    # Handle portfolio and line_manager relationships
-    if user_data.get("portfolio"):
-        user_data["portfolio"] = {
-            "id": user_data["portfolio"].id,
-            "username": user_data["portfolio"].username,
-            "email": user_data["portfolio"].email,
-            "first_name": user_data["portfolio"].first_name,
-            "last_name": user_data["portfolio"].last_name,
-            "phone_number": user_data["portfolio"].phone_number,
-            "role": user_data["portfolio"].role,
-            "status": user_data["portfolio"].status,
-            "status_reason": user_data["portfolio"].status_reason,
-            "status_changed_at": user_data["portfolio"].status_changed_at,
-            "status_changed_by": user_data["portfolio"].status_changed_by,
-            "last_activity_at": user_data["portfolio"].last_activity_at,
-            "login_count": user_data["portfolio"].login_count,
-            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-            "onboarding_completed": user_data["portfolio"].onboarding_completed,
-            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-            "department_id": user_data["portfolio"].department_id,
-            "branch_id": user_data["portfolio"].branch_id,
-            "position_id": user_data["portfolio"].position_id,
-            "portfolio_id": user_data["portfolio"].portfolio_id,
-            "line_manager_id": user_data["portfolio"].line_manager_id,
-            "profile_image_url": user_data["portfolio"].profile_image_url,
-            "employee_id": user_data["portfolio"].employee_id,
-            "created_at": user_data["portfolio"].created_at,
-            "updated_at": user_data["portfolio"].updated_at,
-            "last_login_at": user_data["portfolio"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["portfolio"], 'id') else None
-
-    if user_data.get("line_manager"):
-        user_data["line_manager"] = {
-            "id": user_data["line_manager"].id,
-            "username": user_data["line_manager"].username,
-            "email": user_data["line_manager"].email,
-            "first_name": user_data["line_manager"].first_name,
-            "last_name": user_data["line_manager"].last_name,
-            "phone_number": user_data["line_manager"].phone_number,
-            "role": user_data["line_manager"].role,
-            "status": user_data["line_manager"].status,
-            "status_reason": user_data["line_manager"].status_reason,
-            "status_changed_at": user_data["line_manager"].status_changed_at,
-            "status_changed_by": user_data["line_manager"].status_changed_by,
-            "last_activity_at": user_data["line_manager"].last_activity_at,
-            "login_count": user_data["line_manager"].login_count,
-            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-            "onboarding_completed": user_data["line_manager"].onboarding_completed,
-            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-            "department_id": user_data["line_manager"].department_id,
-            "branch_id": user_data["line_manager"].branch_id,
-            "position_id": user_data["line_manager"].position_id,
-            "portfolio_id": user_data["line_manager"].portfolio_id,
-            "line_manager_id": user_data["line_manager"].line_manager_id,
-            "profile_image_url": user_data["line_manager"].profile_image_url,
-            "employee_id": user_data["line_manager"].employee_id,
-            "created_at": user_data["line_manager"].created_at,
-            "updated_at": user_data["line_manager"].updated_at,
-            "last_login_at": user_data["line_manager"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["line_manager"], 'id') else None
-
-    return UserResponse.model_validate(user_data)
+    """Create a new user using the user controller."""
+    return await user_controller.create_user(user, current_user)
 
 @router.get("/")
 async def list_users(
@@ -378,372 +209,34 @@ async def list_users(
     # Sorting options
     sort_by: Optional[str] = Query("created_at", description="Sort by field: created_at, last_login_at, username, email"),
     sort_order: Optional[str] = Query("desc", description="Sort order: asc, desc"),
+    # Soft delete options
+    include_deleted: bool = Query(False, description="Include soft-deleted users in results (admin only)"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    user_controller: UserController = Depends(get_user_controller)
 ):
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to list users"
-        )
-    
-    # Initialize cache service
-    cache_service = UserCacheService(db)
-    
-    # Try to get from cache first
-    cached_result = await cache_service.get_cached_user_list(
-        role=role, branch_id=branch_id, department_id=department_id,
-        status=status, search=search, created_from=str(created_from) if created_from else None,
-        created_to=str(created_to) if created_to else None,
-        last_login_from=str(last_login_from) if last_login_from else None,
-        last_login_to=str(last_login_to) if last_login_to else None,
-        activity_level=activity_level, inactive_days=inactive_days,
-        search_fields=search_fields, sort_by=sort_by, sort_order=sort_order,
-        page=page, size=size
+    """List users using the user controller."""
+    return await user_controller.list_users(
+        current_user=current_user,
+        role=role,
+        branch_id=branch_id,
+        department_id=department_id,
+        status_filter=status,
+        search=search,
+        created_from=created_from,
+        created_to=created_to,
+        last_login_from=last_login_from,
+        last_login_to=last_login_to,
+        activity_level=activity_level,
+        inactive_days=inactive_days,
+        search_fields=search_fields,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        include_deleted=include_deleted,
+        page=page,
+        size=size
     )
-    
-    if cached_result:
-        return cached_result
-    
-    # Eager-load relationships to avoid lazy IO during Pydantic validation
-    query = (
-        select(User)
-        .options(
-            selectinload(User.department),
-            selectinload(User.branch),
-            selectinload(User.position),
-            selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-        )
-    )
-    
-    # Apply existing filters
-    if role:
-        query = query.where(User.role == role)
-    
-    if branch_id:
-        query = query.where(User.branch_id == branch_id)
-    
-    if department_id:
-        query = query.where(User.department_id == department_id)
-    
-    if status:
-        query = query.where(User.status == status)
-    
-    # Enhanced search functionality
-    if search:
-        search_term = f"%{search}%"
-        if search_fields:
-            # Search in specific fields
-            search_conditions = []
-            fields = [field.strip() for field in search_fields.split(',')]
-            
-            if 'username' in fields:
-                search_conditions.append(User.username.ilike(search_term))
-            if 'email' in fields:
-                search_conditions.append(User.email.ilike(search_term))
-            if 'name' in fields:
-                search_conditions.extend([
-                    User.first_name.ilike(search_term),
-                    User.last_name.ilike(search_term)
-                ])
-            if 'employee_id' in fields:
-                search_conditions.append(User.employee_id.ilike(search_term))
-            
-            if search_conditions:
-                query = query.where(or_(*search_conditions))
-        else:
-            # Default search in all fields
-            query = query.where(
-                (User.username.ilike(search_term)) |
-                (User.email.ilike(search_term)) |
-                (User.first_name.ilike(search_term)) |
-                (User.last_name.ilike(search_term)) |
-                (User.employee_id.ilike(search_term) if User.employee_id.is_not(None) else False)
-            )
-    
-    # Date range filtering
-    if created_from:
-        query = query.where(User.created_at >= created_from)
-    
-    if created_to:
-        # Add one day to include the entire end date
-        end_date = datetime.combine(created_to, datetime.max.time())
-        query = query.where(User.created_at <= end_date)
-    
-    if last_login_from:
-        query = query.where(User.last_login_at >= last_login_from)
-    
-    if last_login_to:
-        end_date = datetime.combine(last_login_to, datetime.max.time())
-        query = query.where(User.last_login_at <= end_date)
-    
-    # Activity level filtering
-    if activity_level:
-        now = datetime.now(timezone.utc)
-        
-        if activity_level == 'never_logged_in':
-            query = query.where(User.last_login_at.is_(None))
-        elif activity_level == 'dormant':
-            # Users who haven't logged in for 90+ days
-            dormant_threshold = now - timedelta(days=90)
-            query = query.where(
-                and_(
-                    User.status == 'active',
-                    or_(
-                        User.last_login_at < dormant_threshold,
-                        User.last_login_at.is_(None)
-                    )
-                )
-            )
-        elif activity_level == 'active':
-            # Users who logged in within last 30 days
-            active_threshold = now - timedelta(days=30)
-            query = query.where(
-                and_(
-                    User.status == 'active',
-                    User.last_login_at >= active_threshold
-                )
-            )
-    
-    # Custom inactive days filtering
-    if inactive_days is not None:
-        threshold_date = datetime.now(timezone.utc) - timedelta(days=inactive_days)
-        query = query.where(
-            or_(
-                User.last_login_at < threshold_date,
-                User.last_login_at.is_(None)
-            )
-        )
-    
-    # Count total with the same filters applied
-    count_query = select(func.count()).select_from(User)
-    
-    # Apply the same filters to count query
-    if role:
-        count_query = count_query.where(User.role == role)
-    if branch_id:
-        count_query = count_query.where(User.branch_id == branch_id)
-    if department_id:
-        count_query = count_query.where(User.department_id == department_id)
-    if status:
-        count_query = count_query.where(User.status == status)
-    
-    if search:
-        search_term = f"%{search}%"
-        if search_fields:
-            search_conditions = []
-            fields = [field.strip() for field in search_fields.split(',')]
-            
-            if 'username' in fields:
-                search_conditions.append(User.username.ilike(search_term))
-            if 'email' in fields:
-                search_conditions.append(User.email.ilike(search_term))
-            if 'name' in fields:
-                search_conditions.extend([
-                    User.first_name.ilike(search_term),
-                    User.last_name.ilike(search_term)
-                ])
-            if 'employee_id' in fields:
-                search_conditions.append(User.employee_id.ilike(search_term))
-            
-            if search_conditions:
-                count_query = count_query.where(or_(*search_conditions))
-        else:
-            count_query = count_query.where(
-                (User.username.ilike(search_term)) |
-                (User.email.ilike(search_term)) |
-                (User.first_name.ilike(search_term)) |
-                (User.last_name.ilike(search_term)) |
-                (User.employee_id.ilike(search_term) if User.employee_id.is_not(None) else False)
-            )
-    
-    if created_from:
-        count_query = count_query.where(User.created_at >= created_from)
-    
-    if created_to:
-        end_date = datetime.combine(created_to, datetime.max.time())
-        count_query = count_query.where(User.created_at <= end_date)
-    
-    if last_login_from:
-        count_query = count_query.where(User.last_login_at >= last_login_from)
-    
-    if last_login_to:
-        end_date = datetime.combine(last_login_to, datetime.max.time())
-        count_query = count_query.where(User.last_login_at <= end_date)
-    
-    if activity_level:
-        now = datetime.now(timezone.utc)
-        
-        if activity_level == 'never_logged_in':
-            count_query = count_query.where(User.last_login_at.is_(None))
-        elif activity_level == 'dormant':
-            dormant_threshold = now - timedelta(days=90)
-            count_query = count_query.where(
-                and_(
-                    User.status == 'active',
-                    or_(
-                        User.last_login_at < dormant_threshold,
-                        User.last_login_at.is_(None)
-                    )
-                )
-            )
-        elif activity_level == 'active':
-            active_threshold = now - timedelta(days=30)
-            count_query = count_query.where(
-                and_(
-                    User.status == 'active',
-                    User.last_login_at >= active_threshold
-                )
-            )
-    
-    if inactive_days is not None:
-        threshold_date = datetime.now(timezone.utc) - timedelta(days=inactive_days)
-        count_query = count_query.where(
-            or_(
-                User.last_login_at < threshold_date,
-                User.last_login_at.is_(None)
-            )
-        )
-    count_result = await db.execute(count_query)
-    total = int(count_result.scalar() or 0)
-    
-    # Apply sorting
-    if sort_by == 'last_login_at':
-        if sort_order == 'asc':
-            query = query.order_by(User.last_login_at.asc().nulls_last())
-        else:
-            query = query.order_by(User.last_login_at.desc().nulls_last())
-    elif sort_by == 'username':
-        if sort_order == 'asc':
-            query = query.order_by(User.username.asc())
-        else:
-            query = query.order_by(User.username.desc())
-    elif sort_by == 'email':
-        if sort_order == 'asc':
-            query = query.order_by(User.email.asc())
-        else:
-            query = query.order_by(User.email.desc())
-    else:  # Default to created_at
-        if sort_order == 'asc':
-            query = query.order_by(User.created_at.asc())
-        else:
-            query = query.order_by(User.created_at.desc())
-    
-    # Apply pagination
-    offset = (page - 1) * size
-    query = query.offset(offset).limit(size)
-    
-    result = await db.execute(query)
-    users = result.scalars().all()
-    
-    # Create response with simplified user data to avoid circular reference issues
-    user_responses = []
-    for user in users:
-        # Create a simplified UserResponse without nested user relationships
-        user_data = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "phone_number": user.phone_number,
-            "role": user.role,
-            "status": user.status,
-            "status_reason": user.status_reason,
-            "status_changed_at": user.status_changed_at,
-            "status_changed_by": user.status_changed_by,
-            "last_activity_at": user.last_activity_at,
-            "login_count": user.login_count,
-            "failed_login_attempts": user.failed_login_attempts,
-            "onboarding_completed": user.onboarding_completed,
-            "onboarding_completed_at": user.onboarding_completed_at,
-            "department_id": user.department_id,
-            "branch_id": user.branch_id,
-            "position_id": user.position_id,
-            "portfolio_id": user.portfolio_id,
-            "line_manager_id": user.line_manager_id,
-            "profile_image_url": user.profile_image_url,
-            "employee_id": user.employee_id,
-            "created_at": user.created_at,
-            "updated_at": user.updated_at,
-            "last_login_at": user.last_login_at,
-            # Include basic relationship data without full objects
-            "department": {
-                "id": user.department.id,
-                "name": user.department.name,
-                "code": user.department.code,
-                "description": user.department.description,
-                "is_active": user.department.is_active,
-                "created_at": user.department.created_at,
-                "updated_at": user.department.updated_at,
-                "manager": None
-            } if user.department else None,
-            "branch": {
-                "id": user.branch.id,
-                "name": user.branch.name,
-                "code": user.branch.code,
-                "address": user.branch.address,
-                "phone_number": user.branch.phone_number,
-                "email": user.branch.email,
-                "is_active": user.branch.is_active,
-                "created_at": user.branch.created_at,
-                "updated_at": user.branch.updated_at
-            } if user.branch else None,
-            "position": {
-                "id": user.position.id,
-                "name": user.position.name,
-                "description": user.position.description,
-                "is_active": user.position.is_active,
-                "created_at": user.position.created_at,
-                "updated_at": user.position.updated_at,
-                "users": None,
-                "user_count": 0
-            } if user.position else None,
-            # Set portfolio and line_manager to None to avoid circular references
-            "portfolio": None,
-            "line_manager": None,
-            "status_changed_by_user": None
-        }
-        user_responses.append(UserResponse.model_validate(user_data))
-    
-    response = {
-        "items": user_responses,
-        "total": total,
-        "page": page,
-        "size": size,
-        "pages": (total + size - 1) // size
-    }
-    
-    # Cache the result for future requests
-    await cache_service.set_cached_user_list(
-        data=response,
-        role=role, branch_id=branch_id, department_id=department_id,
-        status=status, search=search, created_from=str(created_from) if created_from else None,
-        created_to=str(created_to) if created_to else None,
-        last_login_from=str(last_login_from) if last_login_from else None,
-        last_login_to=str(last_login_to) if last_login_to else None,
-        activity_level=activity_level, inactive_days=inactive_days,
-        search_fields=search_fields, sort_by=sort_by, sort_order=sort_order,
-        page=page, size=size,
-        ttl=180  # 3 minutes cache TTL
-    )
-    
-    return response
 
 # --- /users/me endpoints ---
 from fastapi import Body
@@ -751,185 +244,10 @@ from fastapi import Body
 @router.get("/me", response_model=UserResponse)
 async def get_me(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    profile_controller: ProfileController = Depends(get_profile_controller)
 ):
-    result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.department),
-            selectinload(User.branch),
-            selectinload(User.position),
-            selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
-            ),
-        )
-        .where(User.id == current_user.id)
-    )
-    user = result.scalar_one_or_none()
-
-    # Ensure all relationships are loaded before validation
-    _ = user.department
-    _ = user.branch
-    _ = user.position
-    _ = user.portfolio
-    _ = user.line_manager
-
-    # Convert to dictionary to avoid lazy loading issues
-    user_data = {
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "phone_number": user.phone_number,
-        "role": user.role,
-        "status": user.status,
-        "status_reason": user.status_reason,
-        "status_changed_at": user.status_changed_at,
-        "status_changed_by": user.status_changed_by,
-        "last_activity_at": user.last_activity_at,
-        "login_count": user.login_count,
-        "failed_login_attempts": user.failed_login_attempts,
-        "onboarding_completed": user.onboarding_completed,
-        "onboarding_completed_at": user.onboarding_completed_at,
-        "department_id": user.department_id,
-        "branch_id": user.branch_id,
-        "position_id": user.position_id,
-        "portfolio_id": user.portfolio_id,
-        "line_manager_id": user.line_manager_id,
-        "profile_image_url": user.profile_image_url,
-        "employee_id": user.employee_id,
-        "created_at": user.created_at,
-        "updated_at": user.updated_at,
-        "last_login_at": user.last_login_at,
-        "department": user.department,
-        "branch": user.branch,
-        "position": user.position,
-        "portfolio": user.portfolio,
-        "line_manager": user.line_manager,
-        "status_changed_by_user": user.status_changed_by_user,
-    }
-
-    # Convert nested SQLAlchemy objects to dictionaries
-    if user_data.get("department"):
-        user_data["department"] = {
-            "id": user_data["department"].id,
-            "name": user_data["department"].name,
-            "code": user_data["department"].code,
-            "description": user_data["department"].description,
-            "is_active": user_data["department"].is_active,
-            "created_at": user_data["department"].created_at,
-            "updated_at": user_data["department"].updated_at,
-        } if hasattr(user_data["department"], 'id') else None
-
-    if user_data.get("branch"):
-        user_data["branch"] = {
-            "id": user_data["branch"].id,
-            "name": user_data["branch"].name,
-            "code": user_data["branch"].code,
-            "address": user_data["branch"].address,
-            "phone_number": user_data["branch"].phone_number,
-            "email": user_data["branch"].email,
-            "is_active": user_data["branch"].is_active,
-            "created_at": user_data["branch"].created_at,
-            "updated_at": user_data["branch"].updated_at,
-        } if hasattr(user_data["branch"], 'id') else None
-
-    if user_data.get("position"):
-        user_data["position"] = {
-            "id": user_data["position"].id,
-            "name": user_data["position"].name,
-            "description": user_data["position"].description,
-            "is_active": user_data["position"].is_active,
-            "created_at": user_data["position"].created_at,
-            "updated_at": user_data["position"].updated_at,
-        } if hasattr(user_data["position"], 'id') else None
-
-    # Handle portfolio and line_manager relationships
-    if user_data.get("portfolio"):
-        user_data["portfolio"] = {
-            "id": user_data["portfolio"].id,
-            "username": user_data["portfolio"].username,
-            "email": user_data["portfolio"].email,
-            "first_name": user_data["portfolio"].first_name,
-            "last_name": user_data["portfolio"].last_name,
-            "phone_number": user_data["portfolio"].phone_number,
-            "role": user_data["portfolio"].role,
-            "status": user_data["portfolio"].status,
-            "status_reason": user_data["portfolio"].status_reason,
-            "status_changed_at": user_data["portfolio"].status_changed_at,
-            "status_changed_by": user_data["portfolio"].status_changed_by,
-            "last_activity_at": user_data["portfolio"].last_activity_at,
-            "login_count": user_data["portfolio"].login_count,
-            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-            "onboarding_completed": user_data["portfolio"].onboarding_completed,
-            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-            "department_id": user_data["portfolio"].department_id,
-            "branch_id": user_data["portfolio"].branch_id,
-            "position_id": user_data["portfolio"].position_id,
-            "portfolio_id": user_data["portfolio"].portfolio_id,
-            "line_manager_id": user_data["portfolio"].line_manager_id,
-            "profile_image_url": user_data["portfolio"].profile_image_url,
-            "employee_id": user_data["portfolio"].employee_id,
-            "created_at": user_data["portfolio"].created_at,
-            "updated_at": user_data["portfolio"].updated_at,
-            "last_login_at": user_data["portfolio"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["portfolio"], 'id') else None
-
-    if user_data.get("line_manager"):
-        user_data["line_manager"] = {
-            "id": user_data["line_manager"].id,
-            "username": user_data["line_manager"].username,
-            "email": user_data["line_manager"].email,
-            "first_name": user_data["line_manager"].first_name,
-            "last_name": user_data["line_manager"].last_name,
-            "phone_number": user_data["line_manager"].phone_number,
-            "role": user_data["line_manager"].role,
-            "status": user_data["line_manager"].status,
-            "status_reason": user_data["line_manager"].status_reason,
-            "status_changed_at": user_data["line_manager"].status_changed_at,
-            "status_changed_by": user_data["line_manager"].status_changed_by,
-            "last_activity_at": user_data["line_manager"].last_activity_at,
-            "login_count": user_data["line_manager"].login_count,
-            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-            "onboarding_completed": user_data["line_manager"].onboarding_completed,
-            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-            "department_id": user_data["line_manager"].department_id,
-            "branch_id": user_data["line_manager"].branch_id,
-            "position_id": user_data["line_manager"].position_id,
-            "portfolio_id": user_data["line_manager"].portfolio_id,
-            "line_manager_id": user_data["line_manager"].line_manager_id,
-            "profile_image_url": user_data["line_manager"].profile_image_url,
-            "employee_id": user_data["line_manager"].employee_id,
-            "created_at": user_data["line_manager"].created_at,
-            "updated_at": user_data["line_manager"].updated_at,
-            "last_login_at": user_data["line_manager"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["line_manager"], 'id') else None
-
-    return UserResponse.model_validate(user_data)
+    """Get current user profile using the profile controller."""
+    return await profile_controller.get_my_profile(current_user)
 
 @router.patch("/me", response_model=UserResponse)
 async def patch_me(
@@ -1411,7 +729,7 @@ async def get_user(
                 selectinload(User.branch)
             )
         )
-        .where(User.id == user_id)
+        .where(User.id == user_id, User.is_deleted == False)
     )
     user = result.scalar_one_or_none()
     
@@ -1573,7 +891,7 @@ async def update_user(
                 selectinload(User.line_manager)
             ),
         )
-        .where(User.id == user_id)
+        .where(User.id == user_id, User.is_deleted == False)
     )
     user = result.scalar_one_or_none()
     
@@ -1822,7 +1140,7 @@ async def patch_user(
                 selectinload(User.line_manager)
             ),
         )
-        .where(User.id == user_id)
+        .where(User.id == user_id, User.is_deleted == False)
     )
     user = result.scalar_one_or_none()
     
@@ -2040,7 +1358,7 @@ async def patch_user(
     return UserResponse.model_validate(user_data)
 
 @router.delete("/{user_id}")
-async def delete_user(
+async def soft_delete_user(
     user_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -2050,20 +1368,131 @@ async def delete_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete users"
         )
-    
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
+    # Check if user is already soft deleted
+    if user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already deleted"
+        )
+
+    # Perform soft delete
+    from datetime import datetime, timezone
+    user.is_deleted = True
+    user.deleted_at = datetime.now(timezone.utc)
+    user.deleted_by = current_user.id
+
+    await db.commit()
+
+    # Invalidate user cache after soft deleting user
+    cache_service = UserCacheService(db)
+    await cache_service.invalidate_user_cache(user_id)
+
+    return {"message": "User soft deleted successfully"}
+
+
+@router.post("/{user_id}/restore")
+async def restore_soft_deleted_user(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Restore a soft-deleted user (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to restore users"
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Check if user is actually soft deleted
+    if not user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not deleted"
+        )
+
+    # Restore the user
+    user.is_deleted = False
+    user.deleted_at = None
+    user.deleted_by = None
+
+    await db.commit()
+
+    # Invalidate user cache after restoring user
+    cache_service = UserCacheService(db)
+    await cache_service.invalidate_user_cache(user_id)
+
+    return {"message": "User restored successfully"}
+
+
+@router.delete("/{user_id}/permanent")
+async def permanent_delete_user(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Permanently delete a user from the database (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to permanently delete users"
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # For safety, require users to be soft-deleted first before permanent deletion
+    if not user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User must be soft-deleted before permanent deletion. Use DELETE /{user_id} first."
+        )
+
+    # Store user info for response before deletion
+    user_info = {
+        "id": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name
+    }
+
+    # Permanently delete the user
     await db.delete(user)
     await db.commit()
-    
-    return {"message": "User deleted successfully"}
+
+    # Invalidate user cache after permanent deletion
+    cache_service = UserCacheService(db)
+    await cache_service.invalidate_user_cache(user_id)
+
+    return {
+        "message": "User permanently deleted successfully",
+        "deleted_user": user_info
+    }
 
 
 # Status management endpoints
@@ -2072,55 +1501,10 @@ async def change_user_status(
     user_id: UUID,
     status_change: UserStatusChange,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    status_controller: StatusController = Depends(get_status_controller)
 ) -> UserStatusChangeResponse:
-    """Change user status with validation and audit trail"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to change user status"
-        )
-    
-    # Get the target user
-    result = await db.execute(select(User).where(User.id == user_id))
-    target_user = result.scalar_one_or_none()
-    
-    if not target_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    old_status = target_user.status
-    new_status = status_change.status
-    
-    # Validate status transition
-    if not can_transition_status(old_status, new_status):
-        allowed = get_allowed_transitions(old_status)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot transition from '{old_status}' to '{new_status}'. Allowed transitions: {allowed}"
-        )
-    
-    # Update user status with tracking fields
-    now = datetime.now(timezone.utc)
-    target_user.status = new_status
-    target_user.status_reason = status_change.reason
-    target_user.status_changed_at = now
-    target_user.status_changed_by = current_user.id
-    
-    await db.commit()
-    
-    # Return status change response
-    return UserStatusChangeResponse(
-        user_id=user_id,
-        old_status=old_status,
-        new_status=new_status,
-        reason=status_change.reason,
-        changed_by=current_user.id,
-        changed_at=now,
-        allowed_transitions=get_allowed_transitions(new_status)
-    )
+    """Change user status using the status controller."""
+    return await status_controller.change_user_status(user_id, status_change, current_user)
 
 @router.get("/{user_id}/status/transitions", response_model=List[str])
 async def get_allowed_status_transitions(
@@ -2177,7 +1561,7 @@ async def export_users_csv(
         selectinload(User.portfolio),
         selectinload(User.line_manager),
         selectinload(User.status_changed_by_user)
-    )
+    ).where(User.is_deleted == False)  # Exclude soft-deleted users
     
     # Apply filters
     if role:
@@ -2272,154 +1656,19 @@ async def export_users_csv(
 async def bulk_update_user_status(
     bulk_update: BulkStatusUpdate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    status_controller: StatusController = Depends(get_status_controller)
 ) -> BulkStatusUpdateResponse:
-    """Bulk update user status with validation and audit trail"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to perform bulk status updates"
-        )
-    
-    # Validate that all user IDs exist and get current statuses
-    query = select(User).where(User.id.in_(bulk_update.user_ids))
-    result = await db.execute(query)
-    users = result.scalars().all()
-    
-    if len(users) != len(bulk_update.user_ids):
-        found_ids = {user.id for user in users}
-        missing_ids = set(bulk_update.user_ids) - found_ids
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Users not found: {list(missing_ids)}"
-        )
-    
-    # Create bulk operation record
-    bulk_operation = BulkOperation(
-        operation_type="status_update",
-        performed_by=current_user.id,
-        target_criteria={
-            "user_ids": [str(uid) for uid in bulk_update.user_ids],
-            "filters": "manual_selection"
-        },
-        changes_applied={
-            "new_status": bulk_update.status,
-            "reason": bulk_update.reason
-        },
-        total_records=len(users),
-        status="processing"
-    )
-    db.add(bulk_operation)
-
-    await db.flush()
-
-    await db.refresh(bulk_operation)
-    await db.refresh(bulk_operation)
-    
-    # Process each user
-    successful_updates = []
-    failed_updates = []
-    now = datetime.now(timezone.utc)
-    
-    try:
-        for user in users:
-            try:
-                old_status = user.status
-                new_status = bulk_update.status
-                
-                # Validate status transition
-                if not can_transition_status(old_status, new_status):
-                    failed_updates.append({
-                        "user_id": str(user.id),
-                        "username": user.username,
-                        "error": f"Cannot transition from '{old_status}' to '{new_status}'",
-                        "allowed_transitions": get_allowed_transitions(old_status)
-                    })
-                    continue
-                
-                # Update user status
-                user.status = new_status
-                user.status_reason = bulk_update.reason
-                user.status_changed_at = now
-                user.status_changed_by = current_user.id
-                
-                # Create successful update record
-                successful_updates.append(UserStatusChangeResponse(
-                    user_id=user.id,
-                    old_status=old_status,
-                    new_status=new_status,
-                    reason=bulk_update.reason,
-                    changed_by=current_user.id,
-                    changed_at=now,
-                    allowed_transitions=get_allowed_transitions(new_status)
-                ))
-                
-            except Exception as e:
-                failed_updates.append({
-                    "user_id": str(user.id),
-                    "username": user.username,
-                    "error": str(e)
-                })
-        
-        # Update bulk operation record
-        bulk_operation.successful_records = len(successful_updates)
-        bulk_operation.failed_records = len(failed_updates)
-        bulk_operation.status = "completed" if len(failed_updates) == 0 else "partial_failure"
-        bulk_operation.completed_at = now
-        
-        if failed_updates:
-            bulk_operation.error_details = {"failed_users": failed_updates}
-        
-        await db.commit()
-        
-        return BulkStatusUpdateResponse(
-            operation_id=bulk_operation.id,
-            total_users=len(users),
-            successful_updates=len(successful_updates),
-            failed_updates=len(failed_updates),
-            status=bulk_operation.status,
-            errors=failed_updates if failed_updates else None,
-            updated_users=successful_updates,
-            failed_users=failed_updates
-        )
-        
-    except Exception as e:
-        # Mark operation as failed
-        bulk_operation.status = "failed"
-        bulk_operation.error_details = {"error": str(e)}
-        bulk_operation.completed_at = now
-        await db.commit()
-        
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Bulk operation failed: {str(e)}"
-        )
+    """Bulk update user status using the status controller."""
+    return await status_controller.bulk_update_status(bulk_update, current_user)
 
 @router.get("/activity/dormant")
 async def get_dormant_users(
     inactive_days: int = Query(90, description="Days of inactivity to consider dormant"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    status_controller: StatusController = Depends(get_status_controller)
 ):
-    """Get list of dormant users based on inactivity period"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view dormant user analysis"
-        )
-    
-    activity_service = ActivityManagementService(db)
-    dormant_users = await activity_service.detect_dormant_users(
-        inactive_days=inactive_days,
-        exclude_roles=['admin'] if current_user.role == 'manager' else []
-    )
-    
-    return {
-        "dormant_users": dormant_users,
-        "total_dormant": len(dormant_users),
-        "inactive_days_threshold": inactive_days,
-        "analysis_date": datetime.now(timezone.utc).isoformat()
-    }
+    """Get dormant users using the status controller."""
+    return await status_controller.get_dormant_users(current_user, inactive_days)
 
 @router.post("/activity/auto-update-dormant")
 async def auto_update_dormant_users(
@@ -2428,57 +1677,25 @@ async def auto_update_dormant_users(
     reason: str = Query("Automatically marked inactive due to prolonged inactivity", description="Reason for status change"),
     dry_run: bool = Query(True, description="If true, only simulate the operation"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    status_controller: StatusController = Depends(get_status_controller)
 ):
-    """Automatically update status of dormant users"""
-    if current_user.role not in ["admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to perform automated status updates"
-        )
-    
-    activity_service = ActivityManagementService(db)
-    
-    # First detect dormant users
-    dormant_users = await activity_service.detect_dormant_users(
-        inactive_days=inactive_days
-    )
-    
-    if not dormant_users:
-        return {
-            "message": "No dormant users found",
-            "dormant_users_found": 0,
-            "dry_run": dry_run
-        }
-    
-    # Perform the update (or simulation)
-    result = await activity_service.auto_update_dormant_users(
-        dormant_users=dormant_users,
+    """Auto-update dormant users using the status controller."""
+    return await status_controller.auto_update_dormant_users(
+        current_user=current_user,
+        inactive_days=inactive_days,
         new_status=new_status,
         reason=reason,
-        performed_by_id=current_user.id,
         dry_run=dry_run
     )
-    
-    return result
 
 @router.get("/activity/summary")
 async def get_activity_summary(
     days: int = Query(30, description="Number of days to analyze"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    status_controller: StatusController = Depends(get_status_controller)
 ):
-    """Get user activity summary and statistics"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view activity summary"
-        )
-    
-    activity_service = ActivityManagementService(db)
-    summary = await activity_service.get_activity_summary(days=days)
-    
-    return summary
+    """Get activity summary using the status controller."""
+    return await status_controller.get_activity_summary(current_user, days)
 
 
 # User Lifecycle Management Endpoints
@@ -2554,17 +1771,10 @@ async def get_onboarding_summary(
 async def get_users_needing_onboarding(
     days_threshold: int = Query(7, description="Days threshold for pending onboarding"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    status_controller: StatusController = Depends(get_status_controller)
 ):
-    """Get users who need onboarding attention"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view pending onboarding users"
-        )
-    
-    lifecycle_service = UserLifecycleService(db)
-    return await lifecycle_service.get_users_needing_onboarding(days_threshold)
+    """Get users needing onboarding using the status controller."""
+    return await status_controller.get_users_needing_onboarding(current_user, days_threshold)
 
 @router.post("/{user_id}/lifecycle/offboarding/initiate")
 async def initiate_user_offboarding(
@@ -2617,8 +1827,8 @@ async def lookup_reference_data(db: AsyncSession):
     position_result = await db.execute(select(Position))
     positions = {pos.name.lower(): pos.id for pos in position_result.scalars().all()}
     
-    # Get all users for manager lookups (keyed by full name)
-    user_result = await db.execute(select(User))
+    # Get all users for manager lookups (keyed by full name) - exclude soft-deleted users
+    user_result = await db.execute(select(User).where(User.is_deleted == False))
     users_by_name = {f"{user.first_name} {user.last_name}".lower(): user.id for user in user_result.scalars().all()}
     
     return {
@@ -2660,13 +1870,13 @@ async def validate_csv_row(row_data: dict, row_number: int, reference_data: dict
         existing_user = None
         if employee_id:
             user_result = await db.execute(
-                select(User).where(User.employee_id == employee_id)
+                select(User).where(User.employee_id == employee_id, User.is_deleted == False)
             )
             existing_user = user_result.scalar_one_or_none()
         
         if not existing_user:
             user_result = await db.execute(
-                select(User).where(User.email == email)
+                select(User).where(User.email == email, User.is_deleted == False)
             )
             existing_user = user_result.scalar_one_or_none()
         
@@ -2814,7 +2024,7 @@ async def process_csv_row(row_data: dict, row_result: CSVImportRowResult, refere
         elif row_result.action == 'updated':
             # Update existing user
             user_result = await db.execute(
-                select(User).where(User.id == row_result.user_id)
+                select(User).where(User.id == row_result.user_id, User.is_deleted == False)
             )
             existing_user = user_result.scalar_one()
             
@@ -3293,29 +2503,7 @@ async def get_activity_trends(
 @router.get("/analytics/summary")
 async def get_analytics_summary(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    user_controller: UserController = Depends(get_user_controller)
 ):
-    """Get analytics summary dashboard (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view analytics summary"
-        )
-    
-    from app.services.user_analytics_service import UserAnalyticsService
-    
-    analytics_service = UserAnalyticsService(db)
-    
-    # Get both user activity and organizational metrics
-    activity_metrics = await analytics_service.get_user_activity_metrics(days=30)
-    org_metrics = await analytics_service.get_organizational_metrics()
-    
-    return {
-        'activity_overview': activity_metrics.get('overview', {}),
-        'role_distribution': activity_metrics.get('role_distribution', {}),
-        'activity_levels': activity_metrics.get('activity_levels', {}).get('category_counts', {}),
-        'onboarding_metrics': activity_metrics.get('onboarding_metrics', {}),
-        'organizational_summary': org_metrics.get('summary', {}),
-        'geographic_distribution': activity_metrics.get('geographic_distribution', {}),
-        'generated_at': datetime.now(timezone.utc).isoformat()
-    }
+    """Get analytics summary using the user controller."""
+    return await user_controller.get_user_statistics(current_user)

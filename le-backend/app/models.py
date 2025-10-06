@@ -37,6 +37,10 @@ class User(Base):
     portfolio_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
     line_manager_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
     profile_image_url = Column(Text)
+    # Soft delete field
+    is_deleted = Column(Boolean, default=False, comment='Soft delete flag')
+    deleted_at = Column(DateTime(timezone=True), nullable=True, comment='When user was soft deleted')
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, comment='User who performed the soft delete')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_login_at = Column(DateTime(timezone=True))

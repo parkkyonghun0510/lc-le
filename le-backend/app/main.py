@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.database import engine, Base
-from app.routers import auth, users, applications, files, departments, branches, dashboard, positions
+from app.routers import auth, applications, files, departments, branches, dashboard, positions
+from app.routers.users import router as users_router
 from app.routers import folders, customers, enums, selfies, validation, account_validation
 from app.routers import settings as settings_router
 from app.routers import permissions, performance, security
@@ -126,7 +127,7 @@ register_error_handlers(app)
 
 # Include routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
-app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(applications.router, prefix="/api/v1/applications", tags=["applications"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])

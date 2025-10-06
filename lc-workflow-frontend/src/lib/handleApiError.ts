@@ -49,6 +49,9 @@ export const handleApiError = (error: ApiError, defaultMessage: string = 'An une
   } else if (status === 404) {
     message = 'Resource not found';
     errorCategory = 'not_found';
+  } else if (status === 409) {
+    message = 'A conflict occurred. The resource may have been modified by another user.';
+    errorCategory = 'conflict';
   } else if (status === 429) {
     message = 'Too many requests. Please wait and try again.';
     errorCategory = 'rate_limit';

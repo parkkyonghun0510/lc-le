@@ -1,5 +1,5 @@
-from . import applications, auth, users, files, departments, branches, dashboard, settings, positions
+from . import applications, auth, files, departments, branches, dashboard, settings, positions
 __all__ = [
-    'applications', 'auth', 'users', 'files', 'departments', 'branches', 'dashboard', 'settings', 'positions'
+    'applications', 'auth', 'files', 'departments', 'branches', 'dashboard', 'settings', 'positions'
 ]
 

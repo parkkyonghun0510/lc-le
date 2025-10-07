@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, WebSocket, WebSocketException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -814,3 +814,51 @@ async def setup_first_admin(user: UserCreate, db: AsyncSession = Depends(get_db)
     
     # Use the safe helper function to create UserResponse with proper circular reference handling
     return create_safe_user_response(db_user_loaded, max_depth=2)
+
+async def get_current_user_websocket(websocket: WebSocket) -> User:
+    """
+    Get current user from WebSocket connection for real-time notifications
+    """
+    try:
+        # Get token from query parameters or headers
+        token = None
+        
+        # Try query parameter first
+        if "token" in websocket.query_params:
+            token = websocket.query_params["token"]
+        # Try Authorization header
+        elif "authorization" in websocket.headers:
+            auth_header = websocket.headers["authorization"]
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+        
+        if not token:
+            raise WebSocketException(code=4001, reason="Missing authentication token")
+        
+        # Verify token
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            user_id: str = payload.get("sub")
+            if user_id is None:
+                raise WebSocketException(code=4001, reason="Invalid token")
+        except JWTError:
+            raise WebSocketException(code=4001, reason="Invalid token")
+        
+        # Get user from database
+        async for db in get_db():
+            result = await db.execute(
+                select(User)
+                .where(User.username == user_id)  # JWT token contains username, not user ID
+                .where(User.is_deleted == False)
+            )
+            user = result.scalar_one_or_none()
+            
+            if user is None:
+                raise WebSocketException(code=4001, reason="User not found")
+            
+            return user
+    
+    except WebSocketException:
+        raise
+    except Exception as e:
+        raise WebSocketException(code=4000, reason=f"Authentication error: {str(e)}")

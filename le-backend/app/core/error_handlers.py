@@ -244,20 +244,19 @@ def _parse_integrity_error(error_message: str) -> Dict[str, Any]:
     """Parse SQLAlchemy integrity error to extract useful information"""
     info = {"raw_message": error_message}
     
-    # Common patterns for different databases
+    # Common patterns for PostgreSQL database
     patterns = {
         "unique_violation": [
-            r"UNIQUE constraint failed: (\w+)\.(\w+)",  # SQLite
             r"duplicate key value violates unique constraint \"(\w+)\"",  # PostgreSQL
-            r"Duplicate entry '(.+)' for key '(\w+)'",  # MySQL
+            r"UNIQUE constraint failed: (\w+)\.(\w+)",  # Fallback for other databases
         ],
         "foreign_key_violation": [
-            r"FOREIGN KEY constraint failed",  # SQLite
             r"violates foreign key constraint",  # PostgreSQL
+            r"FOREIGN KEY constraint failed",  # Fallback for other databases
         ],
         "not_null_violation": [
-            r"NOT NULL constraint failed: (\w+)\.(\w+)",  # SQLite
             r"null value in column \"(\w+)\" violates not-null constraint",  # PostgreSQL
+            r"NOT NULL constraint failed: (\w+)\.(\w+)",  # Fallback for other databases
         ]
     }
     

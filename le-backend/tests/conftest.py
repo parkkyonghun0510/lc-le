@@ -13,14 +13,13 @@ from app.database import get_db, Base
 from app.models import User
 from app.core.security import get_password_hash
 
-# Test database URL - use SQLite for testing
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+# Test database URL - use PostgreSQL for testing
+TEST_DATABASE_URL = "postgresql+asyncpg://user:password@localhost/lc_workflow_test"
 
 # Create test engine
 test_engine = create_async_engine(
     TEST_DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False}
+    echo=False
 )
 
 # Create test session factory

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Settings, Check, AlertCircle, Info, Clock, User, Users, FileText, Shield, Wrench, Bell } from 'lucide-react';
+import { X, Settings, Check, AlertCircle, Info, Clock, User, Users, FileText, Shield, Wrench, Bell, CheckCheck } from 'lucide-react';
 import { NotificationSummary, NotificationType, NotificationPriority } from '@/types/notifications';
 import NotificationItem from './NotificationItem';
 import NotificationPreferences from './NotificationPreferences';
+import { useMarkAllAsRead } from '@/hooks/useNotifications';
+import { useRealTimeNotifications } from '@/hooks/useNotifications';
 
 interface NotificationDropdownProps {
   onClose: () => void;
@@ -52,8 +54,31 @@ const getPriorityColor = (priority: NotificationPriority) => {
 
 export default function NotificationDropdown({ onClose, summary, isLoading }: NotificationDropdownProps) {
   const [activeTab, setActiveTab] = useState<'notifications' | 'preferences'>('notifications');
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
-  if (isLoading) {
+  // Use real-time notifications instead of API notifications
+  const { notifications, isConnected, connectionError } = useRealTimeNotifications();
+  const markAllAsRead = useMarkAllAsRead();
+
+  // Check if Redis is available (no Redis-related errors and connected)
+  const isRedisAvailable = !connectionError?.includes('Redis') && isConnected;
+
+  // Filter notifications based on unread status if needed
+  const filteredNotifications = showUnreadOnly
+    ? notifications.filter(n => !n.data?.read)
+    : notifications;
+
+  const notificationsLoading = false; // Real-time notifications are always "loaded"
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead.mutateAsync();
+    } catch (error) {
+      // Error is handled by the hook
+    }
+  };
+
+  if (isLoading || notificationsLoading) {
     return (
       <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
         <div className="p-4">
@@ -67,7 +92,7 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
     );
   }
 
-  const recentNotifications = summary?.recent_notifications || [];
+  const recentNotifications = filteredNotifications.slice(0, 20); // Show last 20 notifications
 
   return (
     <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
@@ -75,13 +100,33 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-          {summary?.unread_count && summary.unread_count > 0 && (
+          {filteredNotifications.length > 0 && (
             <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
-              {summary.unread_count}
+              {filteredNotifications.filter(n => !n.data?.read).length}
             </span>
           )}
+          {/* Connection status indicator */}
+          <div className="flex items-center">
+            {isConnected && isRedisAvailable ? (
+              <div className="w-2 h-2 bg-green-500 rounded-full" title="Connected with real-time notifications"></div>
+            ) : isConnected ? (
+              <div className="w-2 h-2 bg-yellow-500 rounded-full" title="Connected (Redis unavailable - database-only mode)"></div>
+            ) : (
+              <div className="w-2 h-2 bg-red-500 rounded-full" title="Disconnected from real-time notifications"></div>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-2">
+          {recentNotifications.length > 0 && (
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={markAllAsRead.isPending}
+              className="p-1 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
+              title="Mark all as read"
+            >
+              <CheckCheck className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('preferences')}
             className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
@@ -122,6 +167,31 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
         </button>
       </div>
 
+      {/* Filter Controls */}
+      {activeTab === 'notifications' && (
+        <div className="p-3 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={showUnreadOnly}
+                onChange={(e) => setShowUnreadOnly(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+              />
+              Show unread only
+            </label>
+            <span className="text-xs text-gray-500">
+              {filteredNotifications.length} total
+              {!isConnected ? (
+                <span className="ml-1 text-red-500">(offline)</span>
+              ) : !isRedisAvailable ? (
+                <span className="ml-1 text-yellow-500">(local mode)</span>
+              ) : null}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-h-96 overflow-y-auto">
         {activeTab === 'notifications' ? (
@@ -130,11 +200,27 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
               <div className="text-center py-8">
                 <Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No notifications yet</p>
-                <p className="text-sm text-gray-400">You'll see notifications here when they arrive</p>
+                <p className="text-sm text-gray-400">
+                  {isConnected && isRedisAvailable
+                    ? "Real-time notifications will appear here when received"
+                    : isConnected
+                      ? "Connected but Redis unavailable - notifications saved to database"
+                      : "Notifications will appear here when connection is restored"
+                  }
+                </p>
+                {(!isConnected || !isRedisAvailable) && (
+                  <p className="text-xs mt-2">
+                    {!isConnected ? (
+                      <span className="text-red-500">{connectionError || "WebSocket disconnected"}</span>
+                    ) : (
+                      <span className="text-yellow-600">Real-time features disabled</span>
+                    )}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
-                {recentNotifications.map((notification) => (
+                {recentNotifications.map((notification: any) => (
                   <NotificationItem
                     key={notification.id}
                     notification={notification}

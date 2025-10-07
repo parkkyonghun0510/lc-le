@@ -11,10 +11,15 @@ import {
   CheckCircle, 
   AlertCircle,
   Info,
-  BarChart3
+  BarChart3,
+  Plus,
+  Wifi
 } from 'lucide-react';
-import { useNotificationSummary, useTestNotificationSystem, useSendOnboardingReminders, useSendWelcomeNotification } from '@/hooks/useNotifications';
+import { useNotificationSummary, useTestNotificationSystem, useSendOnboardingReminders, useSendWelcomeNotification, useSendRealTimeNotification, useBroadcastNotification, useRealTimeNotifications } from '@/hooks/useNotifications';
 import { useUsers } from '@/hooks/useUsers';
+import { useAuth } from '@/hooks/useAuth';
+import NotificationSender from './NotificationSender';
+import { Button } from '@/components/ui';
 import toast from 'react-hot-toast';
 
 interface NotificationManagementProps {
@@ -24,12 +29,17 @@ interface NotificationManagementProps {
 export default function NotificationManagement({ className = '' }: NotificationManagementProps) {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [daysThreshold, setDaysThreshold] = useState(7);
+  const [showNotificationSender, setShowNotificationSender] = useState(false);
   
   const { data: summary, isLoading: summaryLoading } = useNotificationSummary();
   const { data: usersData } = useUsers({ size: 100 });
+  const { user } = useAuth();
   const testNotification = useTestNotificationSystem();
   const sendOnboardingReminders = useSendOnboardingReminders();
   const sendWelcomeNotification = useSendWelcomeNotification();
+  const sendRealTimeNotification = useSendRealTimeNotification();
+  const broadcastNotification = useBroadcastNotification();
+  const { isConnected: isWebSocketConnected } = useRealTimeNotifications();
 
   const handleTestNotification = async () => {
     try {
@@ -60,6 +70,39 @@ export default function NotificationManagement({ className = '' }: NotificationM
     }
   };
 
+  const handleSendRealTimeNotification = async () => {
+    if (!selectedUserId) {
+      toast.error('Please select a user');
+      return;
+    }
+    
+    try {
+      await sendRealTimeNotification.mutateAsync({
+        user_id: selectedUserId,
+        notification_type: 'test_realtime',
+        title: 'Real-time Test Notification',
+        message: 'This is a real-time notification test',
+        priority: 'normal'
+      });
+    } catch (error) {
+      // Error is handled by the hook
+    }
+  };
+
+  const handleBroadcastNotification = async () => {
+    try {
+      await broadcastNotification.mutateAsync({
+        pattern: 'department:all',
+        notification_type: 'broadcast_test',
+        title: 'Broadcast Test Notification',
+        message: 'This is a broadcast notification test to all departments',
+        priority: 'normal'
+      });
+    } catch (error) {
+      // Error is handled by the hook
+    }
+  };
+
   const users = usersData?.items || [];
 
   return (
@@ -73,6 +116,15 @@ export default function NotificationManagement({ className = '' }: NotificationM
             <p className="text-gray-600">Manage system notifications and user communications</p>
           </div>
         </div>
+        {(user?.role === 'admin' || user?.role === 'manager') && (
+          <Button 
+            className="flex items-center space-x-2"
+            onClick={() => setShowNotificationSender(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Send Notification</span>
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -178,14 +230,25 @@ export default function NotificationManagement({ className = '' }: NotificationM
                 </option>
               ))}
             </select>
-            <button
-              onClick={handleSendWelcomeNotification}
-              disabled={!selectedUserId || sendWelcomeNotification.isPending}
-              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
-            >
-              <Send className="h-4 w-4" />
-              <span>{sendWelcomeNotification.isPending ? 'Sending...' : 'Send Welcome'}</span>
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleSendWelcomeNotification}
+                disabled={!selectedUserId || sendWelcomeNotification.isPending}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+              >
+                <Send className="h-4 w-4" />
+                <span>{sendWelcomeNotification.isPending ? 'Sending...' : 'Send Welcome'}</span>
+              </button>
+              <button
+                onClick={handleSendRealTimeNotification}
+                disabled={!selectedUserId || sendRealTimeNotification.isPending || !isWebSocketConnected}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                title={!isWebSocketConnected ? 'WebSocket not connected' : 'Send real-time notification'}
+              >
+                <Wifi className="h-4 w-4" />
+                <span>{sendRealTimeNotification.isPending ? 'Sending...' : 'Real-time'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -221,6 +284,32 @@ export default function NotificationManagement({ className = '' }: NotificationM
               <span>{sendOnboardingReminders.isPending ? 'Sending...' : 'Send Reminders'}</span>
             </button>
           </div>
+        </div>
+
+        {/* Real-time Broadcast Test */}
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          <div className="flex items-center space-x-3 mb-4">
+            <Wifi className="h-6 w-6 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Real-time Broadcast</h3>
+          </div>
+          <p className="text-gray-600 mb-4">
+            Test real-time notification broadcasting to all departments.
+          </p>
+          <div className="flex items-center space-x-2 mb-4">
+            <div className={`w-3 h-3 rounded-full ${isWebSocketConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-sm text-gray-600">
+              WebSocket: {isWebSocketConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+          <button
+            onClick={handleBroadcastNotification}
+            disabled={broadcastNotification.isPending || !isWebSocketConnected}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+            title={!isWebSocketConnected ? 'WebSocket not connected' : 'Broadcast to all departments'}
+          >
+            <Wifi className="h-4 w-4" />
+            <span>{broadcastNotification.isPending ? 'Broadcasting...' : 'Broadcast Test'}</span>
+          </button>
         </div>
 
         {/* Notification Settings */}
@@ -271,6 +360,26 @@ export default function NotificationManagement({ className = '' }: NotificationM
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Sender Modal */}
+      {showNotificationSender && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Send Notification</h3>
+                <button
+                  onClick={() => setShowNotificationSender(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <NotificationSender onClose={() => setShowNotificationSender(false)} />
             </div>
           </div>
         </div>

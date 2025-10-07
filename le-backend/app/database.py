@@ -75,6 +75,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # Redis configuration
 _redis_client: Optional[redis.Redis] = None
+_async_redis_client: Optional[redis.Redis] = None
 
 def get_redis() -> Optional[redis.Redis]:
     """Get Redis client instance"""
@@ -103,3 +104,34 @@ def get_redis() -> Optional[redis.Redis]:
             _redis_client = None
     
     return _redis_client
+
+async def get_async_redis() -> Optional[redis.Redis]:
+    """Get async Redis client instance for pub/sub operations"""
+    global _async_redis_client
+    
+    if _async_redis_client is None:
+        try:
+            # Import async redis here to avoid circular imports
+            import redis.asyncio as async_redis
+            
+            # Try to get Redis URL from settings
+            redis_url = getattr(settings, 'REDIS_URL', None)
+            if redis_url:
+                _async_redis_client = async_redis.from_url(redis_url, decode_responses=True)
+                # Test connection
+                await _async_redis_client.ping()
+            else:
+                # Fallback to default Redis configuration
+                _async_redis_client = async_redis.Redis(
+                    host=getattr(settings, 'REDIS_HOST', 'localhost'),
+                    port=getattr(settings, 'REDIS_PORT', 6379),
+                    db=getattr(settings, 'REDIS_DB', 0),
+                    decode_responses=True
+                )
+                await _async_redis_client.ping()
+        except Exception:
+            # If Redis is not available, return None
+            # The service will handle this gracefully
+            _async_redis_client = None
+    
+    return _async_redis_client

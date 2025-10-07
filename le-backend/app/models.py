@@ -366,3 +366,32 @@ class BulkOperation(Base):
     
     # Relationships
     performer = relationship("User", foreign_keys=[performed_by])
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    type = Column(String(50), nullable=False)  # user_welcome, status_change, etc.
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    data = Column(JSON, nullable=True)  # Additional notification data
+    priority = Column(String(20), nullable=True, default='normal')  # low, normal, high, urgent
+    is_read = Column(Boolean, default=False)
+    is_dismissed = Column(Boolean, default=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Optional expiration
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    dismissed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('ix_notifications_user_unread', 'user_id', 'is_read'),
+        Index('ix_notifications_user_id', 'user_id'),
+        Index('ix_notifications_type', 'type'),
+        Index('ix_notifications_is_read', 'is_read'),
+        Index('ix_notifications_created_at', 'created_at'),
+    )

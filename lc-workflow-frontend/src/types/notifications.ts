@@ -5,7 +5,11 @@ export interface Notification {
   message: string;
   priority: NotificationPriority;
   is_read: boolean;
+  is_dismissed: boolean;
   created_at: string;
+  read_at?: string;
+  dismissed_at?: string;
+  expires_at?: string;
   data?: Record<string, any>;
 }
 

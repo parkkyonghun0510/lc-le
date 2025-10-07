@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Check, X, Clock } from 'lucide-react';
 import { Notification } from '@/types/notifications';
+import { useMarkNotificationAsRead, useDismissNotification } from '@/hooks/useNotifications';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -12,18 +13,29 @@ interface NotificationItemProps {
 
 export default function NotificationItem({ notification, icon, priorityColor }: NotificationItemProps) {
   const [isRead, setIsRead] = useState(notification.is_read);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(notification.is_dismissed || false);
+  
+  const markAsRead = useMarkNotificationAsRead();
+  const dismissNotification = useDismissNotification();
 
-  const handleMarkAsRead = () => {
+  const handleMarkAsRead = async () => {
     if (!isRead) {
-      setIsRead(true);
-      // TODO: Call API to mark as read
+      try {
+        await markAsRead.mutateAsync(notification.id);
+        setIsRead(true);
+      } catch (error) {
+        // Error is handled by the hook
+      }
     }
   };
 
-  const handleDismiss = () => {
-    setIsDismissed(true);
-    // TODO: Call API to dismiss notification
+  const handleDismiss = async () => {
+    try {
+      await dismissNotification.mutateAsync(notification.id);
+      setIsDismissed(true);
+    } catch (error) {
+      // Error is handled by the hook
+    }
   };
 
   if (isDismissed) {

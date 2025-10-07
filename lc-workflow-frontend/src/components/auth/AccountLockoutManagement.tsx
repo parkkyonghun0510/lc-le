@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Shield, Unlock, AlertTriangle, Clock, Users, Search } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { User } from '@/types/models';
+import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface AccountLockoutManagementProps {
@@ -27,26 +28,26 @@ export default function AccountLockoutManagement({ className = '' }: AccountLock
 
   const handleUnlockAccount = async (userId: string) => {
     try {
-      // TODO: Implement API call to reset failed login attempts
-      // await apiClient.post(`/users/${userId}/unlock-account`);
+      await apiClient.post(`/users/${userId}/unlock-account`);
       
       toast.success('Account unlocked successfully');
       // Refresh users data
       window.location.reload();
     } catch (error) {
+      console.error('Failed to unlock account:', error);
       toast.error('Failed to unlock account');
     }
   };
 
   const handleResetAttempts = async (userId: string) => {
     try {
-      // TODO: Implement API call to reset failed login attempts
-      // await apiClient.post(`/users/${userId}/reset-login-attempts`);
+      await apiClient.post(`/users/${userId}/reset-login-attempts`);
       
       toast.success('Login attempts reset successfully');
       // Refresh users data
       window.location.reload();
     } catch (error) {
+      console.error('Failed to reset login attempts:', error);
       toast.error('Failed to reset login attempts');
     }
   };

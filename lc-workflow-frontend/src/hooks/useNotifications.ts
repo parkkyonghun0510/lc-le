@@ -7,6 +7,7 @@ import {
   NotificationTestResult, 
   NotificationType 
 } from '@/types/notifications';
+import { useWebSocketNotifications } from './useWebSocketNotifications';
 import toast from 'react-hot-toast';
 
 // Notification query keys
@@ -125,7 +126,7 @@ export const useTestNotificationSystem = () => {
 
   return useMutation({
     mutationFn: () => apiClient.post<NotificationTestResult>('/users/notifications/test'),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data.success) {
         toast.success('Notification test sent successfully!');
       } else {
@@ -171,6 +172,229 @@ export const useSendWelcomeNotification = () => {
     },
     onError: (error: any) => {
       const message = error.response?.data?.detail || 'Failed to send welcome notification';
+      toast.error(message);
+    },
+  });
+};
+
+// Get user notifications
+export const useUserNotifications = (limit: number = 50, offset: number = 0, unreadOnly: boolean = false) => {
+  return useQuery({
+    queryKey: [...notificationKeys.list({ limit, offset, unreadOnly })],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        unread_only: unreadOnly.toString(),
+      });
+      return await apiClient.get(`/users/notifications?${params}`);
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+// Mark notification as read
+export const useMarkNotificationAsRead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) =>
+      apiClient.put(`/users/notifications/${notificationId}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to mark notification as read';
+      toast.error(message);
+    },
+  });
+};
+
+// Dismiss notification
+export const useDismissNotification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) =>
+      apiClient.put(`/users/notifications/${notificationId}/dismiss`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to dismiss notification';
+      toast.error(message);
+    },
+  });
+};
+
+// Mark all notifications as read
+export const useMarkAllAsRead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.put('/users/notifications/mark-all-read'),
+    onSuccess: (data: any) => {
+      toast.success(`Marked ${data.count} notifications as read`);
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to mark all notifications as read';
+      toast.error(message);
+    },
+  });
+};
+
+// Send notification to multiple users
+export const useSendNotificationToUsers = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      user_ids: string[];
+      notification_type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      send_email?: boolean;
+      send_in_app?: boolean;
+      data?: Record<string, any>;
+    }) => apiClient.post('/users/notifications/send', data),
+    onSuccess: (data: any) => {
+      toast.success(`Notification sent to ${data.total_users} users`);
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to send notification';
+      toast.error(message);
+    },
+  });
+};
+
+// Send notification to department
+export const useSendNotificationToDepartment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      department_id: string;
+      notification_type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      send_email?: boolean;
+      send_in_app?: boolean;
+      data?: Record<string, any>;
+    }) => apiClient.post('/users/notifications/send-to-department', data),
+    onSuccess: (data: any) => {
+      toast.success(`Notification sent to ${data.total_users} users in department`);
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to send notification to department';
+      toast.error(message);
+    },
+  });
+};
+
+// Send notification to branch
+export const useSendNotificationToBranch = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      branch_id: string;
+      notification_type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      send_email?: boolean;
+      send_in_app?: boolean;
+      data?: Record<string, any>;
+    }) => apiClient.post('/users/notifications/send-to-branch', data),
+    onSuccess: (data: any) => {
+      toast.success(`Notification sent to ${data.total_users} users in branch`);
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to send notification to branch';
+      toast.error(message);
+    },
+  });
+};
+
+// Send notification to all users
+export const useSendNotificationToAll = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      notification_type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      send_email?: boolean;
+      send_in_app?: boolean;
+      data?: Record<string, any>;
+    }) => apiClient.post('/users/notifications/send-to-all', data),
+    onSuccess: (data: any) => {
+      toast.success(`Notification sent to ${data.total_users} users`);
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to send notification to all users';
+      toast.error(message);
+    },
+  });
+};
+
+// Real-time notification hooks
+export const useRealTimeNotifications = () => {
+  return useWebSocketNotifications();
+};
+
+// Send real-time notification to specific user
+export const useSendRealTimeNotification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      user_id: string;
+      notification_type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      data?: Record<string, any>;
+    }) => apiClient.post('/notifications/send-realtime', data),
+    onSuccess: (data: any) => {
+      toast.success('Real-time notification sent');
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to send real-time notification';
+      toast.error(message);
+    },
+  });
+};
+
+// Broadcast notification to pattern
+export const useBroadcastNotification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      pattern: string;
+      notification_type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      data?: Record<string, any>;
+    }) => apiClient.post('/notifications/broadcast', data),
+    onSuccess: (data: any) => {
+      toast.success(`Notification broadcasted to pattern ${data.pattern}`);
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Failed to broadcast notification';
       toast.error(message);
     },
   });

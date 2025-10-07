@@ -8,6 +8,7 @@ import os
 import warnings
 from dotenv import load_dotenv
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from datetime import datetime, timezone
 
 from app.database import engine, Base
 from app.routers import auth, applications, files, departments, branches, dashboard, positions
@@ -69,6 +70,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Could not create database tables: {e}")
         print("Application will start without database connectivity")
+
+    # Initialize notification pub/sub service
+    try:
+        from app.services.notification_pubsub_service import notification_pubsub
+        initialized = await notification_pubsub.initialize()
+        if initialized:
+            print("Notification Pub/Sub service initialized successfully")
+        else:
+            print("Warning: Notification Pub/Sub service initialization failed (Redis/DragonflyDB may not be available)")
+    except Exception as e:
+        print(f"Warning: Could not initialize Notification Pub/Sub service: {e}")
 
     # Validate external service connections in production
     if not settings.DEBUG:
@@ -144,6 +156,14 @@ app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
 # app.include_router(account_validation.router, prefix="/api/v1", tags=["account-validation"])
+
+# Import and include WebSocket router
+from app.routers import websocket
+app.include_router(websocket.router, prefix="/api/v1/ws", tags=["websocket"])
+
+# Import and include HTTP notification router
+from app.routers import notification_http
+app.include_router(notification_http.router, prefix="/api/v1", tags=["notifications-http"])
 
 # Serve static files for uploaded documents
 app.mount("/static", StaticFiles(directory="static"), name="static")

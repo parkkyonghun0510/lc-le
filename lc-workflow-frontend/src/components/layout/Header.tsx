@@ -5,7 +5,7 @@ import { Bars3Icon, BellIcon, UserCircleIcon, ArrowRightOnRectangleIcon, Cog6Too
 import { useLogout } from '@/hooks/useAuth';
 import { useAuthContext } from '@/providers/AuthProvider';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { NotificationBell } from '@/components/notifications';
+import RealTimeNotificationBell from '@/components/notifications/RealTimeNotificationBell';
 import Link from 'next/link';
 
 interface HeaderProps {
@@ -51,7 +51,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         <div className="flex items-center gap-x-4 lg:gap-x-6">
           <ThemeToggle />
-          <NotificationBell />
+          <RealTimeNotificationBell />
 
           {/* Separator */}
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-border" aria-hidden="true" />

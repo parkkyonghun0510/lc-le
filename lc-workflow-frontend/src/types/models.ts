@@ -37,6 +37,9 @@ export interface User extends BaseModel {
   // Position relations
   position_id?: string | null;
   position?: Position | null;
+  // Department and branch relations
+  department?: Department | null;
+  branch?: Branch | null;
   // Portfolio and line manager relations
   portfolio_id?: string | null;
   line_manager_id?: string | null;

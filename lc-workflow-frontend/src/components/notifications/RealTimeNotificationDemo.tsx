@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Wifi, WifiOff, AlertCircle, CheckCircle, Clock, Send, Zap, RefreshCw } from 'lucide-react';
+import { Bell, Wifi, WifiOff, AlertCircle, CheckCircle, Clock, Send, Zap, RefreshCw, X } from 'lucide-react';
 import { useWebSocketNotifications } from '@/hooks/useWebSocketNotifications';
 import { useNotificationSummary } from '@/hooks/useNotifications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';

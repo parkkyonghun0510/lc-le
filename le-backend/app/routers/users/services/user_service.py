@@ -83,6 +83,9 @@ class UserService:
                 # Create user through repository
                 user = await self.repository.create(create_data)
 
+                # Commit the transaction to ensure user is persisted
+                await self.db.commit()
+
                 return user
 
             except (UserAlreadyExistsError, UserValidationError, DatabaseOperationError):

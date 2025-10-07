@@ -2,10 +2,11 @@
 
 import { useParams } from 'next/navigation';
 import { useUser } from '@/hooks/useUsers';
-import { ArrowLeft, Mail, Phone, Calendar, Shield, Building, MapPin, IdCardLanyard, User as UserIcon, Network } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Shield, IdCardLanyard, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { DepartmentBadge, BranchBadge, PositionBadge, UserManagerBadge } from '@/components/organization';
 
 export default function UserDetailPage() {
   const params = useParams();
@@ -163,33 +164,30 @@ export default function UserDetailPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Organization</h3>
                 <div className="space-y-4">
-                  {user.department_id && (
-                    <div className="flex items-center space-x-3">
-                      <Building className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Department</p>
-                        <p className="text-sm text-gray-600">{user.department_id}</p>
-                      </div>
-                    </div>
-                  )}
-                  {user.branch_id && (
-                    <div className="flex items-center space-x-3">
-                      <MapPin className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Branch</p>
-                        <p className="text-sm text-gray-600">{user.branch_id}</p>
-                      </div>
-                    </div>
-                  )}
-                    {user.position && (
-                      <div className="flex items-center space-x-3">
-                        <Network className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Position</p>
-                          <p className="text-sm text-gray-600">{user.position?.name || 'N/A'}</p>
-                        </div>
-                      </div>
-                  )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Department</p>
+                    <DepartmentBadge 
+                      department={user.department} 
+                      size="md" 
+                      showCode={true}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Branch</p>
+                    <BranchBadge 
+                      branch={user.branch} 
+                      size="md" 
+                      showCode={true}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Position</p>
+                    <PositionBadge 
+                      position={user.position} 
+                      size="md" 
+                      showCode={true}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -197,30 +195,24 @@ export default function UserDetailPage() {
               <div className="md:col-span-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Management Structure</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {user.portfolio && (
-                    <div className="flex items-center space-x-3">
-                      <UserIcon className="h-5 w-5 text-blue-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Portfolio Manager</p>
-                        <p className="text-sm text-blue-600">
-                          {user.portfolio.first_name} {user.portfolio.last_name}
-                        </p>
-                        <p className="text-xs text-gray-500">@{user.portfolio.username}</p>
-                      </div>
-                    </div>
-                  )}
-                  {user.line_manager && (
-                    <div className="flex items-center space-x-3">
-                      <UserIcon className="h-5 w-5 text-green-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Line Manager</p>
-                        <p className="text-sm text-green-600">
-                          {user.line_manager.first_name} {user.line_manager.last_name}
-                        </p>
-                        <p className="text-xs text-gray-500">@{user.line_manager.username}</p>
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Portfolio Manager</p>
+                    <UserManagerBadge 
+                      manager={user.portfolio} 
+                      type="portfolio"
+                      size="md" 
+                      showPhone={true}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Line Manager</p>
+                    <UserManagerBadge 
+                      manager={user.line_manager} 
+                      type="line_manager"
+                      size="md" 
+                      showPhone={true}
+                    />
+                  </div>
                   {!user.portfolio && !user.line_manager && (
                     <div className="col-span-2 text-center py-4">
                       <p className="text-sm text-gray-500">No management assignments</p>

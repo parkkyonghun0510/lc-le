@@ -103,8 +103,9 @@ export default function NewUserPage() {
       delete submitData.employee_id;
     }
     createUser.mutate(submitData, {
-      onSuccess: () => {
-        router.push('/users');
+      onSuccess: (data) => {
+        // Redirect to the newly created user's detail page to avoid filter issues
+        router.push(`/users/${data.id}`);
       },
       onError: (error: any) => {
         // Handle branch validation errors specifically

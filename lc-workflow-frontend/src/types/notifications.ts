@@ -45,15 +45,23 @@ export interface NotificationPreferences {
 }
 
 export interface NotificationSummary {
+  period_days?: number;
   total_notifications: number;
   unread_count: number;
-  by_type: Record<NotificationType, number>;
-  by_priority: Record<NotificationPriority, number>;
+  by_type: Record<string, number>; // Changed to string to handle dynamic types
+  by_priority: Record<string, number>; // Changed to string to handle dynamic priorities
   recent_notifications: Notification[];
+  generated_at?: string;
 }
 
 export interface NotificationTestResult {
   success: boolean;
   message: string;
   details?: Record<string, any>;
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[];
+  total_count: number;
+  has_more: boolean;
 }

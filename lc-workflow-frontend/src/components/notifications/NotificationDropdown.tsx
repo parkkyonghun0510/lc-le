@@ -56,19 +56,19 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
   const [activeTab, setActiveTab] = useState<'notifications' | 'preferences'>('notifications');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
-  // Use real-time notifications instead of API notifications
-  const { notifications, isConnected, connectionError } = useRealTimeNotifications();
+  // Use API summary data for notifications
   const markAllAsRead = useMarkAllAsRead();
+  const { isConnected } = useRealTimeNotifications();
 
-  // Check if Redis is available (no Redis-related errors and connected)
-  const isRedisAvailable = !connectionError?.includes('Redis') && isConnected;
+  // Get notifications from API summary data
+  const notifications = summary?.recent_notifications || [];
 
   // Filter notifications based on unread status if needed
   const filteredNotifications = showUnreadOnly
-    ? notifications.filter(n => !n.data?.read)
+    ? notifications.filter(n => !n.is_read)
     : notifications;
 
-  const notificationsLoading = false; // Real-time notifications are always "loaded"
+  const notificationsLoading = isLoading;
 
   const handleMarkAllAsRead = async () => {
     try {
@@ -100,19 +100,17 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-          {filteredNotifications.length > 0 && (
+          {summary && summary.unread_count > 0 && (
             <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
-              {filteredNotifications.filter(n => !n.data?.read).length}
+              {summary.unread_count}
             </span>
           )}
           {/* Connection status indicator */}
           <div className="flex items-center">
-            {isConnected && isRedisAvailable ? (
+            {isConnected ? (
               <div className="w-2 h-2 bg-green-500 rounded-full" title="Connected with real-time notifications"></div>
-            ) : isConnected ? (
-              <div className="w-2 h-2 bg-yellow-500 rounded-full" title="Connected (Redis unavailable - database-only mode)"></div>
             ) : (
-              <div className="w-2 h-2 bg-red-500 rounded-full" title="Disconnected from real-time notifications"></div>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full" title="Using API data (real-time disabled)"></div>
             )}
           </div>
         </div>
@@ -181,12 +179,10 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
               Show unread only
             </label>
             <span className="text-xs text-gray-500">
-              {filteredNotifications.length} total
-              {!isConnected ? (
-                <span className="ml-1 text-red-500">(offline)</span>
-              ) : !isRedisAvailable ? (
-                <span className="ml-1 text-yellow-500">(local mode)</span>
-              ) : null}
+              {summary ? `${summary.total_notifications} total` : `${filteredNotifications.length} total`}
+              {!isConnected && (
+                <span className="ml-1 text-yellow-500">(API mode)</span>
+              )}
             </span>
           </div>
         </div>
@@ -201,20 +197,14 @@ export default function NotificationDropdown({ onClose, summary, isLoading }: No
                 <Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No notifications yet</p>
                 <p className="text-sm text-gray-400">
-                  {isConnected && isRedisAvailable
+                  {isConnected
                     ? "Real-time notifications will appear here when received"
-                    : isConnected
-                      ? "Connected but Redis unavailable - notifications saved to database"
-                      : "Notifications will appear here when connection is restored"
+                    : "Notifications are loaded from the server"
                   }
                 </p>
-                {(!isConnected || !isRedisAvailable) && (
-                  <p className="text-xs mt-2">
-                    {!isConnected ? (
-                      <span className="text-red-500">{connectionError || "WebSocket disconnected"}</span>
-                    ) : (
-                      <span className="text-yellow-600">Real-time features disabled</span>
-                    )}
+                {!isConnected && (
+                  <p className="text-xs mt-2 text-yellow-600">
+                    Using API data (real-time disabled)
                   </p>
                 )}
               </div>

@@ -5,7 +5,8 @@ import {
   NotificationPreferences, 
   NotificationSummary, 
   NotificationTestResult, 
-  NotificationType 
+  NotificationType,
+  NotificationListResponse
 } from '@/types/notifications';
 import { useWebSocketNotifications } from './useWebSocketNotifications';
 import toast from 'react-hot-toast';
@@ -187,7 +188,7 @@ export const useUserNotifications = (limit: number = 50, offset: number = 0, unr
         offset: offset.toString(),
         unread_only: unreadOnly.toString(),
       });
-      return await apiClient.get(`/users/notifications?${params}`);
+      return await apiClient.get<NotificationListResponse>(`/users/notifications?${params}`);
     },
     staleTime: 30 * 1000, // 30 seconds
   });

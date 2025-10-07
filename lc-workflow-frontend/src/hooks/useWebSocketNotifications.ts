@@ -213,10 +213,10 @@ export const useWebSocketNotifications = (): WebSocketNotificationHook => {
           readyState: ws.readyState,
           url: ws.url,
           timestamp: new Date().toISOString(),
-          errorType: error.type,
-          errorMessage: error.message
+          errorType: 'WebSocket Error',
+          errorMessage: 'Connection failed'
         });
-        setConnectionError(`WebSocket connection error: ${error.type || 'Unknown error'}`);
+        setConnectionError('WebSocket connection error: Connection failed');
       };
 
     } catch (error) {

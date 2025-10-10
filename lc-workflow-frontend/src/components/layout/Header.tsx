@@ -6,6 +6,7 @@ import { useLogout } from '@/hooks/useAuth';
 import { useAuthContext } from '@/providers/AuthProvider';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import { UserAvatar } from '@/components/users/OptimizedAvatar';
 import Link from 'next/link';
 
 interface HeaderProps {
@@ -67,11 +68,17 @@ export function Header({ onMenuClick }: HeaderProps) {
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
             >
               <span className="sr-only">Open user menu</span>
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                <span className="text-sm font-medium text-foreground">
-                  {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
-                </span>
-              </div>
+              <UserAvatar
+                user={{
+                  first_name: user?.first_name,
+                  last_name: user?.last_name,
+                  profile_image_url: user?.profile_image_url
+                }}
+                alt={`${user?.first_name} ${user?.last_name}`}
+                size="sm"
+                priority={true}
+                lazy={false}
+              />
               <span className="hidden lg:flex lg:items-center">
                 <span className="ml-4 text-sm leading-6 text-foreground" aria-hidden="true">
                   <span className="font-semibold">{user?.first_name} {user?.last_name}</span>

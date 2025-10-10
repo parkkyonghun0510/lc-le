@@ -123,27 +123,142 @@ async def create_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
-    db_application = CustomerApplication(
-        **application.model_dump(exclude_unset=True),
-        user_id=current_user.id,
-        workflow_status=WorkflowStatus.PO_CREATED,
-        po_created_at=datetime.now(timezone.utc),
-        po_created_by=current_user.id
-    )
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        # Add specific validation logging
+        logger.info(f"Creating application for user {current_user.id}: {application.id_number}")
+
+        # Validate required fields before saving
+        if not application.id_number:
+            logger.error(f"Application creation failed: ID number is required for user {current_user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ID number is required"
+            )
+
+        if not application.full_name_latin and not application.full_name_khmer:
+            logger.error(f"Application creation failed: At least one name field is required for user {current_user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one name field (Latin or Khmer) is required"
+            )
+
+        # Validate loan-specific required fields
+        if not application.requested_amount or application.requested_amount <= 0:
+            logger.error(f"Application creation failed: Valid loan amount is required for user {current_user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Valid loan amount is required (must be greater than 0)"
+            )
+
+        if not application.product_type:
+            logger.error(f"Application creation failed: Product type is required for user {current_user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product type is required"
+            )
+
+        if not application.loan_purposes or len(application.loan_purposes) == 0:
+            logger.error(f"Application creation failed: At least one loan purpose is required for user {current_user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one loan purpose is required"
+            )
+
+        # Check if phone number is provided for contact purposes
+        if not application.phone:
+            logger.warning(f"Application created without phone number for user {current_user.id}")
+
+        # Validate loan amount ranges (business logic)
+        if application.requested_amount:
+            min_amount = 100  # Minimum loan amount
+            max_amount = 1000000  # Maximum loan amount
+            if application.requested_amount < min_amount:
+                logger.error(f"Application creation failed: Loan amount too small for user {current_user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Loan amount must be at least ${min_amount}"
+                )
+            if application.requested_amount > max_amount:
+                logger.error(f"Application creation failed: Loan amount too large for user {current_user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Loan amount cannot exceed ${max_amount}"
+                )
+
+        # Create the application object
+        db_application = CustomerApplication(
+            **application.model_dump(exclude_unset=True),
+            user_id=current_user.id,
+            workflow_status=WorkflowStatus.PO_CREATED,
+            po_created_at=datetime.now(timezone.utc),
+            po_created_by=current_user.id
+        )
+
+        logger.info(f"Adding application to database for user {current_user.id}")
         db.add(db_application)
         await db.flush()
+
+        logger.info(f"Committing application {db_application.id} to database")
         await db.commit()
+
+        logger.info(f"Refreshing application {db_application.id} from database")
         await db.refresh(db_application)
+
+        logger.info(f"Creating response model for application {db_application.id}")
         resp = CustomerApplicationResponse.from_orm(db_application)
+
+        logger.info(f"Enriching application {db_application.id} response with MinIO URLs")
         enrich_application_response(resp)
+
+        logger.info(f"Successfully created application {db_application.id} for user {current_user.id}")
         return resp
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as they have specific error messages
+        raise
     except Exception as e:
+        # Rollback any database changes
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create application: {str(e)}"
-        )
+
+        # Log the full error for debugging
+        logger.error(f"Failed to create application for user {current_user.id}: {str(e)}", exc_info=True)
+
+        # Provide more specific error messages based on the exception type
+        if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+            if "phone" in str(e).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone number already exists in the system"
+                )
+            elif "id_number" in str(e).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="ID number already exists in the system"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate data found. Please check your information."
+                )
+        elif "foreign key" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid reference data provided"
+            )
+        elif "check constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid data format provided"
+            )
+        else:
+            # For any other unexpected errors, provide a generic but more informative message
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create application: {str(e)}"
+            )
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_applications(

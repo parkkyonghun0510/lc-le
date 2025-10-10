@@ -6,6 +6,7 @@ import { DataTable, Column } from '@/components/ui/DataTable';
 import { UserCard } from './UserCard';
 import { UserStatusBadge } from './UserStatusBadge';
 import { UserActions } from './UserActions';
+import { UserAvatar, getInitials } from './OptimizedAvatar';
 import { 
   Grid3X3, 
   List, 
@@ -106,11 +107,12 @@ export function UserList({
       label: 'User',
       render: (user: User) => (
         <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user.first_name?.[0]}{user.last_name?.[0]}
-            </span>
-          </div>
+          <UserAvatar
+            user={user}
+            alt={`${user.first_name} ${user.last_name}`}
+            size="md"
+            lazy={true}
+          />
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">
               {user.first_name} {user.last_name}
@@ -292,11 +294,12 @@ export function UserList({
     <div key={user.id} className="px-6 py-4 hover:bg-gray-50">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user.first_name?.[0]}{user.last_name?.[0]}
-            </span>
-          </div>
+          <UserAvatar
+            user={user}
+            alt={`${user.first_name} ${user.last_name}`}
+            size="md"
+            lazy={true}
+          />
           <div>
             <div className="text-sm font-medium text-gray-900">
               {user.first_name} {user.last_name}

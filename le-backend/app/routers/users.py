@@ -2920,3 +2920,283 @@ async def get_analytics_summary(
 ):
     """Get analytics summary using the user controller."""
     return await user_controller.get_user_statistics(current_user)
+
+@router.post("/{user_id}/profile-photo", response_model=Dict[str, Any])
+async def upload_profile_photo(
+    user_id: UUID,
+    file: UploadFile = File(...),
+    size: str = Query("medium", description="Size variant to return (thumbnail, medium, large, original)"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Upload and optimize a user profile photo
+    
+    This endpoint:
+    - Validates the uploaded image
+    - Creates multiple optimized sizes (thumbnail, medium, large, original)
+    - Stores them in MinIO with CDN-friendly URLs
+    - Updates the user's profile_image_url
+    
+    Args:
+        user_id: ID of the user to update
+        file: Image file to upload
+        size: Which size variant to return in the response
+        
+    Returns:
+        Dictionary with URLs for all size variants and CDN cache info
+    """
+    from app.services.image_optimization_service import image_optimization_service
+    from app.services.minio_service import minio_service
+    
+    # Authorization check - users can only update their own photo, admins can update anyone's
+    if current_user.role not in ["admin", "manager"] and str(current_user.id) != str(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user's profile photo"
+        )
+    
+    # Verify user exists
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    try:
+        # Read file content
+        file_content = await file.read()
+        
+        # Validate image
+        is_valid, error_message = image_optimization_service.validate_image(file_content)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_message
+            )
+        
+        # Optimize image - create multiple sizes in WebP format
+        optimized_images = image_optimization_service.optimize_profile_photo(
+            file_content, 
+            output_format='webp'
+        )
+        
+        # Upload all sizes to MinIO
+        uploaded_urls = {}
+        object_names = {}
+        
+        for size_name, image_bytes in optimized_images.items():
+            # Create object name with user ID and size
+            object_name = minio_service.upload_file(
+                file_content=image_bytes,
+                original_filename=f"profile_{user_id}_{size_name}.webp",
+                content_type="image/webp",
+                prefix=f"profiles/{user_id}",
+                field_name=f"profile_{size_name}"
+            )
+            
+            object_names[size_name] = object_name
+            
+            # Generate CDN-friendly URL with longer expiry (7 days)
+            url = minio_service.get_file_url(
+                object_name, 
+                expires=image_optimization_service.CDN_CACHE_DURATION
+            )
+            uploaded_urls[size_name] = url
+        
+        # Update user's profile_image_url with the medium size URL
+        user.profile_image_url = uploaded_urls.get('medium', uploaded_urls.get('original'))
+        user.updated_at = datetime.now(timezone.utc)
+        
+        await db.commit()
+        await db.refresh(user)
+        
+        # Invalidate user cache
+        cache_service = UserCacheService(db)
+        await cache_service.invalidate_user_cache(user_id)
+        
+        logger.info(f"Profile photo uploaded for user {user_id} by {current_user.id}")
+        
+        return {
+            "message": "Profile photo uploaded successfully",
+            "user_id": str(user_id),
+            "urls": uploaded_urls,
+            "object_names": object_names,
+            "primary_url": user.profile_image_url,
+            "cdn_cache_duration": image_optimization_service.CDN_CACHE_DURATION,
+            "sizes_available": list(optimized_images.keys()),
+            "format": "webp",
+            "uploaded_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to upload profile photo for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload profile photo: {str(e)}"
+        )
+
+@router.get("/{user_id}/profile-photo-urls")
+async def get_profile_photo_urls(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all size variants of a user's profile photo with CDN-friendly URLs
+    
+    This endpoint generates fresh presigned URLs for all size variants
+    with long expiry times suitable for CDN caching.
+    
+    Args:
+        user_id: ID of the user
+        
+    Returns:
+        Dictionary with URLs for all available size variants
+    """
+    from app.services.image_optimization_service import image_optimization_service
+    from app.services.minio_service import minio_service
+    
+    # Verify user exists
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user.profile_image_url:
+        return {
+            "message": "User has no profile photo",
+            "user_id": str(user_id),
+            "urls": {},
+            "has_photo": False
+        }
+    
+    try:
+        # Generate URLs for all size variants
+        urls = {}
+        sizes = ['thumbnail', 'medium', 'large', 'original']
+        
+        for size_name in sizes:
+            try:
+                object_name = f"profiles/{user_id}/profile_{size_name}_{user_id}.webp"
+                url = minio_service.get_file_url(
+                    object_name,
+                    expires=image_optimization_service.CDN_CACHE_DURATION
+                )
+                urls[size_name] = url
+            except Exception as e:
+                logger.warning(f"Could not generate URL for size {size_name}: {str(e)}")
+                continue
+        
+        # Generate srcset for responsive images
+        if urls:
+            base_url = urls.get('medium', '').replace('medium', '{size}')
+            srcset = image_optimization_service.generate_srcset(base_url)
+        else:
+            srcset = ""
+        
+        return {
+            "user_id": str(user_id),
+            "urls": urls,
+            "primary_url": user.profile_image_url,
+            "srcset": srcset,
+            "has_photo": True,
+            "cdn_cache_duration": image_optimization_service.CDN_CACHE_DURATION,
+            "cache_headers": image_optimization_service.get_cdn_cache_headers()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get profile photo URLs for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get profile photo URLs: {str(e)}"
+        )
+
+@router.delete("/{user_id}/profile-photo")
+async def delete_profile_photo(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a user's profile photo and all size variants
+    
+    Args:
+        user_id: ID of the user
+        
+    Returns:
+        Success message
+    """
+    from app.services.minio_service import minio_service
+    
+    # Authorization check
+    if current_user.role not in ["admin", "manager"] and str(current_user.id) != str(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this user's profile photo"
+        )
+    
+    # Verify user exists
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user.profile_image_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User has no profile photo to delete"
+        )
+    
+    try:
+        # Delete all size variants from MinIO
+        sizes = ['thumbnail', 'medium', 'large', 'original']
+        deleted_count = 0
+        
+        for size_name in sizes:
+            try:
+                object_name = f"profiles/{user_id}/profile_{size_name}_{user_id}.webp"
+                minio_service.delete_file(object_name)
+                deleted_count += 1
+            except Exception as e:
+                logger.warning(f"Could not delete size {size_name}: {str(e)}")
+                continue
+        
+        # Clear user's profile_image_url
+        user.profile_image_url = None
+        user.updated_at = datetime.now(timezone.utc)
+        
+        await db.commit()
+        
+        # Invalidate user cache
+        cache_service = UserCacheService(db)
+        await cache_service.invalidate_user_cache(user_id)
+        
+        logger.info(f"Profile photo deleted for user {user_id} by {current_user.id}")
+        
+        return {
+            "message": "Profile photo deleted successfully",
+            "user_id": str(user_id),
+            "deleted_variants": deleted_count,
+            "deleted_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to delete profile photo for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete profile photo: {str(e)}"
+        )

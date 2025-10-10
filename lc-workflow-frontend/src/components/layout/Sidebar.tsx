@@ -17,6 +17,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthContext } from '@/providers/AuthProvider';
+import { UserAvatar } from '@/components/users/OptimizedAvatar';
 
 interface NavItem {
   name: string;
@@ -118,11 +119,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {user && (
             <div className="mb-4">
               <div className="flex items-center gap-x-3 rounded-md p-2 text-sm font-medium text-foreground">
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                  <span className="text-sm font-medium text-foreground">
-                    {user.first_name.charAt(0)}{user.last_name.charAt(0)}
-                  </span>
-                </div>
+                <UserAvatar
+                  user={{
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    profile_image_url: user.profile_image_url
+                  }}
+                  alt={`${user.first_name} ${user.last_name}`}
+                  size="sm"
+                  priority={true}
+                  lazy={false}
+                />
                 <div>
                   <div className="font-medium">{user.first_name} {user.last_name}</div>
                   <div className="text-xs text-secondary">{user.role}</div>

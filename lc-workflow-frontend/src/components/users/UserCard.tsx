@@ -45,14 +45,14 @@ interface UserActivityInfoProps {
   user: User;
 }
 
-const UserHeader = memo(function UserHeader({
+const UserHeader: React.FC<UserHeaderProps> = memo(function UserHeader({
   user,
   onEdit,
   onView,
   onDelete,
   onLifecycle,
   showActions = true
-}: UserHeaderProps) {
+}) {
   return (
     <div className="flex items-start justify-between mb-6">
       <div className="flex items-center space-x-3">
@@ -102,18 +102,21 @@ const UserHeader = memo(function UserHeader({
   );
 });
 
-const UserContactInfo = memo(function UserContactInfo({ user }: UserContactInfoProps) {
-  const getRoleIcon = useMemo(() => (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Shield className="h-4 w-4 text-purple-600" />;
-      case 'manager':
-        return <Users className="h-4 w-4 text-blue-600" />;
-      case 'officer':
-        return <UserIcon className="h-4 w-4 text-green-600" />;
-      default:
-        return <UserIcon className="h-4 w-4 text-gray-600" />;
-    }
+const UserContactInfo: React.FC<UserContactInfoProps> = memo(function UserContactInfo({ user }) {
+  const getRoleIcon = useMemo(() => {
+    const RoleIcon = (role: string) => {
+      switch (role) {
+        case 'admin':
+          return <Shield className="h-4 w-4 text-purple-600" />;
+        case 'manager':
+          return <Users className="h-4 w-4 text-blue-600" />;
+        case 'officer':
+          return <UserIcon className="h-4 w-4 text-green-600" />;
+        default:
+          return <UserIcon className="h-4 w-4 text-gray-600" />;
+      }
+    };
+    return RoleIcon;
   }, []);
 
   return (
@@ -146,7 +149,7 @@ const UserContactInfo = memo(function UserContactInfo({ user }: UserContactInfoP
   );
 });
 
-const UserOrganizationInfo = memo(function UserOrganizationInfo({ user, departments = [], branches = [] }: UserOrganizationInfoProps) {
+const UserOrganizationInfo: React.FC<UserOrganizationInfoProps> = memo(function UserOrganizationInfo({ user, departments = [], branches = [] }) {
   const department = useMemo(() => departments.find(d => d.id === user.department_id), [departments, user.department_id]);
   const branch = useMemo(() => branches.find(b => b.id === user.branch_id), [branches, user.branch_id]);
 
@@ -194,7 +197,7 @@ const UserOrganizationInfo = memo(function UserOrganizationInfo({ user, departme
   );
 });
 
-const UserActivityInfo = memo(function UserActivityInfo({ user }: UserActivityInfoProps) {
+const UserActivityInfo: React.FC<UserActivityInfoProps> = memo(function UserActivityInfo({ user }) {
   const activityStatus = useMemo(() => {
     if (!user.last_activity_at) return { status: 'inactive', text: 'Never active', color: 'text-gray-500' };
 

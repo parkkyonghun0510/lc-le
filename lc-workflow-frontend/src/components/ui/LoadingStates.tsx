@@ -321,7 +321,7 @@ export const MobileLoadingStates = {
   ),
 };
 
-export default {
+const LoadingStates = {
   LoadingSpinner,
   LoadingDots,
   Skeleton,
@@ -339,3 +339,5 @@ export default {
   ChatSkeleton,
   MobileLoadingStates,
 };
+
+export default LoadingStates;

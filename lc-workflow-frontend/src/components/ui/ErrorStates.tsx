@@ -383,7 +383,7 @@ export const MobileErrorStates = {
   ),
 };
 
-export default {
+const ErrorStates = {
   ErrorMessage,
   NetworkError,
   AuthError,
@@ -397,3 +397,5 @@ export default {
   ErrorWithSuggestions,
   MobileErrorStates,
 };
+
+export default ErrorStates;

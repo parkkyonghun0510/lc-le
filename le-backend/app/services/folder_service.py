@@ -42,6 +42,14 @@ class DocumentType(Enum):
     CREDIT_REPORT = "credit_report"
     REFERENCE_LETTER = "reference_letter"
     OTHER_SUPPORTING_DOC = "other_supporting_doc"
+    OTHER = "other"
+    
+    # Legacy compatibility aliases
+    BORROWER_ID = "borrower_id"  # alias for borrower_id_card
+    GUARANTOR_ID = "guarantor_id"  # alias for guarantor_id_card
+    COLLATERAL_PHOTO = "collateral_photo"  # alias for property_photos/vehicle_photos
+    COLLATERAL_DOCUMENT = "collateral_document"  # alias for land_title/vehicle_registration
+    CONTRACT = "contract"  # alias for loan_application_form
 
 
 class FolderOrganizationConfig:
@@ -80,6 +88,14 @@ class FolderOrganizationConfig:
         DocumentType.CREDIT_REPORT: "Supporting Documents",
         DocumentType.REFERENCE_LETTER: "Supporting Documents",
         DocumentType.OTHER_SUPPORTING_DOC: "Supporting Documents",
+        DocumentType.OTHER: "Supporting Documents",
+        
+        # Legacy compatibility aliases
+        DocumentType.BORROWER_ID: "Borrower Documents",  # alias for borrower_id_card
+        DocumentType.GUARANTOR_ID: "Guarantor Documents",  # alias for guarantor_id_card
+        DocumentType.COLLATERAL_PHOTO: "Collateral Documents",  # alias for property_photos/vehicle_photos
+        DocumentType.COLLATERAL_DOCUMENT: "Collateral Documents",  # alias for land_title/vehicle_registration
+        DocumentType.CONTRACT: "Supporting Documents",  # alias for loan_application_form
     }
     
     # Standard folder structure for applications

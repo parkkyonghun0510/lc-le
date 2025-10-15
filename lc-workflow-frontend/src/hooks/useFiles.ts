@@ -4,6 +4,7 @@ import { File as ApiFile, PaginatedResponse, CustomerApplication, User } from '@
 import toast from 'react-hot-toast';
 import { handleApiError } from '@/lib/handleApiError';
 import { API_ORIGIN_FOR_LINKS } from '@/lib/api';
+import { DocumentType } from '../../app/applications/new/types';
 
 // Define Folder type based on backend schema
 export interface Folder {
@@ -97,7 +98,7 @@ const fileApi = {
     applicationId?: string,
     onProgress?: (progress: number) => void,
     folderId?: string,
-    documentType?: 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other',
+    documentType?: DocumentType,
     fieldName?: string
   ): Promise<ApiFile> => {
     const formData = new FormData();
@@ -332,7 +333,7 @@ export const useUploadFile = () => {
       applicationId?: string; 
       onProgress?: (progress: number) => void;
       folderId?: string;
-      documentType?: 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other';
+      documentType?: DocumentType;
       fieldName?: string;
     }) => fileApi.uploadFile(file, applicationId, onProgress, folderId, documentType, fieldName),
     onSuccess: (data) => {

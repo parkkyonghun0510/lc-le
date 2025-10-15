@@ -47,18 +47,18 @@ export const DocumentAttachmentStep: React.FC<DocumentAttachmentStepProps> = ({
   ];
 
   // Map frontend document IDs to backend document types
-  const getBackendDocumentType = (docId: string): 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other' => {
-    const mapping: Record<string, 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other'> = {
+  const getBackendDocumentType = (docId: string): DocumentType => {
+    const mapping: Record<string, DocumentType> = {
       'borrower_photo': 'borrower_photo',
-      'borrower_nid_front': 'borrower_id',
+      'borrower_nid_front': 'borrower_id_card',
       'guarantor_photo': 'guarantor_photo',
-      'guarantor_nid_front': 'guarantor_id',
-      'driver_license': 'borrower_id',
-      'passport': 'borrower_id',
-      'business_license': 'borrower_income_proof',
+      'guarantor_nid_front': 'guarantor_id_card',
+      'driver_license': 'borrower_id_card',
+      'passport': 'borrower_id_card',
+      'business_license': 'business_license',
       'land_title': 'land_title',
-      'house_photo': 'collateral_photo',
-      'collateral_other': 'collateral_document',
+      'house_photo': 'property_photos',
+      'collateral_other': 'other_supporting_doc',
     };
     return mapping[docId] || 'other';
   };

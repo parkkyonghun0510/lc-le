@@ -15,17 +15,45 @@ logger = get_logger(__name__)
 
 # Allowed document types for validation
 ALLOWED_DOCUMENT_TYPES = [
+    # Borrower documents
     "borrower_photo",
-    "borrower_id",
+    "borrower_id_card",
+    "borrower_family_book", 
     "borrower_income_proof",
-    "guarantor_photo", 
-    "guarantor_id",
+    "borrower_bank_statement",
+    
+    # Guarantor documents
+    "guarantor_photo",
+    "guarantor_id_card",
+    "guarantor_family_book",
     "guarantor_income_proof",
-    "collateral_photo",
-    "collateral_document",
+    "guarantor_bank_statement",
+    
+    # Collateral documents
     "land_title",
-    "contract",
-    "other"
+    "property_valuation",
+    "property_photos",
+    "vehicle_registration",
+    "vehicle_photos",
+    
+    # Business documents
+    "business_license",
+    "business_registration", 
+    "business_financial_statement",
+    
+    # Supporting documents
+    "loan_application_form",
+    "credit_report",
+    "reference_letter",
+    "other_supporting_doc",
+    "other",
+    
+    # Legacy compatibility
+    "borrower_id",  # alias for borrower_id_card
+    "guarantor_id",  # alias for guarantor_id_card
+    "collateral_photo",  # alias for property_photos/vehicle_photos
+    "collateral_document",  # alias for land_title/vehicle_registration
+    "contract"  # alias for loan_application_form
 ]
 
 class ValidatedUploadParams(BaseModel):

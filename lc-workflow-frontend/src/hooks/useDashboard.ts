@@ -5,7 +5,7 @@ import { apiClient } from '@/lib/api';
 export const dashboardKeys = {
   all: ['dashboard'] as const,
   stats: () => [...dashboardKeys.all, 'stats'] as const,
-  recentApplications: (limit?: number) => [...dashboardKeys.all, 'recent-applications', limit] as const,
+  recentApplications: (limit?: number, todayOnly?: boolean) => [...dashboardKeys.all, 'recent-applications', limit, todayOnly] as const,
   activityTimeline: (days?: number) => [...dashboardKeys.all, 'activity-timeline', days] as const,
   performanceMetrics: () => [...dashboardKeys.all, 'performance-metrics'] as const,
 };
@@ -91,11 +91,11 @@ export const useDashboardStats = () => {
   });
 };
 
-export const useRecentApplications = (limit: number = 10) => {
+export const useRecentApplications = (limit: number = 10, todayOnly: boolean = true) => {
   return useQuery({
-    queryKey: dashboardKeys.recentApplications(limit),
+    queryKey: dashboardKeys.recentApplications(limit, todayOnly),
     queryFn: (): Promise<RecentApplication[]> => 
-      apiClient.get(`/dashboard/recent-applications?limit=${limit}`),
+      apiClient.get(`/dashboard/recent-applications?limit=${limit}&today_only=${todayOnly}`),
     staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,

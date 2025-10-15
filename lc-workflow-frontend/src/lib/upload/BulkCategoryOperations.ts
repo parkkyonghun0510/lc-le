@@ -419,21 +419,49 @@ export class BulkCategoryOperations {
     if (!file.category) return null;
 
     // Define size limits for different categories (in bytes)
-    const sizeLimits: Record<DocumentType, { max: number; recommended: number }> = {
+    const sizeLimits: Partial<Record<DocumentType, { max: number; recommended: number }>> = {
+      // Borrower documents
       borrower_photo: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 }, // 10MB max, 5MB recommended
+      borrower_id_card: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
+      borrower_family_book: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
+      borrower_income_proof: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      borrower_bank_statement: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      
+      // Guarantor documents
       guarantor_photo: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
-      collateral_photo: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
+      guarantor_id_card: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
+      guarantor_family_book: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
+      guarantor_income_proof: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      guarantor_bank_statement: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      
+      // Collateral documents
+      land_title: { max: 20 * 1024 * 1024, recommended: 10 * 1024 * 1024 },
+      property_valuation: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
+      property_photos: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
+      vehicle_registration: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      vehicle_photos: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
+      
+      // Business documents
+      business_license: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      business_registration: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      business_financial_statement: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
+      
+      // Supporting documents
+      loan_application_form: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      credit_report: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      reference_letter: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
+      other_supporting_doc: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      other: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
+      
+      // Legacy compatibility aliases
       borrower_id: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
       guarantor_id: { max: 5 * 1024 * 1024, recommended: 2 * 1024 * 1024 },
-      borrower_income_proof: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
-      guarantor_income_proof: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
-      land_title: { max: 20 * 1024 * 1024, recommended: 10 * 1024 * 1024 },
+      collateral_photo: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
       collateral_document: { max: 15 * 1024 * 1024, recommended: 8 * 1024 * 1024 },
       contract: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
-      other: { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 },
     };
 
-    const limits = sizeLimits[file.category];
+    const limits = sizeLimits[file.category] || { max: 10 * 1024 * 1024, recommended: 5 * 1024 * 1024 }; // Default limits
     if (file.file.size > limits.max) {
       return `File size exceeds maximum allowed size for ${file.category} (${this.formatBytes(limits.max)})`;
     } else if (file.file.size > limits.recommended) {

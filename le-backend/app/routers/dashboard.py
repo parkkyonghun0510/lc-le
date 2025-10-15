@@ -166,14 +166,27 @@ async def get_dashboard_stats(
 @router.get("/recent-applications")
 async def get_recent_applications(
     limit: int = 10,
+    today_only: bool = True,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> List[Dict[str, Any]]:
     """
     Get recent applications for dashboard
+    By default shows only today's applications (today_only=True)
     """
     try:
         query = select(CustomerApplication).order_by(desc(CustomerApplication.created_at)).limit(limit)
+        
+        # Filter by today's date if today_only is True (default)
+        if today_only:
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = today_start + timedelta(days=1)
+            query = query.where(
+                and_(
+                    CustomerApplication.created_at >= today_start,
+                    CustomerApplication.created_at < today_end
+                )
+            )
         
         # Filter by user role
         if str(current_user.role) == 'officer':

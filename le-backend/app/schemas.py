@@ -373,7 +373,7 @@ class CustomerApplicationBase(BaseSchema):
     income_source: Optional[str] = Field(None, max_length=100)
     
     # Loan Details
-    requested_amount: Optional[float] = None
+    requested_amount: float = Field(..., gt=0, description="Loan amount must be greater than 0")
     loan_purposes: Optional[List[str]] = None
     purpose_details: Optional[str] = None
     product_type: Optional[str] = Field(None, max_length=50)

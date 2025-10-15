@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useUploadFile } from '@/hooks/useFiles';
+import { DocumentType } from '../../../app/applications/new/types';
 import { 
   XMarkIcon, 
   DocumentIcon, 
@@ -24,7 +25,7 @@ interface MobileFileUploadProps {
   isOpen: boolean;
   onClose: () => void;
   applicationId?: string;
-  documentType?: 'photos' | 'references' | 'supporting_docs' | 'borrower_photo' | 'borrower_id' | 'borrower_income_proof' | 'guarantor_photo' | 'guarantor_id' | 'guarantor_income_proof' | 'collateral_photo' | 'collateral_document' | 'land_title' | 'contract' | 'other';
+  documentType?: DocumentType;
   maxFileSize?: number;
   allowedTypes?: string[];
 }

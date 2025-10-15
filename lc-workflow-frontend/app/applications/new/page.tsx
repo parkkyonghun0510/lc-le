@@ -107,7 +107,7 @@ const NewApplicationPage = () => {
     income_source: '',
 
     // Loan Information
-    requested_amount: '',
+    requested_amount: '5000.0',
     desired_loan_term: 1,
     product_type: PRODUCT_TYPES[0],
     requested_disbursement_date: '',

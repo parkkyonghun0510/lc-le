@@ -146,7 +146,7 @@ async def create_application(
             )
 
         # Validate loan-specific required fields
-        if not application.requested_amount or application.requested_amount <= 0:
+        if application.requested_amount is None or application.requested_amount <= 0:
             logger.error(f"Application creation failed: Valid loan amount is required for user {current_user.id}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

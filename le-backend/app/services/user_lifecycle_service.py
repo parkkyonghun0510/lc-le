@@ -135,7 +135,7 @@ class UserLifecycleService:
                 'role': user.role,
                 'department': user.department.name if user.department else None,
                 'branch': user.branch.name if user.branch else None,
-                'line_manager': f"{user.line_manager.first_name} {user.line_manager.last_name}" if user.line_manager else None
+                'line_manager': user.line_manager.full_name_latin if user.line_manager else None
             }
         }
     
@@ -342,7 +342,7 @@ class UserLifecycleService:
                 'role': user.role,
                 'department': user.department.name if user.department else None,
                 'branch': user.branch.name if user.branch else None,
-                'line_manager': f"{user.line_manager.first_name} {user.line_manager.last_name}" if user.line_manager else None,
+                'line_manager': user.line_manager.full_name_latin if user.line_manager else None,
                 'created_at': user.created_at,
                 'days_pending': days_pending,
                 'priority': 'high' if days_pending > 14 else 'medium' if days_pending > 7 else 'normal'

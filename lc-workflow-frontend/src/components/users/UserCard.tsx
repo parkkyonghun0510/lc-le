@@ -176,7 +176,7 @@ const UserOrganizationInfo: React.FC<UserOrganizationInfoProps> = memo(function 
             <div className="min-w-0">
               <div className="text-xs text-gray-500">Portfolio Manager</div>
               <span className="text-sm text-gray-600 truncate">
-                {user.portfolio.first_name} {user.portfolio.last_name}
+                {user.portfolio.full_name_latin}
               </span>
             </div>
           </div>
@@ -187,7 +187,7 @@ const UserOrganizationInfo: React.FC<UserOrganizationInfoProps> = memo(function 
             <div className="min-w-0">
               <div className="text-xs text-gray-500">Line Manager</div>
               <span className="text-sm text-gray-600 truncate">
-                {user.line_manager.first_name} {user.line_manager.last_name}
+                {user.line_manager.full_name_latin}
               </span>
             </div>
           </div>

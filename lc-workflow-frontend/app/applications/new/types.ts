@@ -39,6 +39,9 @@ export type DocumentType =
   | 'collateral_document'  // alias for land_title/vehicle_registration
   | 'contract';  // alias for loan_application_form
 
+// Import employee assignment types
+import { EmployeeAssignmentCreate } from '@/types/models';
+
 // Form values interface aligned with backend schema
 export interface ApplicationFormValues {
   // Customer Information (aligned with backend)
@@ -84,6 +87,9 @@ export interface ApplicationFormValues {
   // Financial Information (optional)
   monthly_expenses?: number;
   assets_value?: number;
+
+  // Employee Assignment System
+  employee_assignments?: EmployeeAssignmentCreate[];
 }
 
 // Step configuration

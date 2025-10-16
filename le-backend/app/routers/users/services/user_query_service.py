@@ -16,7 +16,7 @@ from sqlalchemy.future import select
 from sqlalchemy import and_, or_, func, desc, text, distinct
 from sqlalchemy.orm import selectinload, noload
 
-from app.models import User, Department, Branch, Position
+from app.models import User, Department, Branch, Position, Employee
 from app.routers.users.repositories.user_repository import UserRepository
 from app.routers.users.services.user_error_handler import user_error_handler
 from app.routers.users.utils.user_exceptions import (
@@ -182,15 +182,13 @@ class UserQueryService:
                         selectinload(User.branch),
                         selectinload(User.position),
                         selectinload(User.portfolio).options(
-                            selectinload(User.position),
-                            selectinload(User.department),
-                            selectinload(User.branch)
-                        ),
-                        selectinload(User.line_manager).options(
-                            selectinload(User.position),
-                            selectinload(User.department),
-                            selectinload(User.branch)
-                        ),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
+            ),
                     )
 
                 # Apply filters

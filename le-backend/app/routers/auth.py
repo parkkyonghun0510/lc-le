@@ -9,8 +9,8 @@ from jose import JWTError, jwt
 from typing import Optional
 
 from app.database import get_db
-from app.models import User, Position
-from app.schemas import TokenResponse, UserResponse, UserLogin, UserCreate, UserSummary
+from app.models import User, Position, Employee
+from app.schemas import TokenResponse, UserResponse, UserLogin, UserCreate, UserSummary, EmployeeSummary
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from typing import Optional as TypingOptional
@@ -192,29 +192,25 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
                 "updated_at": user_data["position"].updated_at,
             } if hasattr(user_data["position"], 'id') else None
 
-        # Handle portfolio and line_manager relationships using UserSummary to avoid circular refs
+        # Handle portfolio and line_manager relationships using EmployeeSummary
         if user_data.get("portfolio") and hasattr(user_data["portfolio"], 'id'):
-            user_data["portfolio"] = UserSummary.model_validate({
+            user_data["portfolio"] = EmployeeSummary.model_validate({
                 "id": user_data["portfolio"].id,
-                "username": user_data["portfolio"].username,
-                "first_name": user_data["portfolio"].first_name,
-                "last_name": user_data["portfolio"].last_name,
-                "email": user_data["portfolio"].email,
-                "role": user_data["portfolio"].role,
-                "status": user_data["portfolio"].status,
-                "employee_id": user_data["portfolio"].employee_id,
+                "employee_code": user_data["portfolio"].employee_code,
+                "full_name_khmer": user_data["portfolio"].full_name_khmer,
+                "full_name_latin": user_data["portfolio"].full_name_latin,
+                "position": user_data["portfolio"].position,
+                "is_active": user_data["portfolio"].is_active,
             })
 
         if user_data.get("line_manager") and hasattr(user_data["line_manager"], 'id'):
-            user_data["line_manager"] = UserSummary.model_validate({
+            user_data["line_manager"] = EmployeeSummary.model_validate({
                 "id": user_data["line_manager"].id,
-                "username": user_data["line_manager"].username,
-                "first_name": user_data["line_manager"].first_name,
-                "last_name": user_data["line_manager"].last_name,
-                "email": user_data["line_manager"].email,
-                "role": user_data["line_manager"].role,
-                "status": user_data["line_manager"].status,
-                "employee_id": user_data["line_manager"].employee_id,
+                "employee_code": user_data["line_manager"].employee_code,
+                "full_name_khmer": user_data["line_manager"].full_name_khmer,
+                "full_name_latin": user_data["line_manager"].full_name_latin,
+                "position": user_data["line_manager"].position,
+                "is_active": user_data["line_manager"].is_active,
             })
 
         if user_data.get("status_changed_by_user") and hasattr(user_data["status_changed_by_user"], 'id'):
@@ -245,36 +241,32 @@ def create_safe_user_response(user: User, max_depth: int = 2, visited_users: Opt
 
             # Recursively create nested relationships with reduced depth and visited set
             portfolio_response = None
-            if portfolio and portfolio.id != user.id:  # Avoid self-reference
+            if portfolio:
                 try:
-                    # Use UserSummary format to avoid circular references
-                    portfolio_response = UserSummary.model_validate({
+                    # Use EmployeeSummary format for Employee objects
+                    portfolio_response = EmployeeSummary.model_validate({
                         "id": portfolio.id,
-                        "username": portfolio.username,
-                        "first_name": portfolio.first_name,
-                        "last_name": portfolio.last_name,
-                        "email": portfolio.email,
-                        "role": portfolio.role,
-                        "status": portfolio.status,
-                        "employee_id": portfolio.employee_id,
+                        "employee_code": portfolio.employee_code,
+                        "full_name_khmer": portfolio.full_name_khmer,
+                        "full_name_latin": portfolio.full_name_latin,
+                        "position": portfolio.position,
+                        "is_active": portfolio.is_active,
                     })
                 except Exception as portfolio_error:
                     print(f"Warning: Failed to process portfolio relationship: {portfolio_error}")
                     portfolio_response = None
 
             line_manager_response = None
-            if line_manager and line_manager.id != user.id:  # Avoid self-reference
+            if line_manager:
                 try:
-                    # Use UserSummary format to avoid circular references
-                    line_manager_response = UserSummary.model_validate({
+                    # Use EmployeeSummary format for Employee objects
+                    line_manager_response = EmployeeSummary.model_validate({
                         "id": line_manager.id,
-                        "username": line_manager.username,
-                        "first_name": line_manager.first_name,
-                        "last_name": line_manager.last_name,
-                        "email": line_manager.email,
-                        "role": line_manager.role,
-                        "status": line_manager.status,
-                        "employee_id": line_manager.employee_id,
+                        "employee_code": line_manager.employee_code,
+                        "full_name_khmer": line_manager.full_name_khmer,
+                        "full_name_latin": line_manager.full_name_latin,
+                        "position": line_manager.position,
+                        "is_active": line_manager.is_active,
                     })
                 except Exception as line_manager_error:
                     print(f"Warning: Failed to process line_manager relationship: {line_manager_error}")
@@ -370,24 +362,12 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
                 selectinload(Position.users)
             ),
             selectinload(User.portfolio).options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position).options(
-                    selectinload(Position.users)
-                ),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager),
-                selectinload(User.status_changed_by_user),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position).options(
-                    selectinload(Position.users)
-                ),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager),
-                selectinload(User.status_changed_by_user),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.status_changed_by_user).options(
                 selectinload(User.department),
@@ -521,24 +501,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
                 selectinload(Position.users)
             ),
             selectinload(User.portfolio).options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position).options(
-                    selectinload(Position.users)
-                ),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager),
-                selectinload(User.status_changed_by_user),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position).options(
-                    selectinload(Position.users)
-                ),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager),
-                selectinload(User.status_changed_by_user),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.status_changed_by_user).options(
                 selectinload(User.department),
@@ -612,24 +580,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
                 selectinload(Position.users)
             ),
             selectinload(User.portfolio).options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position).options(
-                    selectinload(Position.users)
-                ),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager),
-                selectinload(User.status_changed_by_user),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.position).options(
-                    selectinload(Position.users)
-                ),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager),
-                selectinload(User.status_changed_by_user),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.status_changed_by_user).options(
                 selectinload(User.department),

@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload, noload
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
-from app.models import User
+from app.models import User, Employee
 from app.routers.users.utils.user_exceptions import (
     UserNotFoundError,
     DatabaseOperationError
@@ -105,15 +105,13 @@ class UserRepository(BaseRepository):
                 selectinload(User.branch),
                 selectinload(User.position),
                 selectinload(User.portfolio).options(
-                    selectinload(User.position),
-                    selectinload(User.department),
-                    selectinload(User.branch)
-                ),
-                selectinload(User.line_manager).options(
-                    selectinload(User.position),
-                    selectinload(User.department),
-                    selectinload(User.branch)
-                ),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
+            ),
                 selectinload(User.status_changed_by_user)
             )
 

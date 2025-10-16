@@ -345,16 +345,27 @@ LC Workflow System
     
     async def send_manager_notification(
         self, 
-        manager: User, 
+        manager, 
         subject: str, 
         user: User, 
         action: str, 
         details: Optional[Dict[str, Any]] = None
     ) -> bool:
-        """Send notification to manager about team member changes"""
+        """Send notification to manager about team member changes
+        
+        Args:
+            manager: Employee object representing the manager
+            subject: Email subject
+            user: User object for the team member
+            action: Description of the action
+            details: Optional additional details
+        """
+        
+        # Get manager name - Employee has full_name_latin
+        manager_name = manager.full_name_latin if hasattr(manager, 'full_name_latin') else f"{manager.first_name} {manager.last_name}"
         
         body_text = f"""
-Dear {manager.first_name} {manager.last_name},
+Dear {manager_name},
 
 This is a notification about a change to one of your team members.
 
@@ -388,7 +399,7 @@ LC Workflow System
         <h1>Team Member Notification</h1>
     </div>
     <div class="content">
-        <p>Dear {manager.first_name} {manager.last_name},</p>
+        <p>Dear {manager_name},</p>
         <p>This is a notification about a change to one of your team members.</p>
         
         <div class="notification">

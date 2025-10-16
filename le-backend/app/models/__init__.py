@@ -33,11 +33,14 @@ if models_path.exists():
         Selfie = parent_models.Selfie
         BulkOperation = parent_models.BulkOperation
         Notification = parent_models.Notification
+        Employee = parent_models.Employee
+        ApplicationEmployeeAssignment = parent_models.ApplicationEmployeeAssignment
 
 
 __all__ = [
     "AuditLog", "AuditEventType", "User", "Department", "Branch",
     "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie", "BulkOperation", "Notification",
+    "Employee", "ApplicationEmployeeAssignment",
     "Permission", "Role", "RolePermission", "UserRole", "UserPermission", "PermissionTemplate",
     "ResourceType", "PermissionAction", "PermissionScope"
 ]

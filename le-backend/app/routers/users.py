@@ -10,8 +10,8 @@ import io
 import logging
 
 from app.database import get_db
-from app.models import User, BulkOperation, Department, Branch, Position
-from app.schemas import UserCreate, UserUpdate, UserResponse, UserSummary, PaginatedResponse, UserStatusChange, UserStatusChangeResponse, BulkStatusUpdate, BulkStatusUpdateResponse, CSVImportRequest, CSVImportResponse, CSVImportRowResult
+from app.models import User, BulkOperation, Department, Branch, Position, Employee
+from app.schemas import UserCreate, UserUpdate, UserResponse, UserSummary, EmployeeSummary, PaginatedResponse, UserStatusChange, UserStatusChangeResponse, BulkStatusUpdate, BulkStatusUpdateResponse, CSVImportRequest, CSVImportResponse, CSVImportRowResult
 from app.routers.auth import get_current_user
 from app.core.security import get_password_hash
 from app.services.async_validation_service import AsyncValidationService, DuplicateValidationError
@@ -298,18 +298,12 @@ async def patch_me(
             selectinload(User.branch),
             selectinload(User.position),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
         )
         .where(User.id == user.id)
@@ -394,78 +388,27 @@ async def patch_me(
             "updated_at": user_data["position"].updated_at,
         } if hasattr(user_data["position"], 'id') else None
 
-    # Handle portfolio and line_manager relationships
+    # Handle portfolio and line_manager relationships (Employee objects)
     if user_data.get("portfolio"):
-        user_data["portfolio"] = {
+        user_data["portfolio"] = EmployeeSummary.model_validate({
             "id": user_data["portfolio"].id,
-            "username": user_data["portfolio"].username,
-            "email": user_data["portfolio"].email,
-            "first_name": user_data["portfolio"].first_name,
-            "last_name": user_data["portfolio"].last_name,
-            "phone_number": user_data["portfolio"].phone_number,
-            "role": user_data["portfolio"].role,
-            "status": user_data["portfolio"].status,
-            "status_reason": user_data["portfolio"].status_reason,
-            "status_changed_at": user_data["portfolio"].status_changed_at,
-            "status_changed_by": user_data["portfolio"].status_changed_by,
-            "last_activity_at": user_data["portfolio"].last_activity_at,
-            "login_count": user_data["portfolio"].login_count,
-            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-            "onboarding_completed": user_data["portfolio"].onboarding_completed,
-            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-            "department_id": user_data["portfolio"].department_id,
-            "branch_id": user_data["portfolio"].branch_id,
-            "position_id": user_data["portfolio"].position_id,
-            "portfolio_id": user_data["portfolio"].portfolio_id,
-            "line_manager_id": user_data["portfolio"].line_manager_id,
-            "profile_image_url": user_data["portfolio"].profile_image_url,
-            "employee_id": user_data["portfolio"].employee_id,
-            "created_at": user_data["portfolio"].created_at,
-            "updated_at": user_data["portfolio"].updated_at,
-            "last_login_at": user_data["portfolio"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["portfolio"], 'id') else None
+            "employee_code": user_data["portfolio"].employee_code,
+            "full_name_khmer": user_data["portfolio"].full_name_khmer,
+            "full_name_latin": user_data["portfolio"].full_name_latin,
+            "position": user_data["portfolio"].position,
+            "is_active": user_data["portfolio"].is_active,
+        }) if hasattr(user_data["portfolio"], 'id') else None
 
     if user_data.get("line_manager"):
-        user_data["line_manager"] = {
+        user_data["line_manager"] = EmployeeSummary.model_validate({
             "id": user_data["line_manager"].id,
-            "username": user_data["line_manager"].username,
-            "email": user_data["line_manager"].email,
-            "first_name": user_data["line_manager"].first_name,
-            "last_name": user_data["line_manager"].last_name,
-            "phone_number": user_data["line_manager"].phone_number,
-            "role": user_data["line_manager"].role,
-            "status": user_data["line_manager"].status,
-            "status_reason": user_data["line_manager"].status_reason,
-            "status_changed_at": user_data["line_manager"].status_changed_at,
-            "status_changed_by": user_data["line_manager"].status_changed_by,
-            "last_activity_at": user_data["line_manager"].last_activity_at,
-            "login_count": user_data["line_manager"].login_count,
-            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-            "onboarding_completed": user_data["line_manager"].onboarding_completed,
-            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-            "department_id": user_data["line_manager"].department_id,
-            "branch_id": user_data["line_manager"].branch_id,
-            "position_id": user_data["line_manager"].position_id,
-            "portfolio_id": user_data["line_manager"].portfolio_id,
-            "line_manager_id": user_data["line_manager"].line_manager_id,
-            "profile_image_url": user_data["line_manager"].profile_image_url,
-            "employee_id": user_data["line_manager"].employee_id,
-            "created_at": user_data["line_manager"].created_at,
-            "updated_at": user_data["line_manager"].updated_at,
-            "last_login_at": user_data["line_manager"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["line_manager"], 'id') else None
+            "employee_code": user_data["line_manager"].employee_code,
+            "full_name_khmer": user_data["line_manager"].full_name_khmer,
+            "full_name_latin": user_data["line_manager"].full_name_latin,
+            "position": user_data["line_manager"].position,
+            "is_active": user_data["line_manager"].is_active,
+        }) if hasattr(user_data["line_manager"], 'id') else None
+
 
     return UserResponse.model_validate(user_data)
 
@@ -516,18 +459,12 @@ async def put_me(
             selectinload(User.branch),
             selectinload(User.position),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
         )
         .where(User.id == user.id)
@@ -612,78 +549,27 @@ async def put_me(
             "updated_at": user_data["position"].updated_at,
         } if hasattr(user_data["position"], 'id') else None
 
-    # Handle portfolio and line_manager relationships
+    # Handle portfolio and line_manager relationships (Employee objects)
     if user_data.get("portfolio"):
-        user_data["portfolio"] = {
+        user_data["portfolio"] = EmployeeSummary.model_validate({
             "id": user_data["portfolio"].id,
-            "username": user_data["portfolio"].username,
-            "email": user_data["portfolio"].email,
-            "first_name": user_data["portfolio"].first_name,
-            "last_name": user_data["portfolio"].last_name,
-            "phone_number": user_data["portfolio"].phone_number,
-            "role": user_data["portfolio"].role,
-            "status": user_data["portfolio"].status,
-            "status_reason": user_data["portfolio"].status_reason,
-            "status_changed_at": user_data["portfolio"].status_changed_at,
-            "status_changed_by": user_data["portfolio"].status_changed_by,
-            "last_activity_at": user_data["portfolio"].last_activity_at,
-            "login_count": user_data["portfolio"].login_count,
-            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-            "onboarding_completed": user_data["portfolio"].onboarding_completed,
-            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-            "department_id": user_data["portfolio"].department_id,
-            "branch_id": user_data["portfolio"].branch_id,
-            "position_id": user_data["portfolio"].position_id,
-            "portfolio_id": user_data["portfolio"].portfolio_id,
-            "line_manager_id": user_data["portfolio"].line_manager_id,
-            "profile_image_url": user_data["portfolio"].profile_image_url,
-            "employee_id": user_data["portfolio"].employee_id,
-            "created_at": user_data["portfolio"].created_at,
-            "updated_at": user_data["portfolio"].updated_at,
-            "last_login_at": user_data["portfolio"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["portfolio"], 'id') else None
+            "employee_code": user_data["portfolio"].employee_code,
+            "full_name_khmer": user_data["portfolio"].full_name_khmer,
+            "full_name_latin": user_data["portfolio"].full_name_latin,
+            "position": user_data["portfolio"].position,
+            "is_active": user_data["portfolio"].is_active,
+        }) if hasattr(user_data["portfolio"], 'id') else None
 
     if user_data.get("line_manager"):
-        user_data["line_manager"] = {
+        user_data["line_manager"] = EmployeeSummary.model_validate({
             "id": user_data["line_manager"].id,
-            "username": user_data["line_manager"].username,
-            "email": user_data["line_manager"].email,
-            "first_name": user_data["line_manager"].first_name,
-            "last_name": user_data["line_manager"].last_name,
-            "phone_number": user_data["line_manager"].phone_number,
-            "role": user_data["line_manager"].role,
-            "status": user_data["line_manager"].status,
-            "status_reason": user_data["line_manager"].status_reason,
-            "status_changed_at": user_data["line_manager"].status_changed_at,
-            "status_changed_by": user_data["line_manager"].status_changed_by,
-            "last_activity_at": user_data["line_manager"].last_activity_at,
-            "login_count": user_data["line_manager"].login_count,
-            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-            "onboarding_completed": user_data["line_manager"].onboarding_completed,
-            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-            "department_id": user_data["line_manager"].department_id,
-            "branch_id": user_data["line_manager"].branch_id,
-            "position_id": user_data["line_manager"].position_id,
-            "portfolio_id": user_data["line_manager"].portfolio_id,
-            "line_manager_id": user_data["line_manager"].line_manager_id,
-            "profile_image_url": user_data["line_manager"].profile_image_url,
-            "employee_id": user_data["line_manager"].employee_id,
-            "created_at": user_data["line_manager"].created_at,
-            "updated_at": user_data["line_manager"].updated_at,
-            "last_login_at": user_data["line_manager"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["line_manager"], 'id') else None
+            "employee_code": user_data["line_manager"].employee_code,
+            "full_name_khmer": user_data["line_manager"].full_name_khmer,
+            "full_name_latin": user_data["line_manager"].full_name_latin,
+            "position": user_data["line_manager"].position,
+            "is_active": user_data["line_manager"].is_active,
+        }) if hasattr(user_data["line_manager"], 'id') else None
+
 
     return UserResponse.model_validate(user_data)
 
@@ -1103,18 +989,12 @@ async def get_user(
             ),
             selectinload(User.status_changed_by_user),
             selectinload(User.portfolio).options(
-                selectinload(User.position).options(
-                    noload(Position.users)
-                ),
-                selectinload(User.department),
-                selectinload(User.branch)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position).options(
-                    noload(Position.users)
-                ),
-                selectinload(User.department),
-                selectinload(User.branch)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             )
         )
         .where(User.id == user_id, User.is_deleted == False)
@@ -1164,7 +1044,7 @@ async def get_user(
         "line_manager": None
     }
     
-    # Convert portfolio, line_manager, and status_changed_by_user to UserSummary objects
+    # Convert portfolio and line_manager to EmployeeSummary, status_changed_by_user to UserSummary
     # to avoid circular references while preserving the relationship data
     
     # Convert nested SQLAlchemy objects to dictionaries to avoid lazy loading issues
@@ -1202,29 +1082,25 @@ async def get_user(
             "updated_at": user_data["position"].updated_at,
         } if hasattr(user_data["position"], 'id') else None
 
-    # Convert portfolio and line_manager to UserSummary objects to avoid circular references
+    # Convert portfolio and line_manager to EmployeeSummary objects
     if user.portfolio and hasattr(user.portfolio, 'id'):
-        user_data["portfolio"] = UserSummary.model_validate({
+        user_data["portfolio"] = EmployeeSummary.model_validate({
             "id": user.portfolio.id,
-            "username": user.portfolio.username,
-            "first_name": user.portfolio.first_name,
-            "last_name": user.portfolio.last_name,
-            "email": user.portfolio.email,
-            "role": user.portfolio.role,
-            "status": user.portfolio.status,
-            "employee_id": user.portfolio.employee_id,
+            "employee_code": user.portfolio.employee_code,
+            "full_name_khmer": user.portfolio.full_name_khmer,
+            "full_name_latin": user.portfolio.full_name_latin,
+            "position": user.portfolio.position,
+            "is_active": user.portfolio.is_active,
         })
 
     if user.line_manager and hasattr(user.line_manager, 'id'):
-        user_data["line_manager"] = UserSummary.model_validate({
+        user_data["line_manager"] = EmployeeSummary.model_validate({
             "id": user.line_manager.id,
-            "username": user.line_manager.username,
-            "first_name": user.line_manager.first_name,
-            "last_name": user.line_manager.last_name,
-            "email": user.line_manager.email,
-            "role": user.line_manager.role,
-            "status": user.line_manager.status,
-            "employee_id": user.line_manager.employee_id,
+            "employee_code": user.line_manager.employee_code,
+            "full_name_khmer": user.line_manager.full_name_khmer,
+            "full_name_latin": user.line_manager.full_name_latin,
+            "position": user.line_manager.position,
+            "is_active": user.line_manager.is_active,
         })
 
     if user.status_changed_by_user and hasattr(user.status_changed_by_user, 'id'):
@@ -1265,18 +1141,12 @@ async def update_user(
             selectinload(User.branch),
             selectinload(User.position),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
         )
         .where(User.id == user_id, User.is_deleted == False)
@@ -1319,18 +1189,12 @@ async def update_user(
             selectinload(User.branch),
             selectinload(User.position),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
         )
         .where(User.id == user.id)
@@ -1419,78 +1283,27 @@ async def update_user(
             "updated_at": user_data["position"].updated_at,
         } if hasattr(user_data["position"], 'id') else None
 
-    # Handle portfolio and line_manager relationships
+    # Handle portfolio and line_manager relationships (Employee objects)
     if user_data.get("portfolio"):
-        user_data["portfolio"] = {
+        user_data["portfolio"] = EmployeeSummary.model_validate({
             "id": user_data["portfolio"].id,
-            "username": user_data["portfolio"].username,
-            "email": user_data["portfolio"].email,
-            "first_name": user_data["portfolio"].first_name,
-            "last_name": user_data["portfolio"].last_name,
-            "phone_number": user_data["portfolio"].phone_number,
-            "role": user_data["portfolio"].role,
-            "status": user_data["portfolio"].status,
-            "status_reason": user_data["portfolio"].status_reason,
-            "status_changed_at": user_data["portfolio"].status_changed_at,
-            "status_changed_by": user_data["portfolio"].status_changed_by,
-            "last_activity_at": user_data["portfolio"].last_activity_at,
-            "login_count": user_data["portfolio"].login_count,
-            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-            "onboarding_completed": user_data["portfolio"].onboarding_completed,
-            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-            "department_id": user_data["portfolio"].department_id,
-            "branch_id": user_data["portfolio"].branch_id,
-            "position_id": user_data["portfolio"].position_id,
-            "portfolio_id": user_data["portfolio"].portfolio_id,
-            "line_manager_id": user_data["portfolio"].line_manager_id,
-            "profile_image_url": user_data["portfolio"].profile_image_url,
-            "employee_id": user_data["portfolio"].employee_id,
-            "created_at": user_data["portfolio"].created_at,
-            "updated_at": user_data["portfolio"].updated_at,
-            "last_login_at": user_data["portfolio"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["portfolio"], 'id') else None
+            "employee_code": user_data["portfolio"].employee_code,
+            "full_name_khmer": user_data["portfolio"].full_name_khmer,
+            "full_name_latin": user_data["portfolio"].full_name_latin,
+            "position": user_data["portfolio"].position,
+            "is_active": user_data["portfolio"].is_active,
+        }) if hasattr(user_data["portfolio"], 'id') else None
 
     if user_data.get("line_manager"):
-        user_data["line_manager"] = {
+        user_data["line_manager"] = EmployeeSummary.model_validate({
             "id": user_data["line_manager"].id,
-            "username": user_data["line_manager"].username,
-            "email": user_data["line_manager"].email,
-            "first_name": user_data["line_manager"].first_name,
-            "last_name": user_data["line_manager"].last_name,
-            "phone_number": user_data["line_manager"].phone_number,
-            "role": user_data["line_manager"].role,
-            "status": user_data["line_manager"].status,
-            "status_reason": user_data["line_manager"].status_reason,
-            "status_changed_at": user_data["line_manager"].status_changed_at,
-            "status_changed_by": user_data["line_manager"].status_changed_by,
-            "last_activity_at": user_data["line_manager"].last_activity_at,
-            "login_count": user_data["line_manager"].login_count,
-            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-            "onboarding_completed": user_data["line_manager"].onboarding_completed,
-            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-            "department_id": user_data["line_manager"].department_id,
-            "branch_id": user_data["line_manager"].branch_id,
-            "position_id": user_data["line_manager"].position_id,
-            "portfolio_id": user_data["line_manager"].portfolio_id,
-            "line_manager_id": user_data["line_manager"].line_manager_id,
-            "profile_image_url": user_data["line_manager"].profile_image_url,
-            "employee_id": user_data["line_manager"].employee_id,
-            "created_at": user_data["line_manager"].created_at,
-            "updated_at": user_data["line_manager"].updated_at,
-            "last_login_at": user_data["line_manager"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["line_manager"], 'id') else None
+            "employee_code": user_data["line_manager"].employee_code,
+            "full_name_khmer": user_data["line_manager"].full_name_khmer,
+            "full_name_latin": user_data["line_manager"].full_name_latin,
+            "position": user_data["line_manager"].position,
+            "is_active": user_data["line_manager"].is_active,
+        }) if hasattr(user_data["line_manager"], 'id') else None
+
 
     return UserResponse.model_validate(user_data)
 
@@ -1514,18 +1327,12 @@ async def patch_user(
             selectinload(User.branch),
             selectinload(User.position),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
         )
         .where(User.id == user_id, User.is_deleted == False)
@@ -1574,18 +1381,12 @@ async def patch_user(
             selectinload(User.branch),
             selectinload(User.position),
             selectinload(User.portfolio).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
             selectinload(User.line_manager).options(
-                selectinload(User.position),
-                selectinload(User.department),
-                selectinload(User.branch),
-                selectinload(User.portfolio),
-                selectinload(User.line_manager)
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
             ),
         )
         .where(User.id == user.id)
@@ -1670,78 +1471,27 @@ async def patch_user(
             "updated_at": user_data["position"].updated_at,
         } if hasattr(user_data["position"], 'id') else None
 
-    # Handle portfolio and line_manager relationships
+    # Handle portfolio and line_manager relationships (Employee objects)
     if user_data.get("portfolio"):
-        user_data["portfolio"] = {
+        user_data["portfolio"] = EmployeeSummary.model_validate({
             "id": user_data["portfolio"].id,
-            "username": user_data["portfolio"].username,
-            "email": user_data["portfolio"].email,
-            "first_name": user_data["portfolio"].first_name,
-            "last_name": user_data["portfolio"].last_name,
-            "phone_number": user_data["portfolio"].phone_number,
-            "role": user_data["portfolio"].role,
-            "status": user_data["portfolio"].status,
-            "status_reason": user_data["portfolio"].status_reason,
-            "status_changed_at": user_data["portfolio"].status_changed_at,
-            "status_changed_by": user_data["portfolio"].status_changed_by,
-            "last_activity_at": user_data["portfolio"].last_activity_at,
-            "login_count": user_data["portfolio"].login_count,
-            "failed_login_attempts": user_data["portfolio"].failed_login_attempts,
-            "onboarding_completed": user_data["portfolio"].onboarding_completed,
-            "onboarding_completed_at": user_data["portfolio"].onboarding_completed_at,
-            "department_id": user_data["portfolio"].department_id,
-            "branch_id": user_data["portfolio"].branch_id,
-            "position_id": user_data["portfolio"].position_id,
-            "portfolio_id": user_data["portfolio"].portfolio_id,
-            "line_manager_id": user_data["portfolio"].line_manager_id,
-            "profile_image_url": user_data["portfolio"].profile_image_url,
-            "employee_id": user_data["portfolio"].employee_id,
-            "created_at": user_data["portfolio"].created_at,
-            "updated_at": user_data["portfolio"].updated_at,
-            "last_login_at": user_data["portfolio"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["portfolio"], 'id') else None
+            "employee_code": user_data["portfolio"].employee_code,
+            "full_name_khmer": user_data["portfolio"].full_name_khmer,
+            "full_name_latin": user_data["portfolio"].full_name_latin,
+            "position": user_data["portfolio"].position,
+            "is_active": user_data["portfolio"].is_active,
+        }) if hasattr(user_data["portfolio"], 'id') else None
 
     if user_data.get("line_manager"):
-        user_data["line_manager"] = {
+        user_data["line_manager"] = EmployeeSummary.model_validate({
             "id": user_data["line_manager"].id,
-            "username": user_data["line_manager"].username,
-            "email": user_data["line_manager"].email,
-            "first_name": user_data["line_manager"].first_name,
-            "last_name": user_data["line_manager"].last_name,
-            "phone_number": user_data["line_manager"].phone_number,
-            "role": user_data["line_manager"].role,
-            "status": user_data["line_manager"].status,
-            "status_reason": user_data["line_manager"].status_reason,
-            "status_changed_at": user_data["line_manager"].status_changed_at,
-            "status_changed_by": user_data["line_manager"].status_changed_by,
-            "last_activity_at": user_data["line_manager"].last_activity_at,
-            "login_count": user_data["line_manager"].login_count,
-            "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-            "onboarding_completed": user_data["line_manager"].onboarding_completed,
-            "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
-            "department_id": user_data["line_manager"].department_id,
-            "branch_id": user_data["line_manager"].branch_id,
-            "position_id": user_data["line_manager"].position_id,
-            "portfolio_id": user_data["line_manager"].portfolio_id,
-            "line_manager_id": user_data["line_manager"].line_manager_id,
-            "profile_image_url": user_data["line_manager"].profile_image_url,
-            "employee_id": user_data["line_manager"].employee_id,
-            "created_at": user_data["line_manager"].created_at,
-            "updated_at": user_data["line_manager"].updated_at,
-            "last_login_at": user_data["line_manager"].last_login_at,
-            "department": None,  # Avoid infinite nesting
-            "branch": None,      # Avoid infinite nesting
-            "position": None,    # Avoid infinite nesting
-            "portfolio": None,   # Avoid infinite nesting
-            "line_manager": None, # Avoid infinite nesting
-            "status_changed_by_user": None
-        } if hasattr(user_data["line_manager"], 'id') else None
+            "employee_code": user_data["line_manager"].employee_code,
+            "full_name_khmer": user_data["line_manager"].full_name_khmer,
+            "full_name_latin": user_data["line_manager"].full_name_latin,
+            "position": user_data["line_manager"].position,
+            "is_active": user_data["line_manager"].is_active,
+        }) if hasattr(user_data["line_manager"], 'id') else None
+
 
     return UserResponse.model_validate(user_data)
 

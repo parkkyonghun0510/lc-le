@@ -9,6 +9,10 @@ import { useApplication, useUpdateApplication } from '@/hooks/useApplications';
 import { useUploadFile } from '@/hooks/useFiles';
 import { toast } from 'react-hot-toast';
 import { useProductTypes, useIDCardTypes } from '@/hooks/useEnums';
+import { useApplicationAssignments } from '@/hooks/useEmployeeAssignments';
+import { EmployeeSelector } from '@/components/employees/EmployeeSelector';
+import { EmployeeAssignmentCreate } from '@/types/models';
+import { useAuth } from '@/hooks/useAuth';
 
 
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
@@ -83,6 +87,8 @@ export default function EditApplicationPage() {
   const { data: productTypes, isLoading: isLoadingProductTypes } = useProductTypes();
   const updateMutation = useUpdateApplication();
   const uploadMutation = useUploadFile();
+  const { user } = useAuth();
+  const { data: existingAssignments } = useApplicationAssignments(applicationId);
 
   const [formData, setFormData] = useState({
     full_name_khmer: '',
@@ -108,6 +114,7 @@ export default function EditApplicationPage() {
     marital_status: '',
     loan_purposes: [] as string[],
     collaterals: [] as any[],
+    employee_assignments: [] as EmployeeAssignmentCreate[],
   });
 
   const docDefs = [
@@ -157,9 +164,22 @@ export default function EditApplicationPage() {
       marital_status: application.marital_status || '',
       accountId: application.account_id || '',
       loan_purposes: Array.isArray(application.loan_purposes) ? application.loan_purposes : [],
-      collaterals: Array.isArray(application.collaterals) ? application.collaterals : []
+      collaterals: Array.isArray(application.collaterals) ? application.collaterals : [],
+      employee_assignments: [],
     });
   }, [application]);
+
+  // Load existing employee assignments
+  useEffect(() => {
+    if (existingAssignments && existingAssignments.length > 0) {
+      const assignments: EmployeeAssignmentCreate[] = existingAssignments.map(assignment => ({
+        employee_id: assignment.employee_id,
+        assignment_role: assignment.assignment_role,
+        notes: assignment.notes || '',
+      }));
+      setFormData(prev => ({ ...prev, employee_assignments: assignments }));
+    }
+  }, [existingAssignments]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -187,6 +207,7 @@ export default function EditApplicationPage() {
       guarantor_id_number: formData.guarantor_id_number || undefined,
       guarantor_address: formData.guarantor_address || undefined,
       guarantor_relationship: formData.guarantor_relationship || undefined,
+      employee_assignments: formData.employee_assignments,
     };
 
     // Remove empty strings to avoid overwriting with blanks
@@ -439,15 +460,6 @@ export default function EditApplicationPage() {
                               <option value="widowed">ម្មាយ</option>
                             </select>
                           </div>
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">មន្ត្រីទទួលបន្ទុក</label>
-                            <input
-                              value={formData.portfolio_officer_name}
-                              onChange={(e) => handleChange('portfolio_officer_name', e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
-                              placeholder="បញ្ចូលឈ្មោះមន្ត្រីទទួលបន្ទុក"
-                            />
-                          </div>
                         </div>
                         <div className="mt-6 space-y-2">
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">អាសយដ្ឋានបច្ចុប្បន្ន</label>
@@ -458,6 +470,56 @@ export default function EditApplicationPage() {
                             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                             placeholder="បញ្ចូលអាសយដ្ឋានបច្ចុប្បន្ន..."
                           />
+                        </div>
+
+                        {/* Employee Assignment Section */}
+                        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                            Employee Assignment
+                          </h4>
+                          
+                          {/* Show migration alert if using legacy portfolio officer */}
+                          {!application?.portfolio_officer_migrated && formData.portfolio_officer_name && (
+                            <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                              <div className="flex items-start">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">
+                                    Legacy Portfolio Officer
+                                  </h5>
+                                  <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">
+                                    This application uses legacy portfolio officer name: <strong>{formData.portfolio_officer_name}</strong>. 
+                                    Consider migrating to employee assignments for better tracking.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <EmployeeSelector
+                            value={formData.employee_assignments}
+                            onChange={(assignments) => {
+                              setFormData(prev => ({ ...prev, employee_assignments: assignments }));
+                            }}
+                            branchId={user?.branch_id}
+                            allowMultiple={true}
+                          />
+
+                          {/* Keep legacy field for backward compatibility */}
+                          <div className="mt-4 space-y-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              មន្ត្រីទទួលបន្ទុក (Legacy)
+                            </label>
+                            <input
+                              value={formData.portfolio_officer_name}
+                              onChange={(e) => handleChange('portfolio_officer_name', e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                              placeholder="បញ្ចូលឈ្មោះមន្ត្រីទទួលបន្ទុក"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              This field is kept for backward compatibility. Use employee assignments above instead.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -508,13 +570,30 @@ export default function EditApplicationPage() {
                           <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">លេខគណនីកម្ចី (PMS Account Id)</label>
                             <input
-                              type="number"
-                              maxLength={8}
+                              type="text"
                               value={formData.accountId}
-                              onChange={(e) => handleChange('accountId', e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
-                              placeholder="0XXXXXXX"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Only allow numbers and limit to 8 characters
+                                const numericValue = value.replace(/\D/g, '').slice(0, 8);
+                                handleChange('accountId', numericValue);
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value;
+                                if (value) {
+                                  // Pad with leading zeros to 8 characters when field loses focus
+                                  const paddedValue = value.padStart(8, '0');
+                                  handleChange('accountId', paddedValue);
+                                }
+                              }}
+                              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200 font-mono"
+                              placeholder="Enter account ID"
                             />
+                            {formData.accountId && formData.accountId.length < 8 && (
+                              <p className="text-sm text-gray-500">
+                                Will be saved as: <span className="font-mono font-semibold text-blue-600">{formData.accountId.padStart(8, '0')}</span>
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ចំនួនទឹកប្រាក់ស្នើសុំ (KHR ៛)</label>

@@ -22,3 +22,5 @@ export type { SkeletonProps } from './Skeleton';
 
 // Re-export common utilities
 export { cn } from '@/lib/utils';
+export {
+ Progress } from './progress';

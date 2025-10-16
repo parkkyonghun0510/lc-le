@@ -433,39 +433,20 @@ class ProfileController:
                 } if hasattr(user_data["portfolio"], 'id') else None
 
             if user_data.get("line_manager"):
+                # line_manager is now an Employee object
                 user_data["line_manager"] = {
                     "id": user_data["line_manager"].id,
-                    "username": user_data["line_manager"].username,
+                    "employee_code": user_data["line_manager"].employee_code,
+                    "full_name_khmer": user_data["line_manager"].full_name_khmer,
+                    "full_name_latin": user_data["line_manager"].full_name_latin,
                     "email": user_data["line_manager"].email,
-                    "first_name": user_data["line_manager"].first_name,
-                    "last_name": user_data["line_manager"].last_name,
                     "phone_number": user_data["line_manager"].phone_number,
-                    "role": user_data["line_manager"].role,
-                    "status": user_data["line_manager"].status,
-                    "status_reason": user_data["line_manager"].status_reason,
-                    "status_changed_at": user_data["line_manager"].status_changed_at,
-                    "status_changed_by": user_data["line_manager"].status_changed_by,
-                    "last_activity_at": user_data["line_manager"].last_activity_at,
-                    "login_count": user_data["line_manager"].login_count,
-                    "failed_login_attempts": user_data["line_manager"].failed_login_attempts,
-                    "onboarding_completed": user_data["line_manager"].onboarding_completed,
-                    "onboarding_completed_at": user_data["line_manager"].onboarding_completed_at,
+                    "position": user_data["line_manager"].position,
                     "department_id": user_data["line_manager"].department_id,
                     "branch_id": user_data["line_manager"].branch_id,
-                    "position_id": user_data["line_manager"].position_id,
-                    "portfolio_id": user_data["line_manager"].portfolio_id,
-                    "line_manager_id": user_data["line_manager"].line_manager_id,
-                    "profile_image_url": user_data["line_manager"].profile_image_url,
-                    "employee_id": user_data["line_manager"].employee_id,
+                    "is_active": user_data["line_manager"].is_active,
                     "created_at": user_data["line_manager"].created_at,
                     "updated_at": user_data["line_manager"].updated_at,
-                    "last_login_at": user_data["line_manager"].last_login_at,
-                    "department": None,  # Avoid infinite nesting
-                    "branch": None,      # Avoid infinite nesting
-                    "position": None,    # Avoid infinite nesting
-                    "portfolio": None,   # Avoid infinite nesting
-                    "line_manager": None, # Avoid infinite nesting
-                    "status_changed_by_user": None
                 } if hasattr(user_data["line_manager"], 'id') else None
 
             return UserResponse.model_validate(user_data)

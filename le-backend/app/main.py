@@ -15,7 +15,7 @@ from app.routers import auth, applications, files, departments, branches, dashbo
 from app.routers.users import router as users_router
 from app.routers import folders, customers, enums, selfies, validation, account_validation
 from app.routers import settings as settings_router
-from app.routers import permissions, performance, security
+from app.routers import permissions, performance, security, employees, admin
 from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
 from app.middleware.database_middleware import DatabaseConnectionMiddleware
@@ -155,6 +155,8 @@ app.include_router(security.router, prefix="/api/v1", tags=["security"])
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])
 app.include_router(selfies.router, prefix="/api/v1/selfies", tags=["selfies"])
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
+app.include_router(employees.router, prefix="/api/v1", tags=["employees"])
+app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 # app.include_router(account_validation.router, prefix="/api/v1", tags=["account-validation"])
 
 # Import and include WebSocket router

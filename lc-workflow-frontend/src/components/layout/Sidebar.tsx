@@ -15,6 +15,7 @@ import {
   BellIcon,
   ChartBarIcon,
   ShieldCheckIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthContext } from '@/providers/AuthProvider';
 import { UserAvatar } from '@/components/users/OptimizedAvatar';
@@ -29,6 +30,7 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Applications', href: '/applications', icon: DocumentTextIcon },
+  { name: 'Employees', href: '/employees', icon: UserGroupIcon },
   { name: 'Files', href: '/files', icon: FolderIcon },
 ];
 

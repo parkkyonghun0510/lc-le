@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -125,6 +125,9 @@ const NewApplicationPage = () => {
     // Financial Information (optional)
     monthly_expenses: 0,
     assets_value: 0,
+
+    // Employee Assignment System
+    employee_assignments: [],
   });
 
   const createApplicationMutation = useCreateApplication();
@@ -140,6 +143,16 @@ const NewApplicationPage = () => {
   );
 
   const uploadedFiles = useMemo(() => files?.items || [], [files]);
+
+  // Auto-populate portfolio_officer_name from user's portfolio assignment
+  useEffect(() => {
+    if (user?.portfolio && user.portfolio.full_name_latin) {
+      setFormValues(prev => ({
+        ...prev,
+        portfolio_officer_name: user.portfolio?.full_name_latin || '',
+      }));
+    }
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -184,6 +197,7 @@ const NewApplicationPage = () => {
         guarantor_address: formValues.guarantor_address,
         guarantor_relationship: formValues.guarantor_relationship,
         guarantor_id_number: formValues.guarantor_id_number,
+        employee_assignments: formValues.employee_assignments,
         // sex: formValues.sex,
         // marital_status: formValues.marital_status,
       });
@@ -356,6 +370,12 @@ const NewApplicationPage = () => {
           <CustomerInformationStep
             formValues={formValues}
             onInputChange={handleInputChange}
+            onEmployeeAssignmentsChange={(assignments) => {
+              setFormValues(prev => ({
+                ...prev,
+                employee_assignments: assignments,
+              }));
+            }}
           />
         );
       case 1:
@@ -416,20 +436,17 @@ const NewApplicationPage = () => {
               <div className="hidden sm:block absolute inset-0 bg-gradient-to-l from-purple-600/5 to-pink-600/5 rounded-2xl sm:rounded-3xl transform -rotate-1"></div>
 
               {/* Main form container */}
-              <div className="relative bg-white dark:bg-gray-800 sm:bg-white/80 sm:dark:bg-gray-800/80 sm:backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-2xl border border-gray-200 dark:border-gray-700 sm:border-white/20 sm:dark:border-gray-700/50 p-4 sm:p-6 lg:p-8 xl:p-12 mb-6 sm:mb-8 lg:mb-10">
+              <div className="relative bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 lg:p-10 xl:p-12 mb-6 sm:mb-8 lg:mb-10">
                 {/* Step content with enhanced spacing */}
                 <div className="relative z-10">
                   {renderStepContent(activeStep)}
                 </div>
-
-                {/* Subtle inner glow effect - hidden on mobile */}
-                <div className="hidden sm:block absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
               </div>
             </div>
 
             {/* Enhanced Navigation Container */}
             <div className="relative">
-              <div className="bg-white dark:bg-gray-800 sm:bg-white/60 sm:dark:bg-gray-800/60 sm:backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl border border-gray-200 dark:border-gray-700 sm:border-white/30 sm:dark:border-gray-700/30 p-4 sm:p-6">
+              <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                 <StepNavigation
                   activeStep={activeStep}
                   steps={steps}

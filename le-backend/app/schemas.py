@@ -174,9 +174,9 @@ class UserResponse(UserBase):
     branch: Optional['BranchResponse'] = None
     # Replace prior string placeholder with nested position
     position: Optional['PositionResponse'] = None
-    # Portfolio and line manager relationships (using UserSummary to avoid circular refs)
-    portfolio: Optional[UserSummary] = None
-    line_manager: Optional[UserSummary] = None
+    # Portfolio and line manager relationships (changed to EmployeeSummary)
+    portfolio: Optional['EmployeeSummary'] = None
+    line_manager: Optional['EmployeeSummary'] = None
     # Status changed by user relationship (using UserSummary to avoid circular refs)
     status_changed_by_user: Optional[UserSummary] = None
 
@@ -697,10 +697,11 @@ class CustomerApplicationBase(BaseSchema):
         return None
 
 class CustomerApplicationCreate(CustomerApplicationBase):
-    pass
+    employee_assignments: Optional[List['EmployeeAssignmentCreate']] = Field(default=None, description="Optional list of employee assignments")
 
 class CustomerApplicationUpdate(CustomerApplicationBase):
     status: Optional[str] = None
+    employee_assignments: Optional[List['EmployeeAssignmentCreate']] = Field(default=None, description="Optional list of employee assignments")
 
 class CustomerApplicationResponse(CustomerApplicationBase):
     model_config = {
@@ -721,6 +722,9 @@ class CustomerApplicationResponse(CustomerApplicationBase):
     rejected_at: Optional[datetime]
     rejected_by: Optional[UUID]
     rejection_reason: Optional[str]
+    # Employee assignment fields
+    employee_assignments: List['EmployeeAssignmentResponse'] = Field(default_factory=list, description="Assigned employees")
+    portfolio_officer_migrated: bool = Field(default=False, description="Whether portfolio_officer_name has been migrated to employee assignments")
 
     @classmethod
     def from_orm(cls, application):
@@ -804,7 +808,24 @@ class CustomerApplicationResponse(CustomerApplicationBase):
             'manager_reviewed_by': application.manager_reviewed_by,
             'account_id_validated': application.account_id_validated,
             'account_id_validation_notes': application.account_id_validation_notes,
+            # Employee assignment fields
+            'portfolio_officer_migrated': getattr(application, 'portfolio_officer_migrated', False),
         }
+        
+        # Include employee assignments if loaded
+        if hasattr(application, 'employee_assignments') and application.employee_assignments:
+            try:
+                from app.schemas import EmployeeAssignmentResponse
+                data['employee_assignments'] = [
+                    EmployeeAssignmentResponse.from_orm(assignment) 
+                    for assignment in application.employee_assignments
+                    if getattr(assignment, 'is_active', True)
+                ]
+            except Exception:
+                data['employee_assignments'] = []
+        else:
+            data['employee_assignments'] = []
+        
         return cls(**data)
 
 class RejectionRequest(BaseSchema):
@@ -1793,6 +1814,192 @@ class ApprovalRequest(BaseSchema):
     approved_interest_rate: Optional[float] = Field(None, description="Approved interest rate")
     approved_loan_term: Optional[str] = Field(None, description="Approved loan term override")
 
+# Employee schemas
+class EmployeeBase(BaseSchema):
+    """Base schema for employee data"""
+    employee_code: str = Field(..., min_length=1, max_length=20, description="Unique employee code")
+    full_name_khmer: str = Field(..., min_length=1, max_length=255, description="Full name in Khmer")
+    full_name_latin: str = Field(..., min_length=1, max_length=255, description="Full name in Latin script")
+    phone_number: str = Field(..., min_length=1, max_length=20, description="Phone number")
+    email: Optional[EmailStr] = Field(None, description="Email address")
+    position: Optional[str] = Field(None, max_length=100, description="Job position/title")
+    department_id: Optional[UUID] = Field(None, description="Department ID")
+    branch_id: Optional[UUID] = Field(None, description="Branch ID")
+    user_id: Optional[UUID] = Field(None, description="Linked system user ID")
+    is_active: bool = Field(default=True, description="Whether employee is active")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+class EmployeeCreate(EmployeeBase):
+    """Schema for creating a new employee"""
+    pass
+
+class EmployeeUpdate(BaseSchema):
+    """Schema for updating an existing employee"""
+    employee_code: Optional[str] = Field(None, min_length=1, max_length=20, description="Unique employee code")
+    full_name_khmer: Optional[str] = Field(None, min_length=1, max_length=255, description="Full name in Khmer")
+    full_name_latin: Optional[str] = Field(None, min_length=1, max_length=255, description="Full name in Latin script")
+    phone_number: Optional[str] = Field(None, min_length=1, max_length=20, description="Phone number")
+    email: Optional[EmailStr] = Field(None, description="Email address")
+    position: Optional[str] = Field(None, max_length=100, description="Job position/title")
+    department_id: Optional[UUID] = Field(None, description="Department ID")
+    branch_id: Optional[UUID] = Field(None, description="Branch ID")
+    user_id: Optional[UUID] = Field(None, description="Linked system user ID")
+    is_active: Optional[bool] = Field(None, description="Whether employee is active")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+class EmployeeResponse(EmployeeBase):
+    """Schema for employee response with relationships"""
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    department: Optional[DepartmentResponse] = None
+    branch: Optional[BranchResponse] = None
+    linked_user: Optional[UserSummary] = None
+    assignment_count: int = Field(default=0, description="Number of active assignments")
+    
+    @classmethod
+    def from_orm(cls, employee):
+        """Create EmployeeResponse from Employee model"""
+        data = {
+            'id': employee.id,
+            'employee_code': employee.employee_code,
+            'full_name_khmer': employee.full_name_khmer,
+            'full_name_latin': employee.full_name_latin,
+            'phone_number': employee.phone_number,
+            'email': employee.email,
+            'position': employee.position,
+            'department_id': employee.department_id,
+            'branch_id': employee.branch_id,
+            'user_id': employee.user_id,
+            'is_active': employee.is_active,
+            'notes': employee.notes,
+            'created_at': employee.created_at,
+            'updated_at': employee.updated_at,
+        }
+        
+        # Include relationships if loaded
+        if hasattr(employee, 'department') and employee.department:
+            data['department'] = DepartmentResponse.from_orm(employee.department) if hasattr(DepartmentResponse, 'from_orm') else None
+        
+        if hasattr(employee, 'branch') and employee.branch:
+            data['branch'] = BranchResponse.from_orm(employee.branch) if hasattr(BranchResponse, 'from_orm') else None
+        
+        if hasattr(employee, 'linked_user') and employee.linked_user:
+            data['linked_user'] = UserSummary.from_orm(employee.linked_user) if hasattr(UserSummary, 'from_orm') else None
+        
+        # Calculate assignment count
+        if hasattr(employee, 'assignments'):
+            try:
+                data['assignment_count'] = len([a for a in employee.assignments if getattr(a, 'is_active', True)])
+            except Exception:
+                data['assignment_count'] = 0
+        else:
+            data['assignment_count'] = 0
+        
+        return cls(**data)
+
+
+class EmployeeSummary(BaseSchema):
+    """Lightweight employee summary for relationships"""
+    id: UUID
+    employee_code: str
+    full_name_khmer: str
+    full_name_latin: str
+    position: Optional[str] = None
+    is_active: bool = True
+
+
+# Employee Assignment schemas
+class AssignmentRole(str, Enum):
+    """Enum for employee assignment roles"""
+    PRIMARY_OFFICER = "primary_officer"
+    SECONDARY_OFFICER = "secondary_officer"
+    FIELD_OFFICER = "field_officer"
+    REVIEWER = "reviewer"
+    APPROVER = "approver"
+
+class EmployeeAssignmentBase(BaseSchema):
+    """Base schema for employee assignment"""
+    employee_id: UUID = Field(..., description="Employee ID")
+    assignment_role: AssignmentRole = Field(..., description="Role of the employee in this assignment")
+    notes: Optional[str] = Field(None, description="Additional notes about the assignment")
+
+class EmployeeAssignmentCreate(EmployeeAssignmentBase):
+    """Schema for creating a new employee assignment"""
+    pass
+
+class EmployeeAssignmentUpdate(BaseSchema):
+    """Schema for updating an existing employee assignment"""
+    assignment_role: Optional[AssignmentRole] = Field(None, description="Updated role")
+    is_active: Optional[bool] = Field(None, description="Whether assignment is active")
+    notes: Optional[str] = Field(None, description="Updated notes")
+
+class EmployeeAssignmentResponse(EmployeeAssignmentBase):
+    """Schema for employee assignment response with employee details"""
+    id: UUID
+    application_id: UUID
+    assigned_at: datetime
+    assigned_by: Optional[UUID] = None
+    is_active: bool
+    employee: 'EmployeeResponse'
+    
+    @classmethod
+    def from_orm(cls, assignment):
+        """Create EmployeeAssignmentResponse from ApplicationEmployeeAssignment model"""
+        from app.schemas import EmployeeResponse
+        
+        data = {
+            'id': assignment.id,
+            'application_id': assignment.application_id,
+            'employee_id': assignment.employee_id,
+            'assignment_role': assignment.assignment_role,
+            'assigned_at': assignment.assigned_at,
+            'assigned_by': assignment.assigned_by,
+            'is_active': assignment.is_active,
+            'notes': assignment.notes,
+        }
+        
+        # Include employee details if loaded
+        if hasattr(assignment, 'employee') and assignment.employee:
+            data['employee'] = EmployeeResponse.from_orm(assignment.employee)
+        
+        return cls(**data)
+
+
+# Employee Code Management Schemas
+class NextCodeResponse(BaseSchema):
+    """Schema for next available employee code response"""
+    code: str = Field(..., description="Next available employee code")
+    pattern: str = Field(..., description="Detected or used code pattern")
+
+
+class EmployeeBasicInfo(BaseSchema):
+    """Basic employee information for code availability checks"""
+    id: UUID
+    full_name_khmer: str
+    full_name_latin: str
+
+
+class CodeAvailabilityResponse(BaseSchema):
+    """Schema for employee code availability check response"""
+    available: bool = Field(..., description="Whether the code is available")
+    code: str = Field(..., description="The checked employee code")
+    existing_employee: Optional[EmployeeBasicInfo] = Field(None, description="Existing employee if code is taken")
+
+
+class GenerateCodesRequest(BaseSchema):
+    """Schema for requesting batch code generation"""
+    count: int = Field(..., ge=1, le=100, description="Number of codes to generate (max 100)")
+    pattern: Optional[str] = Field(None, description="Optional code pattern to follow")
+
+
+class GeneratedCodesResponse(BaseSchema):
+    """Schema for batch code generation response"""
+    codes: List[str] = Field(..., description="List of generated employee codes")
+    count: int = Field(..., description="Number of codes generated")
+    expires_at: Optional[datetime] = Field(None, description="When the reservation expires")
+
+
 # --- Resolve forward references after all models are defined ---
 # List all models that need rebuilding to resolve forward references
 _models_to_rebuild = [
@@ -1808,7 +2015,11 @@ _models_to_rebuild = [
     TokenResponse, PaginatedResponse,
     FolderBase, FolderCreate, FolderUpdate, FolderResponse,
     FileBase, FileCreate, FileResponse, FileFinalize, FileUploadRequest,
-    SelfieListResponse, ApprovalRequest
+    SelfieListResponse, ApprovalRequest,
+    EmployeeBase, EmployeeCreate, EmployeeUpdate, EmployeeResponse, EmployeeSummary,
+    EmployeeAssignmentBase, EmployeeAssignmentCreate, EmployeeAssignmentUpdate, EmployeeAssignmentResponse,
+    NextCodeResponse, EmployeeBasicInfo, CodeAvailabilityResponse,
+    GenerateCodesRequest, GeneratedCodesResponse
 ]
 
 # Rebuild models to resolve forward references

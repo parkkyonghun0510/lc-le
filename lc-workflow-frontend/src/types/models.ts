@@ -40,11 +40,11 @@ export interface User extends BaseModel {
   // Department and branch relations
   department?: Department | null;
   branch?: Branch | null;
-  // Portfolio and line manager relations
+  // Portfolio and line manager relations (now Employee objects, not User)
   portfolio_id?: string | null;
   line_manager_id?: string | null;
-  portfolio?: User | null;
-  line_manager?: User | null;
+  portfolio?: EmployeeSummary | null;
+  line_manager?: EmployeeSummary | null;
   profile_image_url?: string;
   last_login_at?: string;
   employee_id?: string;
@@ -82,6 +82,102 @@ export interface Branch extends BaseModel {
   latitude?: number;
   longitude?: number;
   is_active: boolean;
+}
+
+// Employee Assignment System Types
+
+export type AssignmentRole = 
+  | 'primary_officer' 
+  | 'secondary_officer' 
+  | 'field_officer' 
+  | 'reviewer' 
+  | 'approver';
+
+export interface Employee extends BaseModel {
+  employee_code: string;
+  full_name_khmer: string;
+  full_name_latin: string;
+  phone_number: string;
+  email?: string;
+  position?: string;
+  department_id?: string;
+  branch_id?: string;
+  user_id?: string;
+  is_active: boolean;
+  notes?: string;
+  // Optional relationship fields
+  department?: Department;
+  branch?: Branch;
+  linked_user?: User;
+  assignment_count?: number;
+}
+
+// Lightweight employee summary for relationships (matches backend EmployeeSummary)
+export interface EmployeeSummary {
+  id: string;
+  employee_code: string;
+  full_name_khmer: string;
+  full_name_latin: string;
+  position?: string;
+  is_active: boolean;
+}
+
+export interface EmployeeAssignment extends BaseModel {
+  application_id: string;
+  employee_id: string;
+  assignment_role: AssignmentRole;
+  assigned_at: string;
+  assigned_by?: string;
+  is_active: boolean;
+  notes?: string;
+  // Relationship field
+  employee?: Employee;
+}
+
+export type EmployeeCreate = Omit<Employee, 'id' | 'created_at' | 'updated_at' | 'department' | 'branch' | 'linked_user' | 'assignment_count'>;
+
+export type EmployeeUpdate = Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at' | 'department' | 'branch' | 'linked_user' | 'assignment_count'>>;
+
+export interface EmployeeAssignmentCreate {
+  employee_id: string;
+  assignment_role: AssignmentRole;
+  notes?: string;
+}
+
+export interface EmployeeAssignmentUpdate {
+  assignment_role?: AssignmentRole;
+  is_active?: boolean;
+  notes?: string;
+}
+
+// Employee Code Management Types
+
+export interface NextCodeResponse {
+  code: string;
+  pattern: string;
+}
+
+export interface EmployeeBasicInfo {
+  id: string;
+  full_name_khmer: string;
+  full_name_latin: string;
+}
+
+export interface CodeAvailabilityResponse {
+  available: boolean;
+  code: string;
+  existing_employee?: EmployeeBasicInfo;
+}
+
+export interface GenerateCodesRequest {
+  count: number;
+  pattern?: string;
+}
+
+export interface GeneratedCodesResponse {
+  codes: string[];
+  count: number;
+  expires_at?: string;
 }
 
 export interface CustomerApplication extends BaseModel {
@@ -136,6 +232,10 @@ export interface CustomerApplication extends BaseModel {
   rejected_at?: string;
   rejected_by?: string;
   rejection_reason?: string;
+
+  // Employee Assignment System fields
+  employee_assignments?: EmployeeAssignment[];
+  portfolio_officer_migrated?: boolean;
 }
 
 export interface Collateral {
@@ -268,6 +368,7 @@ export interface CustomerApplicationCreate {
   guarantor_relationship?: string;
   collaterals?: Collateral[];
   documents?: ApplicationDocument[];
+  employee_assignments?: EmployeeAssignmentCreate[];
 }
 
 export interface CustomerApplicationUpdate extends Partial<CustomerApplicationCreate> {

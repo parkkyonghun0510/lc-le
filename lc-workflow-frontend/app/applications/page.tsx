@@ -92,6 +92,12 @@ function ApplicationsContent() {
   // TODO: Replace with static options or new data source
   const productTypes = useProductTypes();
 
+  // Helper function to get primary employee from assignments
+  const getPrimaryEmployee = (app: CustomerApplication) => {
+    const primary = app.employee_assignments?.find(a => a.assignment_role === 'primary_officer');
+    return primary || app.employee_assignments?.[0];
+  };
+
   // Role-based filtering
   const getRoleBasedFilters = () => {
     const baseFilters = {
@@ -468,9 +474,9 @@ function ApplicationsContent() {
                           {getSortIndicator('phone')}
                         </div>
                       </th>
-                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('officer')}>
+                      <th scope="col" className="hidden sm:table-cell px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('officer')}>
                         <div className="flex items-center space-x-2">
-                          <span>មន្ត្រីទទួលបន្ទុក</span>
+                          <span>Assigned Employees / បុគ្គលិកទទួលបន្ទុក</span>
                           {getSortIndicator('officer')}
                         </div>
                       </th>
@@ -516,7 +522,31 @@ function ApplicationsContent() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{application.id_number || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{application.phone || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{application.portfolio_officer_name || '-'}</td>
+                        <td className="hidden sm:table-cell px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                          {(() => {
+                            const primaryEmployee = getPrimaryEmployee(application);
+                            const assignmentCount = application.employee_assignments?.length || 0;
+                            
+                            if (primaryEmployee?.employee) {
+                              return (
+                                <div className="flex items-center space-x-2">
+                                  <span className="truncate">
+                                    {primaryEmployee.employee.full_name_khmer} ({primaryEmployee.employee.employee_code})
+                                  </span>
+                                  {assignmentCount > 1 && (
+                                    <span className="ml-2 px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+                                      +{assignmentCount - 1}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            } else if (application.portfolio_officer_name) {
+                              return application.portfolio_officer_name;
+                            } else {
+                              return 'មិនបានកំណត់';
+                            }
+                          })()}
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 text-right">
                           {application.requested_amount
                             ? formatCurrencyWithConversion(application.requested_amount, 'KHR')
@@ -619,17 +649,35 @@ function ApplicationsContent() {
                           </div>
                         </div>
                       )}
-                      {application.portfolio_officer_name && (
-                        <div className="flex items-center text-sm">
-                          <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg mr-3">
-                            <UserIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">មន្ត្រីទទួលបន្ទុក</p>
-                            <p className="font-semibold text-gray-900 dark:text-white">{application.portfolio_officer_name}</p>
-                          </div>
-                        </div>
-                      )}
+                      {(() => {
+                        const primaryEmployee = getPrimaryEmployee(application);
+                        const assignmentCount = application.employee_assignments?.length || 0;
+                        const displayName = primaryEmployee?.employee 
+                          ? `${primaryEmployee.employee.full_name_khmer} (${primaryEmployee.employee.employee_code})`
+                          : application.portfolio_officer_name;
+                        
+                        if (displayName) {
+                          return (
+                            <div className="flex items-center text-sm">
+                              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg mr-3">
+                                <UserIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">បុគ្គលិកទទួលបន្ទុក</p>
+                                <div className="flex items-center space-x-2">
+                                  <p className="font-semibold text-gray-900 dark:text-white truncate">{displayName}</p>
+                                  {assignmentCount > 1 && (
+                                    <span className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full flex-shrink-0">
+                                      +{assignmentCount - 1}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     {/* Loan Details */}

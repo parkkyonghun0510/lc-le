@@ -6,10 +6,15 @@ import { cn } from '@/lib/utils';
 interface UserManagerBadgeProps {
   manager: {
     id: string;
-    first_name: string;
-    last_name: string;
-    username: string;
+    // User fields (legacy)
+    first_name?: string;
+    last_name?: string;
+    username?: string;
     phone_number?: string;
+    // Employee fields (new)
+    full_name_latin?: string;
+    full_name_khmer?: string;
+    employee_code?: string;
   } | null | undefined;
   type: 'portfolio' | 'line_manager';
   size?: 'sm' | 'md' | 'lg';
@@ -76,6 +81,15 @@ export function UserManagerBadge({
   const sizeStyle = sizeStyles[size];
   const config = typeConfig[type];
 
+  // Determine if this is an Employee or User object
+  const isEmployee = !!manager.employee_code;
+  const displayName = isEmployee 
+    ? manager.full_name_latin 
+    : `${manager.first_name} ${manager.last_name}`;
+  const displayCode = isEmployee 
+    ? manager.employee_code 
+    : manager.username;
+
   return (
     <div className={cn(
       'inline-flex items-center border rounded-lg font-medium',
@@ -90,9 +104,11 @@ export function UserManagerBadge({
       )}
       <div className={cn('flex flex-col', sizeStyle.spacing)}>
         <span className="font-semibold">
-          {manager.first_name} {manager.last_name}
+          {displayName}
         </span>
-        <span className="text-xs opacity-75">@{manager.username}</span>
+        <span className="text-xs opacity-75">
+          {isEmployee ? `Code: ${displayCode}` : `@${displayCode}`}
+        </span>
         {showPhone && manager.phone_number && (
           <span className="text-xs opacity-75">{manager.phone_number}</span>
         )}

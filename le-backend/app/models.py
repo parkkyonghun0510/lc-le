@@ -33,9 +33,9 @@ class User(Base):
     branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id'))
     # New: position reference (nullable, indexed via migration)
     position_id = Column(UUID(as_uuid=True), ForeignKey('positions.id'), nullable=True)
-    # New: portfolio and line manager references
-    portfolio_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
-    line_manager_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    # New: portfolio and line manager references (changed to employees)
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'), nullable=True)
+    line_manager_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'), nullable=True)
     profile_image_url = Column(Text)
     # Soft delete field
     is_deleted = Column(Boolean, default=False, comment='Soft delete flag')
@@ -49,14 +49,11 @@ class User(Base):
     department = relationship("Department", back_populates="users", foreign_keys=[department_id])
     branch = relationship("Branch", back_populates="users", foreign_keys=[branch_id])
     position = relationship("Position", back_populates="users", foreign_keys=[position_id])
-    # Portfolio and line manager relationships
-    portfolio = relationship("User", remote_side="User.id", foreign_keys=[portfolio_id])
-    line_manager = relationship("User", remote_side="User.id", foreign_keys=[line_manager_id])
+    # Portfolio and line manager relationships (changed to Employee)
+    portfolio = relationship("Employee", foreign_keys=[portfolio_id])
+    line_manager = relationship("Employee", foreign_keys=[line_manager_id])
     # Status change tracking relationship
     status_changed_by_user = relationship("User", remote_side="User.id", foreign_keys=[status_changed_by])
-    # Reverse relationships for portfolio and line management
-    portfolio_members = relationship("User", foreign_keys="User.portfolio_id", back_populates="portfolio")
-    direct_reports = relationship("User", foreign_keys="User.line_manager_id", back_populates="line_manager")
     applications = relationship("CustomerApplication", back_populates="user", foreign_keys="CustomerApplication.user_id")
     uploaded_files = relationship("File", back_populates="uploaded_by_user")
     
@@ -71,14 +68,14 @@ class Department(Base):
     name = Column(String(100), nullable=False)
     code = Column(String(20), unique=True, nullable=False)
     description = Column(Text)
-    manager_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    manager_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
     users = relationship("User", back_populates="department", foreign_keys="User.department_id")
-    manager = relationship("User", foreign_keys=[manager_id])
+    manager = relationship("Employee", foreign_keys=[manager_id])
 
 class Branch(Base):
     __tablename__ = "branches"
@@ -89,7 +86,7 @@ class Branch(Base):
     address = Column(Text, nullable=False)
     phone_number = Column(String(20))
     email = Column(String(255))
-    manager_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    manager_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'))
     latitude = Column(Numeric(10, 8))
     longitude = Column(Numeric(11, 8))
     is_active = Column(Boolean, default=True)
@@ -98,7 +95,7 @@ class Branch(Base):
     
     # Relationships
     users = relationship("User", back_populates="branch", foreign_keys="User.branch_id")
-    manager = relationship("User", foreign_keys=[manager_id])
+    manager = relationship("Employee", foreign_keys=[manager_id])
 
 class CustomerApplication(Base):
     __tablename__ = "customer_applications"
@@ -119,6 +116,7 @@ class CustomerApplication(Base):
     sex = Column(String(20))  # male, female, other
     marital_status = Column(String(20))  # single, married, divorced, widowed, separated
     portfolio_officer_name = Column(String(255))
+    portfolio_officer_migrated = Column(Boolean, default=False, index=True)
     
     # Address Information
     current_address = Column(Text)
@@ -234,6 +232,7 @@ class CustomerApplication(Base):
         viewonly=True,
         lazy="selectin",
     )
+    employee_assignments = relationship("ApplicationEmployeeAssignment", back_populates="application")
 
 class File(Base):
     __tablename__ = "files"
@@ -394,4 +393,54 @@ class Notification(Base):
         Index('ix_notifications_type', 'type'),
         Index('ix_notifications_is_read', 'is_read'),
         Index('ix_notifications_created_at', 'created_at'),
+    )
+
+class Employee(Base):
+    __tablename__ = "employees"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_code = Column(String(20), unique=True, nullable=False, index=True)
+    full_name_khmer = Column(String(255), nullable=False)
+    full_name_latin = Column(String(255), nullable=False)
+    phone_number = Column(String(20), nullable=False)
+    email = Column(String(255), nullable=True)
+    position = Column(String(100), nullable=True)
+    department_id = Column(UUID(as_uuid=True), ForeignKey('departments.id'), nullable=True)
+    branch_id = Column(UUID(as_uuid=True), ForeignKey('branches.id'), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, unique=True)
+    is_active = Column(Boolean, default=True, index=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    
+    # Relationships
+    department = relationship("Department", foreign_keys=[department_id])
+    branch = relationship("Branch", foreign_keys=[branch_id])
+    linked_user = relationship("User", foreign_keys=[user_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    updater = relationship("User", foreign_keys=[updated_by])
+    assignments = relationship("ApplicationEmployeeAssignment", back_populates="employee")
+
+class ApplicationEmployeeAssignment(Base):
+    __tablename__ = "application_employee_assignments"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    application_id = Column(UUID(as_uuid=True), ForeignKey('customer_applications.id', ondelete='CASCADE'), nullable=False, index=True)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey('employees.id', ondelete='CASCADE'), nullable=False, index=True)
+    assignment_role = Column(String(50), nullable=False, index=True)
+    assigned_at = Column(DateTime(timezone=True), server_default=func.now())
+    assigned_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    is_active = Column(Boolean, default=True, index=True)
+    notes = Column(Text, nullable=True)
+    
+    # Relationships
+    application = relationship("CustomerApplication", back_populates="employee_assignments")
+    employee = relationship("Employee", back_populates="assignments")
+    assigner = relationship("User", foreign_keys=[assigned_by])
+    
+    # Unique constraint
+    __table_args__ = (
+        Index('ix_unique_assignment', 'application_id', 'employee_id', 'assignment_role', unique=True),
     )

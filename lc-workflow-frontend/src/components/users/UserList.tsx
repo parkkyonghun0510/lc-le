@@ -184,7 +184,7 @@ export function UserList({
             <div className="text-sm">
               <span className="text-blue-600 font-medium">Portfolio:</span>
               <div className="text-xs text-gray-600">
-                {user.portfolio.first_name} {user.portfolio.last_name}
+                {user.portfolio.full_name_latin}
               </div>
             </div>
           )}
@@ -192,7 +192,7 @@ export function UserList({
             <div className="text-sm">
               <span className="text-green-600 font-medium">Line:</span>
               <div className="text-xs text-gray-600">
-                {user.line_manager.first_name} {user.line_manager.last_name}
+                {user.line_manager.full_name_latin}
               </div>
             </div>
           )}

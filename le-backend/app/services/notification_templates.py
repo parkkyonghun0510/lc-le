@@ -24,7 +24,7 @@ class NotificationTemplates:
                 'onboarding_required': not user.onboarding_completed,
                 'department': user.department.name if user.department else None,
                 'branch': user.branch.name if user.branch else None,
-                'line_manager': f"{user.line_manager.first_name} {user.line_manager.last_name}" if user.line_manager else None
+                'line_manager': user.line_manager.full_name_latin if user.line_manager else None
             }
         }
     

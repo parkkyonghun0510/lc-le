@@ -511,6 +511,174 @@ function ApplicationDetailContent() {
               </CardContent>
             </Card>
 
+            {/* Assigned Employees Section */}
+            <Card variant="elevated" padding="none" className="overflow-hidden hover:shadow-xl transition-all duration-300">
+              <SectionHeader
+                icon={<UserGroupIcon />}
+                title="Assigned Employees"
+                khmerTitle="បុគ្គលិកទទួលបន្ទុក"
+                variant="info"
+              />
+              <CardContent className="p-8">
+                {/* Legacy portfolio officer warning */}
+                {!application.portfolio_officer_migrated && 
+                 application.portfolio_officer_name && 
+                 (!application.employee_assignments || application.employee_assignments.length === 0) && (
+                  <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-amber-600 dark:text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                          Legacy Portfolio Officer
+                        </h3>
+                        <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                          This application uses legacy portfolio officer: <span className="font-semibold">{application.portfolio_officer_name}</span>. Consider migrating to employee assignments.
+                        </p>
+                        {user?.role === 'admin' && (
+                          <Link 
+                            href="/admin/migrate-employees"
+                            className="mt-2 inline-flex items-center text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300"
+                          >
+                            Migrate to employee assignments →
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Employee assignments display */}
+                {application.employee_assignments && application.employee_assignments.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {application.employee_assignments.map((assignment) => {
+                        const roleColors = {
+                          primary_officer: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700',
+                          secondary_officer: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700',
+                          field_officer: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700',
+                          reviewer: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-700',
+                          approver: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700'
+                        };
+
+                        const roleLabels = {
+                          primary_officer: 'Primary Officer',
+                          secondary_officer: 'Secondary Officer',
+                          field_officer: 'Field Officer',
+                          reviewer: 'Reviewer',
+                          approver: 'Approver'
+                        };
+
+                        const roleColor = roleColors[assignment.assignment_role] || roleColors.primary_officer;
+                        const roleLabel = roleLabels[assignment.assignment_role] || assignment.assignment_role;
+
+                        return (
+                          <div 
+                            key={assignment.id}
+                            className="group relative p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                          >
+                            <div className="space-y-4">
+                              {/* Employee name */}
+                              <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                  {assignment.employee?.full_name_khmer || 'Unknown'}
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {assignment.employee?.full_name_latin || ''}
+                                </p>
+                              </div>
+
+                              {/* Employee code badge */}
+                              {assignment.employee?.employee_code && (
+                                <div className="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                                  <span className="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">
+                                    {assignment.employee.employee_code}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Role badge */}
+                              <div className={`inline-flex items-center px-3 py-1 rounded-lg border ${roleColor}`}>
+                                <span className="text-xs font-semibold uppercase tracking-wide">
+                                  {roleLabel}
+                                </span>
+                              </div>
+
+                              {/* Assignment details */}
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                  <CalendarIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                                  <span>Assigned: {formatDate(assignment.assigned_at)}</span>
+                                </div>
+
+                                {assignment.employee?.department?.name && (
+                                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                    <BuildingOfficeIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                                    <span>{assignment.employee.department.name}</span>
+                                  </div>
+                                )}
+
+                                {assignment.employee?.branch?.name && (
+                                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                    <BuildingOfficeIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                                    <span>{assignment.employee.branch.name}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Notes */}
+                              {assignment.notes && (
+                                <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">
+                                    {assignment.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Edit assignments button */}
+                    {canEdit && (
+                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                        <Link href={`/applications/${applicationId}/edit`}>
+                          <Button variant="secondary" size="md">
+                            <PencilIcon className="w-4 h-4 mr-2" />
+                            Edit Assignments
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Empty state */
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+                      <UserGroupIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      No employees assigned to this application
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                      Employees can be assigned when editing this application
+                    </p>
+                    {canEdit && (
+                      <Link href={`/applications/${applicationId}/edit`}>
+                        <Button variant="primary" size="md">
+                          <PencilIcon className="w-4 h-4 mr-2" />
+                          Edit Application
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
               {/* Address Information */}
               {application.current_address && (

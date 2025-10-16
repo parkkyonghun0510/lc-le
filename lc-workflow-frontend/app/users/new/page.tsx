@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { usePositions } from '@/hooks/usePositions';
-import { useUsers } from '@/hooks/useUsers';
+import { useEmployees } from '@/hooks/useEmployees';
 
 export default function NewUserPage() {
   const router = useRouter();
@@ -36,9 +36,10 @@ export default function NewUserPage() {
   const { data: departmentsData } = useDepartments({ size: 100 });
   const { data: branchesData } = useBranches({ size: 100 });
   const { data: positionsData } = usePositions({ size: 100 });
-  const { data: usersData } = useUsers({
+  const { data: employeesData } = useEmployees({
     size: 100,
-    branch_id: formData.branch_id || undefined // Filter by selected branch
+    branch_id: formData.branch_id || undefined, // Filter by selected branch
+    is_active: true // Only show active employees
   }); // For portfolio and line manager dropdowns
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -138,15 +139,15 @@ export default function NewUserPage() {
     }
   };
 
-  // Filter users by selected branch for portfolio and line manager dropdowns
-  const getFilteredManagers = () => {
-    if (!formData.branch_id || !usersData?.items) {
+  // Filter employees by selected branch for portfolio and line manager dropdowns
+  const getFilteredEmployees = () => {
+    if (!formData.branch_id || !employeesData?.items) {
       return [];
     }
 
-    return usersData.items.filter(user =>
-      (user.role === 'manager' || user.role === 'admin') &&
-      user.branch_id === formData.branch_id
+    return employeesData.items.filter(employee =>
+      employee.branch_id === formData.branch_id &&
+      employee.is_active
     );
   };
 
@@ -399,9 +400,9 @@ export default function NewUserPage() {
                       <option value="">
                         {!formData.branch_id ? 'Select Branch First' : 'Select Portfolio Manager'}
                       </option>
-                      {getFilteredManagers().map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.first_name} {user.last_name} ({user.username})
+                      {getFilteredEmployees().map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.full_name_latin} ({employee.employee_code})
                         </option>
                       ))}
                     </select>
@@ -428,9 +429,9 @@ export default function NewUserPage() {
                       <option value="">
                         {!formData.branch_id ? 'Select Branch First' : 'Select Line Manager'}
                       </option>
-                      {getFilteredManagers().map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.first_name} {user.last_name} ({user.username})
+                      {getFilteredEmployees().map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.full_name_latin} ({employee.employee_code})
                         </option>
                       ))}
                     </select>

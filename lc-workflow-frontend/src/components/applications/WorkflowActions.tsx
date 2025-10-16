@@ -35,9 +35,24 @@ function ActionModal({ isOpen, onClose, onConfirm, action, currentStatus, loadin
   const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
+  const handleAccountIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers and limit to 8 characters
+    const numericValue = value.replace(/\D/g, '').slice(0, 8);
+    setAccountId(numericValue);
+  };
+
+  const handleAccountIdBlur = () => {
+    if (accountId) {
+      // Pad with leading zeros to 8 characters when field loses focus
+      const paddedValue = accountId.padStart(8, '0');
+      setAccountId(paddedValue);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Map action to new_status based on workflow logic
     const getNewStatus = (action: string, currentStatus: WorkflowStatus): WorkflowStatus => {
       switch (action) {
@@ -115,11 +130,17 @@ function ActionModal({ isOpen, onClose, onConfirm, action, currentStatus, loadin
             <Input
               type="text"
               value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
+              onChange={handleAccountIdChange}
+              onBlur={handleAccountIdBlur}
               placeholder="បញ្ចូល Account ID"
               required
-              className="w-full"
+              className="w-full font-mono"
             />
+            {accountId && accountId.length < 8 && (
+              <p className="mt-2 text-sm text-gray-600">
+                លេខគណនីកម្ចី (PMS Account Id): <span className="font-mono font-semibold text-blue-600">{accountId.padStart(8, '0')}</span>
+              </p>
+            )}
           </div>
         )}
 

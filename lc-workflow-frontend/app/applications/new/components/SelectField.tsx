@@ -32,18 +32,18 @@ export const SelectField: React.FC<SelectFieldProps> = ({
 }) => {
   const baseSelectClasses = `
     w-full pr-8 sm:pr-10 py-2.5 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent 
-    transition-all duration-200 appearance-none bg-white dark:bg-gray-700 dark:text-white text-sm sm:text-base
-    hover:border-gray-400 dark:hover:border-gray-500
+    transition-all duration-200 appearance-none bg-white dark:bg-gray-800 dark:text-white text-sm sm:text-base
+    hover:border-gray-400 dark:hover:border-gray-600
     ${Icon ? 'pl-9 sm:pl-10' : 'pl-3 sm:pl-4'}
     ${error ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'}
-    ${disabled ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
+    ${disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-60' : ''}
     ${className}
   `;
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+        {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
       </label>
       <div className="relative">
         {Icon && (

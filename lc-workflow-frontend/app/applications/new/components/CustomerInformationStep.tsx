@@ -12,28 +12,25 @@ import { SelectField } from './SelectField';
 import { AddressField } from './AddressField';
 import { useIDCardTypes } from '@/hooks/useEnums';
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
+import { EmployeeSelector } from '@/components/employees/EmployeeSelector';
+import { useAuth } from '@/hooks/useAuth';
+
+import { EmployeeAssignmentCreate } from '@/types/models';
+import { ApplicationFormValues } from '../types';
 
 interface CustomerInformationStepProps {
-  formValues: {
-    full_name_khmer: string;
-    full_name_latin: string;
-    id_card_type: IDCardType;
-    id_number: string;
-    phone: string;
-    current_address: string;
-    date_of_birth: string;
-    portfolio_officer_name: string;
-    sex: string;
-    marital_status: string;
-  };
+  formValues: ApplicationFormValues;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onEmployeeAssignmentsChange?: (assignments: EmployeeAssignmentCreate[]) => void;
 }
 
 export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = ({
   formValues,
   onInputChange,
+  onEmployeeAssignmentsChange,
 }) => {
   const { data: idCardTypes, isLoading: isLoadingIdCardTypes } = useIDCardTypes();
+  const { user } = useAuth();
 
   // Get dynamic placeholder for ID number based on selected ID card type
   const idNumberPlaceholder = useMemo(() => {
@@ -55,8 +52,8 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <FormField
           label="ឈ្មោះជាភាសាខ្មែរ"
           name="full_name_khmer"
@@ -154,16 +151,39 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           onChange={onInputChange}
           placeholder="ជ្រើសរើសអាសយដ្ឋាន"
         />
+      </div>
 
-        <FormField
-          label="មន្រ្តី ទទួលបន្ទុក"
-          name="portfolio_officer_name"
-          type="text"
-          value={formValues.portfolio_officer_name}
-          onChange={onInputChange}
-          placeholder="ឈ្មោះមន្ត្រី"
-          icon={UserIcon}
+      {/* Employee Assignment Section */}
+      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+          Employee Assignment
+        </h3>
+        <EmployeeSelector
+          value={formValues.employee_assignments || []}
+          onChange={(assignments) => {
+            if (onEmployeeAssignmentsChange) {
+              onEmployeeAssignmentsChange(assignments);
+            }
+          }}
+          branchId={user?.branch_id}
+          allowMultiple={true}
         />
+        
+        {/* Keep portfolio_officer_name for backward compatibility (optional/hidden) */}
+        <div className="mt-4">
+          <FormField
+            label="មន្រ្តី ទទួលបន្ទុក (Legacy)"
+            name="portfolio_officer_name"
+            type="text"
+            value={formValues.portfolio_officer_name}
+            onChange={onInputChange}
+            placeholder="ឈ្មោះមន្ត្រី"
+            icon={UserIcon}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            This field is kept for backward compatibility. Use employee assignments above instead.
+          </p>
+        </div>
       </div>
     </div>
   );

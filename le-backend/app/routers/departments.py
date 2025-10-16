@@ -476,12 +476,13 @@ async def get_department_with_relations(
         "application_count": app_count,
         "manager": {
             "id": str(department.manager.id),
-            "username": department.manager.username,
-            "first_name": department.manager.first_name,
-            "last_name": department.manager.last_name,
+            "employee_code": department.manager.employee_code,
+            "full_name_khmer": department.manager.full_name_khmer,
+            "full_name_latin": department.manager.full_name_latin,
             "email": department.manager.email,
-            "role": department.manager.role,
-            "status": department.manager.status
+            "phone_number": department.manager.phone_number,
+            "position": department.manager.position,
+            "is_active": department.manager.is_active
         } if department.manager else None,
         "users": [
             {

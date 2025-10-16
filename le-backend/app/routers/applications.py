@@ -188,9 +188,18 @@ async def create_application(
                     detail=f"Loan amount cannot exceed ${max_amount}"
                 )
 
-        # Create the application object
+        # Extract employee_assignments before creating application
+        employee_assignments_data = application.employee_assignments
+        
+        # Create the application object (exclude employee_assignments from model_dump)
+        application_data = application.model_dump(exclude_unset=True, exclude={'employee_assignments'})
+        
+        # Set portfolio_officer_migrated flag if employee assignments are provided
+        if employee_assignments_data and len(employee_assignments_data) > 0:
+            application_data['portfolio_officer_migrated'] = True
+        
         db_application = CustomerApplication(
-            **application.model_dump(exclude_unset=True),
+            **application_data,
             user_id=current_user.id,
             workflow_status=WorkflowStatus.PO_CREATED,
             po_created_at=datetime.now(timezone.utc),
@@ -200,12 +209,71 @@ async def create_application(
         logger.info(f"Adding application to database for user {current_user.id}")
         db.add(db_application)
         await db.flush()
+        
+        # Handle employee assignments if provided
+        if employee_assignments_data and len(employee_assignments_data) > 0:
+            from app.services.employee_assignment_service import EmployeeAssignmentService
+            from app.services.employee_service import EmployeeService
+            
+            logger.info(f"Processing {len(employee_assignments_data)} employee assignments for application {db_application.id}")
+            
+            # Get application branch for validation
+            app_branch_id = None
+            if current_user.branch_id:
+                app_branch_id = current_user.branch_id
+            
+            for assignment_data in employee_assignments_data:
+                try:
+                    # Validate employee exists and is active
+                    employee = await EmployeeService.get_employee_by_id(db, assignment_data.employee_id)
+                    if not employee:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Employee with ID {assignment_data.employee_id} not found"
+                        )
+                    
+                    if not employee.is_active:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Cannot assign inactive employee: {employee.full_name_latin or employee.full_name_khmer}"
+                        )
+                    
+                    # Validate branch match if applicable
+                    if app_branch_id and employee.branch_id and employee.branch_id != app_branch_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Employee {employee.full_name_latin or employee.full_name_khmer} must belong to the same branch as the application"
+                        )
+                    
+                    # Create the assignment
+                    await EmployeeAssignmentService.assign_employee(
+                        db=db,
+                        application_id=db_application.id,
+                        employee_id=assignment_data.employee_id,
+                        role=assignment_data.assignment_role,
+                        assigned_by=current_user.id,
+                        notes=assignment_data.notes
+                    )
+                    logger.info(f"Assigned employee {assignment_data.employee_id} to application {db_application.id} as {assignment_data.assignment_role}")
+                    
+                except HTTPException:
+                    # Rollback application creation if assignment fails
+                    await db.rollback()
+                    raise
+                except Exception as e:
+                    # Rollback application creation if assignment fails
+                    await db.rollback()
+                    logger.error(f"Failed to assign employee {assignment_data.employee_id}: {str(e)}", exc_info=True)
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to assign employee: {str(e)}"
+                    )
 
         logger.info(f"Committing application {db_application.id} to database")
         await db.commit()
 
         logger.info(f"Refreshing application {db_application.id} from database")
-        await db.refresh(db_application)
+        await db.refresh(db_application, ['employee_assignments'])
 
         logger.info(f"Creating response model for application {db_application.id}")
         resp = CustomerApplicationResponse.from_orm(db_application)
@@ -279,11 +347,16 @@ async def list_applications(
     db: AsyncSession = Depends(get_db)
 ) -> PaginatedResponse:
     # Base query with relationships
+    from app.models import ApplicationEmployeeAssignment, Employee
+    
     query = select(CustomerApplication).options(
         selectinload(CustomerApplication.user),
         selectinload(CustomerApplication.approver),
         selectinload(CustomerApplication.rejector),
-        selectinload(CustomerApplication.reviewer)
+        selectinload(CustomerApplication.reviewer),
+        # Eager load employee assignments with nested employee details
+        selectinload(CustomerApplication.employee_assignments).selectinload(ApplicationEmployeeAssignment.employee).selectinload(Employee.department),
+        selectinload(CustomerApplication.employee_assignments).selectinload(ApplicationEmployeeAssignment.employee).selectinload(Employee.branch)
     )
     
     # Apply filters based on user role - optimized to avoid subqueries
@@ -490,6 +563,8 @@ async def get_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
+    from app.models import ApplicationEmployeeAssignment, Employee, Department, Branch
+    
     result = await db.execute(
         select(CustomerApplication)
         .options(
@@ -497,7 +572,10 @@ async def get_application(
             selectinload(CustomerApplication.user).selectinload(User.branch),
             selectinload(CustomerApplication.approver),
             selectinload(CustomerApplication.rejector),
-            selectinload(CustomerApplication.reviewer)
+            selectinload(CustomerApplication.reviewer),
+            # Eager load employee assignments with nested employee details
+            selectinload(CustomerApplication.employee_assignments).selectinload(ApplicationEmployeeAssignment.employee).selectinload(Employee.department),
+            selectinload(CustomerApplication.employee_assignments).selectinload(ApplicationEmployeeAssignment.employee).selectinload(Employee.branch)
         )
         .where(CustomerApplication.id == application_id)
     )
@@ -535,8 +613,13 @@ async def update_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
+    import logging
+    logger = logging.getLogger(__name__)
+    
     result = await db.execute(
-        select(CustomerApplication).where(CustomerApplication.id == application_id)
+        select(CustomerApplication)
+        .options(selectinload(CustomerApplication.employee_assignments))
+        .where(CustomerApplication.id == application_id)
     )
     application = result.scalar_one_or_none()
     
@@ -553,88 +636,174 @@ async def update_application(
             detail="Not authorized to update this application"
         )
     
-    # Update fields
-    update_data = application_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(application, field, value)
-    
-    # Handle workflow transitions based on user role and current status
-    if current_user.role == "user" and application.workflow_status == WorkflowStatus.PO_CREATED:
-        # User completing the form details
-        application.workflow_status = WorkflowStatus.USER_COMPLETED
-        application.user_completed_at = datetime.now(timezone.utc)
-        application.user_completed_by = current_user.id
-    elif current_user.role == "teller" and application.workflow_status == WorkflowStatus.USER_COMPLETED:
-        # Teller processing and adding account_id
-        if "account_id" in update_data:
-            account_id = update_data["account_id"]
-            
-            # Validate account_id format - support 6-digit, 8-digit, UUID, and 8-20 alphanumeric
-            if not account_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Account ID is required"
-                )
-            
-            account_id = account_id.strip()
-            
-            # Use AccountIDService for validation
-            from app.services.account_id_service import AccountIDService
-            account_service = AccountIDService(db)
-            
-            try:
-                # Validate and standardize the account ID
-                validation_result = account_service.validate_and_standardize(account_id, "teller_input")
+    try:
+        # Extract employee_assignments before updating application
+        employee_assignments_data = application_update.employee_assignments
+        
+        # Update fields (exclude employee_assignments from model_dump)
+        update_data = application_update.model_dump(exclude_unset=True, exclude={'employee_assignments'})
+        for field, value in update_data.items():
+            setattr(application, field, value)
+        
+        # Handle workflow transitions based on user role and current status
+        if current_user.role == "user" and application.workflow_status == WorkflowStatus.PO_CREATED:
+            # User completing the form details
+            application.workflow_status = WorkflowStatus.USER_COMPLETED
+            application.user_completed_at = datetime.now(timezone.utc)
+            application.user_completed_by = current_user.id
+        elif current_user.role == "teller" and application.workflow_status == WorkflowStatus.USER_COMPLETED:
+            # Teller processing and adding account_id
+            if "account_id" in update_data:
+                account_id = update_data["account_id"]
                 
-                if not validation_result['is_valid']:
-                    error_details = "; ".join(validation_result['validation_notes'])
+                # Validate account_id format - support 6-digit, 8-digit, UUID, and 8-20 alphanumeric
+                if not account_id:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Invalid account ID: {error_details}"
+                        detail="Account ID is required"
                     )
                 
-                # Check uniqueness
-                is_unique, existing_id = await account_service.check_account_id_uniqueness(
-                    validation_result['standardized'], 
-                    application.id
-                )
+                account_id = account_id.strip()
                 
-                if not is_unique:
+                # Use AccountIDService for validation
+                from app.services.account_id_service import AccountIDService
+                account_service = AccountIDService(db)
+                
+                try:
+                    # Validate and standardize the account ID
+                    validation_result = account_service.validate_and_standardize(account_id, "teller_input")
+                    
+                    if not validation_result['is_valid']:
+                        error_details = "; ".join(validation_result['validation_notes'])
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Invalid account ID: {error_details}"
+                        )
+                    
+                    # Check uniqueness
+                    is_unique, existing_id = await account_service.check_account_id_uniqueness(
+                        validation_result['standardized'], 
+                        application.id
+                    )
+                    
+                    if not is_unique:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Account ID already exists in application {existing_id}"
+                        )
+                    
+                    # Update the account_id with standardized format
+                    update_data["account_id"] = validation_result['standardized']
+                    
+                    # Create validation notes
+                    validation_notes = f"Validated by teller {current_user.username} on {datetime.now(timezone.utc).isoformat()}"
+                    validation_notes += f" - Format: {validation_result['format']}"
+                    if validation_result.get('generated_uuid'):
+                        validation_notes += f" - Generated UUID: {validation_result['generated_uuid']}"
+                    validation_notes += f" - Notes: {'; '.join(validation_result['validation_notes'])}"
+                    
+                except Exception as e:
+                    if isinstance(e, HTTPException):
+                        raise e
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Account ID already exists in application {existing_id}"
+                        detail=f"Account ID validation failed: {str(e)}"
                     )
                 
-                # Update the account_id with standardized format
-                update_data["account_id"] = validation_result['standardized']
-                
-                # Create validation notes
-                validation_notes = f"Validated by teller {current_user.username} on {datetime.now(timezone.utc).isoformat()}"
-                validation_notes += f" - Format: {validation_result['format']}"
-                if validation_result.get('generated_uuid'):
-                    validation_notes += f" - Generated UUID: {validation_result['generated_uuid']}"
-                validation_notes += f" - Notes: {'; '.join(validation_result['validation_notes'])}"
-                
-            except Exception as e:
-                if isinstance(e, HTTPException):
-                    raise e
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Account ID validation failed: {str(e)}"
-                )
+                # Update workflow status and validation flags
+                application.workflow_status = WorkflowStatus.TELLER_PROCESSING
+                application.teller_processed_at = datetime.now(timezone.utc)
+                application.teller_processed_by = current_user.id
+                application.account_id_validated = True
+                application.account_id_validation_notes = validation_notes
+        
+        # Handle employee assignments if provided
+        if employee_assignments_data is not None:
+            from app.services.employee_assignment_service import EmployeeAssignmentService
+            from app.services.employee_service import EmployeeService
+            from app.models import ApplicationEmployeeAssignment
             
-            # Update workflow status and validation flags
-            application.workflow_status = WorkflowStatus.TELLER_PROCESSING
-            application.teller_processed_at = datetime.now(timezone.utc)
-            application.teller_processed_by = current_user.id
-            application.account_id_validated = True
-            application.account_id_validation_notes = validation_notes
-    
-    await db.commit()
-    await db.refresh(application)
-    resp = CustomerApplicationResponse.from_orm(application)
-    enrich_application_response(resp)
-    return resp
+            logger.info(f"Updating employee assignments for application {application_id}")
+            
+            # Get application branch for validation
+            app_branch_id = None
+            if current_user.branch_id:
+                app_branch_id = current_user.branch_id
+            
+            # Get existing assignments
+            existing_assignments = {
+                (a.employee_id, a.assignment_role): a 
+                for a in application.employee_assignments 
+                if a.is_active
+            }
+            
+            # Build new assignments map
+            new_assignments = {
+                (a.employee_id, a.assignment_role): a 
+                for a in employee_assignments_data
+            }
+            
+            # Deactivate assignments that are no longer in the new list
+            for key, assignment in existing_assignments.items():
+                if key not in new_assignments:
+                    logger.info(f"Removing assignment {assignment.id} for employee {assignment.employee_id}")
+                    await EmployeeAssignmentService.remove_assignment(db, assignment.id)
+            
+            # Add new assignments
+            for key, assignment_data in new_assignments.items():
+                if key not in existing_assignments:
+                    # Validate employee exists and is active
+                    employee = await EmployeeService.get_employee_by_id(db, assignment_data.employee_id)
+                    if not employee:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Employee with ID {assignment_data.employee_id} not found"
+                        )
+                    
+                    if not employee.is_active:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Cannot assign inactive employee: {employee.full_name_latin or employee.full_name_khmer}"
+                        )
+                    
+                    # Validate branch match if applicable
+                    if app_branch_id and employee.branch_id and employee.branch_id != app_branch_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Employee {employee.full_name_latin or employee.full_name_khmer} must belong to the same branch as the application"
+                        )
+                    
+                    # Create the assignment
+                    logger.info(f"Adding assignment for employee {assignment_data.employee_id} as {assignment_data.assignment_role}")
+                    await EmployeeAssignmentService.assign_employee(
+                        db=db,
+                        application_id=application_id,
+                        employee_id=assignment_data.employee_id,
+                        role=assignment_data.assignment_role,
+                        assigned_by=current_user.id,
+                        notes=assignment_data.notes
+                    )
+            
+            # Update portfolio_officer_migrated flag if assignments were added
+            if len(employee_assignments_data) > 0:
+                application.portfolio_officer_migrated = True
+        
+        await db.commit()
+        await db.refresh(application, ['employee_assignments'])
+        resp = CustomerApplicationResponse.from_orm(application)
+        enrich_application_response(resp)
+        return resp
+        
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to update application {application_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update application: {str(e)}"
+        )
 
 @router.delete("/{application_id}")
 async def delete_application(

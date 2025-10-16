@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import and_, or_, func, desc, text
 from sqlalchemy.orm import selectinload, noload
 
-from app.models import User, Department, Branch, Position, BulkOperation
+from app.models import User, Department, Branch, Position, BulkOperation, Employee
 from app.routers.users.utils.user_exceptions import (
     UserNotFoundError,
     UserAlreadyExistsError,
@@ -376,15 +376,13 @@ class UserRepository:
                     selectinload(User.branch),
                     selectinload(User.position),
                     selectinload(User.portfolio).options(
-                        selectinload(User.position),
-                        selectinload(User.department),
-                        selectinload(User.branch)
-                    ),
-                    selectinload(User.line_manager).options(
-                        selectinload(User.position),
-                        selectinload(User.department),
-                        selectinload(User.branch)
-                    ),
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
+            ),
+            selectinload(User.line_manager).options(
+                selectinload(Employee.department),
+                selectinload(Employee.branch),
+            ),
                 )
                 .where(User.is_deleted == False if not include_deleted else True)
             )
@@ -1030,14 +1028,12 @@ class UserRepository:
                     selectinload(User.position).options(noload(Position.users)),
                     selectinload(User.status_changed_by_user),
                     selectinload(User.portfolio).options(
-                        selectinload(User.position).options(noload(Position.users)),
-                        selectinload(User.department),
-                        selectinload(User.branch)
+                        selectinload(Employee.department),
+                        selectinload(Employee.branch),
                     ),
                     selectinload(User.line_manager).options(
-                        selectinload(User.position).options(noload(Position.users)),
-                        selectinload(User.department),
-                        selectinload(User.branch)
+                        selectinload(Employee.department),
+                        selectinload(Employee.branch),
                     )
                 )
                 .where(User.id == user_id)

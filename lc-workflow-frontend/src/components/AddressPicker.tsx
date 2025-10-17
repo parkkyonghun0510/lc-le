@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 // Import location data
@@ -49,31 +49,83 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
   const [availableDistricts, setAvailableDistricts] = useState<LocationItem[]>([]);
   const [availableCommunes, setAvailableCommunes] = useState<LocationItem[]>([]);
   const [availableVillages, setAvailableVillages] = useState<LocationItem[]>([]);
+  const isInitializingRef = useRef(false);
 
   // Initialize with initial address if provided
   useEffect(() => {
-    if (initialAddress) {
+    if (initialAddress && (initialAddress.province_code || initialAddress.district_code || initialAddress.commune_code || initialAddress.village_code)) {
+      isInitializingRef.current = true;
+      
+      // Load province
       if (initialAddress.province_code) {
         const province = provinces.find(p => p.code?.toString() === initialAddress.province_code?.toString());
-        if (province) setSelectedProvince(province);
+        if (province) {
+          setSelectedProvince(province);
+          
+          // Load available districts for this province
+          const filteredDistricts = districts.filter(
+            district => district.province_code?.toString() === province.code?.toString()
+          );
+          setAvailableDistricts(filteredDistricts);
+          
+          // Load district
+          if (initialAddress.district_code) {
+            const district = filteredDistricts.find(d => d.code?.toString() === initialAddress.district_code?.toString());
+            if (district) {
+              setSelectedDistrict(district);
+              
+              // Load available communes for this district
+              const filteredCommunes = communes.filter(
+                commune => commune.district_code?.toString() === district.code?.toString()
+              );
+              setAvailableCommunes(filteredCommunes);
+              
+              // Load commune
+              if (initialAddress.commune_code) {
+                const commune = filteredCommunes.find(c => c.code?.toString() === initialAddress.commune_code?.toString());
+                if (commune) {
+                  setSelectedCommune(commune);
+                  
+                  // Load available villages for this commune
+                  const filteredVillages = villages.filter(
+                    village => village.commune_code?.toString() === commune.code?.toString()
+                  );
+                  setAvailableVillages(filteredVillages);
+                  
+                  // Load village
+                  if (initialAddress.village_code) {
+                    const village = filteredVillages.find(v => v.code?.toString() === initialAddress.village_code?.toString());
+                    if (village) {
+                      setSelectedVillage(village);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
-      if (initialAddress.district_code) {
-        const district = districts.find(d => d.code?.toString() === initialAddress.district_code?.toString());
-        if (district) setSelectedDistrict(district);
-      }
-      if (initialAddress.commune_code) {
-        const commune = communes.find(c => c.code?.toString() === initialAddress.commune_code?.toString());
-        if (commune) setSelectedCommune(commune);
-      }
-      if (initialAddress.village_code) {
-        const village = villages.find(v => v.code?.toString() === initialAddress.village_code?.toString());
-        if (village) setSelectedVillage(village);
-      }
+      
+      // Set initializing to false after a short delay to ensure all state updates are processed
+      setTimeout(() => {
+        isInitializingRef.current = false;
+      }, 50);
+    } else {
+      // Reset if no initial address
+      setSelectedProvince(null);
+      setSelectedDistrict(null);
+      setSelectedCommune(null);
+      setSelectedVillage(null);
+      setAvailableDistricts([]);
+      setAvailableCommunes([]);
+      setAvailableVillages([]);
     }
-  }, [initialAddress]);
+  }, [initialAddress?.province_code, initialAddress?.district_code, initialAddress?.commune_code, initialAddress?.village_code]);
 
-  // Update available districts when province changes
+  // Update available districts when province changes (only if not initializing)
   useEffect(() => {
+    if (isInitializingRef.current) return;
+    
     if (selectedProvince) {
       const filteredDistricts = districts.filter(
         district => district.province_code?.toString() === selectedProvince.code?.toString()
@@ -89,8 +141,10 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     }
   }, [selectedProvince]);
 
-  // Update available communes when district changes
+  // Update available communes when district changes (only if not initializing)
   useEffect(() => {
+    if (isInitializingRef.current) return;
+    
     if (selectedDistrict) {
       const filteredCommunes = communes.filter(
         commune => commune.district_code?.toString() === selectedDistrict.code?.toString()
@@ -104,8 +158,10 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     }
   }, [selectedDistrict]);
 
-  // Update available villages when commune changes
+  // Update available villages when commune changes (only if not initializing)
   useEffect(() => {
+    if (isInitializingRef.current) return;
+    
     if (selectedCommune) {
       const filteredVillages = villages.filter(
         village => village.commune_code?.toString() === selectedCommune.code?.toString()

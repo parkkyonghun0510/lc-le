@@ -130,6 +130,11 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           value={formValues.date_of_birth}
           onChange={onInputChange}
           icon={UserIcon}
+          max={(() => {
+            const date = new Date();
+            date.setFullYear(date.getFullYear() - 18);
+            return date.toISOString().split('T')[0];
+          })()}
         />
 
 
@@ -149,6 +154,22 @@ export const CustomerInformationStep: React.FC<CustomerInformationStepProps> = (
           value={formValues.current_address}
           required
           onChange={onInputChange}
+          onAddressDataChange={(addressData) => {
+            // Update the form values with the structured address data
+            const syntheticEvents = [
+              { target: { name: 'province', value: addressData.province || '' } },
+              { target: { name: 'district', value: addressData.district || '' } },
+              { target: { name: 'commune', value: addressData.commune || '' } },
+              { target: { name: 'village', value: addressData.village || '' } },
+            ];
+            syntheticEvents.forEach(event => onInputChange(event as any));
+          }}
+          initialAddress={{
+            province: formValues.province,
+            district: formValues.district,
+            commune: formValues.commune,
+            village: formValues.village,
+          }}
           placeholder="ជ្រើសរើសអាសយដ្ឋាន"
         />
       </div>

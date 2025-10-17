@@ -5,361 +5,305 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowRightIcon,
-  ExclamationTriangleIcon
+  DocumentTextIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
-import { WorkflowStatus, WorkflowStatusInfo, WorkflowTransitionRequest } from '@/types/models';
-import { useWorkflowTransition } from '@/hooks/useApplications';
-import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui';
+import { useEmployees } from '@/hooks/useEmployees';
+import { useWorkflowPermissions } from '@/hooks/useWorkflowPermissions';
 
 interface WorkflowActionsProps {
   applicationId: string;
-  currentStatus: WorkflowStatus;
-  workflowInfo?: WorkflowStatusInfo;
+  workflowStatus?: string;
+  status?: string;
   userRole?: string;
-  className?: string;
+  userId?: string;
+  applicationUserId?: string;
+  onSubmit?: () => void;
+  onTellerProcess?: (accountId: string, reviewerId?: string, notes?: string, currentStatus?: string) => void;
+  onManagerApprove?: () => void;
+  onManagerReject?: (reason: string) => void;
+  isLoading?: boolean;
 }
 
-interface ActionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: (data: WorkflowTransitionRequest) => void;
-  action: 'submit' | 'process' | 'review' | 'approve' | 'reject';
-  currentStatus: WorkflowStatus;
-  loading?: boolean;
-}
-
-function ActionModal({ isOpen, onClose, onConfirm, action, currentStatus, loading }: ActionModalProps) {
-  const [accountId, setAccountId] = useState('');
-  const [notes, setNotes] = useState('');
-  const [rejectionReason, setRejectionReason] = useState('');
-
-  const handleAccountIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Only allow numbers and limit to 8 characters
-    const numericValue = value.replace(/\D/g, '').slice(0, 8);
-    setAccountId(numericValue);
-  };
-
-  const handleAccountIdBlur = () => {
-    if (accountId) {
-      // Pad with leading zeros to 8 characters when field loses focus
-      const paddedValue = accountId.padStart(8, '0');
-      setAccountId(paddedValue);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Map action to new_status based on workflow logic
-    const getNewStatus = (action: string, currentStatus: WorkflowStatus): WorkflowStatus => {
-      switch (action) {
-        case 'submit':
-          if (currentStatus === 'PO_CREATED') return 'USER_COMPLETED';
-          if (currentStatus === 'USER_COMPLETED') return 'TELLER_PROCESSING';
-          break;
-        case 'process':
-          if (currentStatus === 'TELLER_PROCESSING') return 'MANAGER_REVIEW';
-          break;
-        case 'review':
-          // Review action doesn't change status, just adds notes
-          return currentStatus;
-        case 'approve':
-          if (currentStatus === 'MANAGER_REVIEW') return 'APPROVED';
-          break;
-        case 'reject':
-          return 'REJECTED';
-        default:
-          return currentStatus;
-      }
-      return currentStatus;
-    };
-
-    const data: WorkflowTransitionRequest = {
-      new_status: getNewStatus(action, currentStatus),
-      notes: notes || undefined,
-    };
-
-    if (action === 'process' && accountId) {
-      data.account_id = accountId;
-    }
-
-    if (action === 'reject' && rejectionReason) {
-      data.notes = rejectionReason;
-    }
-
-    onConfirm(data);
-  };
-
-  const getActionTitle = () => {
-    switch (action) {
-      case 'submit': return 'បញ្ជូនពាក្យសុំ';
-      case 'process': return 'ដំណើរការពាក្យសុំ';
-      case 'review': return 'ពិនិត្យពាក្យសុំ';
-      case 'approve': return 'អនុម័តពាក្យសុំ';
-      case 'reject': return 'បដិសេធពាក្យសុំ';
-      default: return 'សកម្មភាព';
-    }
-  };
-
-  const getActionDescription = () => {
-    switch (action) {
-      case 'submit': return 'តើអ្នកប្រាកដថាចង់បញ្ជូនពាក្យសុំនេះមែនទេ?';
-      case 'process': return 'បញ្ចូល Account ID ដើម្បីដំណើរការពាក្យសុំ';
-      case 'review': return 'តើអ្នកប្រាកដថាចង់ផ្ញើពាក្យសុំនេះទៅអ្នកគ្រប់គ្រងមែនទេ?';
-      case 'approve': return 'តើអ្នកប្រាកដថាចង់អនុម័តពាក្យសុំនេះមែនទេ?';
-      case 'reject': return 'សូមបញ្ជាក់មូលហេតុនៃការបដិសេធ';
-      default: return '';
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={getActionTitle()}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-gray-600 mb-4">
-          {getActionDescription()}
-        </p>
-
-        {action === 'process' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Account ID *
-            </label>
-            <Input
-              type="text"
-              value={accountId}
-              onChange={handleAccountIdChange}
-              onBlur={handleAccountIdBlur}
-              placeholder="បញ្ចូល Account ID"
-              required
-              className="w-full font-mono"
-            />
-            {accountId && accountId.length < 8 && (
-              <p className="mt-2 text-sm text-gray-600">
-                លេខគណនីកម្ចី (PMS Account Id): <span className="font-mono font-semibold text-blue-600">{accountId.padStart(8, '0')}</span>
-              </p>
-            )}
-          </div>
-        )}
-
-        {action === 'reject' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              មូលហេតុបដិសេធ *
-            </label>
-            <textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="សូមបញ្ជាក់មូលហេតុនៃការបដិសេធ"
-              required
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            កំណត់ចំណាំ (ស្រេចចិត្ត)
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="បញ្ចូលកំណត់ចំណាំបន្ថែម"
-            rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        <div className="flex justify-end space-x-3 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={loading}
-          >
-            បោះបង់
-          </Button>
-          <Button
-            type="submit"
-            variant={action === 'reject' ? 'error' : 'primary'}
-            isLoading={loading}
-            disabled={loading || (action === 'process' && !accountId) || (action === 'reject' && !rejectionReason)}
-          >
-            {action === 'reject' ? (
-              <>
-                <XCircleIcon className="h-4 w-4 mr-2" />
-                បដិសេធ
-              </>
-            ) : (
-              <>
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                បញ្ជាក់
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-export function WorkflowActions({
+export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
   applicationId,
-  currentStatus,
-  workflowInfo,
+  workflowStatus,
+  status,
   userRole,
-  className = ''
-}: WorkflowActionsProps) {
-  const [activeModal, setActiveModal] = useState<'submit' | 'process' | 'review' | 'approve' | 'reject' | null>(null);
-  const workflowTransition = useWorkflowTransition();
+  userId,
+  applicationUserId,
+  onSubmit,
+  onTellerProcess,
+  onManagerApprove,
+  onManagerReject,
+  isLoading,
+}) => {
+  const [showTellerForm, setShowTellerForm] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [accountId, setAccountId] = useState('');
+  const [reviewerId, setReviewerId] = useState('');
+  const [notes, setNotes] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
 
-  const handleAction = (data: WorkflowTransitionRequest) => {
-    workflowTransition.mutate(
-      { id: applicationId, data },
-      {
-        onSuccess: () => {
-          setActiveModal(null);
-        },
-        onError: () => {
-          // Error handling is done in the hook
-        }
-      }
-    );
+  // Fetch employees for reviewer assignment
+  const { data: employeesData } = useEmployees({ 
+    is_active: true,
+    size: 100 
+  });
+  const employees = employeesData?.items || [];
+  
+  // Filter managers/reviewers (you can adjust this filter based on your needs)
+  const reviewers = employees.filter(emp => 
+    emp.position?.toLowerCase().includes('manager') || 
+    emp.position?.toLowerCase().includes('reviewer') ||
+    emp.position?.toLowerCase().includes('supervisor')
+  );
+
+  // Get workflow permissions (combines role + position checks)
+  const { canProcessAsTeller, canReviewAsManager } = useWorkflowPermissions();
+  
+  // Determine what actions are available based on permissions and workflow status
+  const canSubmit = userId === applicationUserId && status === 'draft';
+  
+  // Tellers can process in two stages (if they have permission):
+  // 1. USER_COMPLETED -> TELLER_PROCESSING (start processing)
+  // 2. TELLER_PROCESSING -> MANAGER_REVIEW (submit to manager)
+  const canTellerProcess = canProcessAsTeller && 
+                           (workflowStatus === 'USER_COMPLETED' || workflowStatus === 'TELLER_PROCESSING');
+  
+  // Managers can review applications (if they have permission)
+  const canManagerReview = canReviewAsManager && workflowStatus === 'MANAGER_REVIEW';
+
+  const handleTellerSubmit = () => {
+    if (accountId.trim() && onTellerProcess) {
+      // Pass the target status based on current workflow status
+      // If USER_COMPLETED, move to TELLER_PROCESSING first
+      // If TELLER_PROCESSING, move to MANAGER_REVIEW
+      onTellerProcess(accountId, reviewerId || undefined, notes, workflowStatus);
+      setShowTellerForm(false);
+      setAccountId('');
+      setReviewerId('');
+      setNotes('');
+    }
   };
 
-  const getAvailableActions = () => {
-    const actions: Array<{
-      key: 'submit' | 'process' | 'review' | 'approve' | 'reject';
-      label: string;
-      icon: React.ComponentType<any>;
-      variant: 'primary' | 'secondary' | 'error';
-      permission: keyof WorkflowStatusInfo['permissions'];
-    }> = [];
-
-    if (workflowInfo?.permissions.can_submit) {
-      actions.push({
-        key: 'submit',
-        label: 'បញ្ជូន',
-        icon: ArrowRightIcon,
-        variant: 'primary',
-        permission: 'can_submit'
-      });
+  const handleManagerReject = () => {
+    if (rejectReason.trim() && onManagerReject) {
+      onManagerReject(rejectReason);
+      setShowRejectModal(false);
+      setRejectReason('');
     }
-
-    if (workflowInfo?.permissions.can_process) {
-      actions.push({
-        key: 'process',
-        label: 'ដំណើរការ',
-        icon: ArrowRightIcon,
-        variant: 'primary',
-        permission: 'can_process'
-      });
-    }
-
-    if (workflowInfo?.permissions.can_review) {
-      actions.push({
-        key: 'review',
-        label: 'ពិនិត្យ',
-        icon: ArrowRightIcon,
-        variant: 'secondary',
-        permission: 'can_review'
-      });
-    }
-
-    if (workflowInfo?.permissions.can_approve) {
-      actions.push({
-        key: 'approve',
-        label: 'អនុម័ត',
-        icon: CheckCircleIcon,
-        variant: 'primary',
-        permission: 'can_approve'
-      });
-    }
-
-    if (workflowInfo?.permissions.can_reject) {
-      actions.push({
-        key: 'reject',
-        label: 'បដិសេធ',
-        icon: XCircleIcon,
-        variant: 'error',
-        permission: 'can_reject'
-      });
-    }
-
-    return actions;
   };
 
-  const availableActions = getAvailableActions();
+  // Debug: Log permission checks (can be removed in production)
+  // console.log('Workflow Actions Permissions:', {
+  //   userRole,
+  //   workflowStatus,
+  //   status,
+  //   canSubmit,
+  //   canTellerProcess,
+  //   canManagerReview
+  // });
 
-  if (availableActions.length === 0) {
+  // Don't render if no actions are available
+  if (!canSubmit && !canTellerProcess && !canManagerReview) {
     return null;
   }
 
   return (
-    <>
-      <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            សកម្មភាពដែលអាចធ្វើបាន
-          </h3>
-          {workflowInfo?.stage_description && (
-            <p className="text-sm text-gray-600">
-              {workflowInfo.stage_description}
-            </p>
-          )}
-        </div>
+    <div className="space-y-4">
+      {/* User Submit Action */}
+      {canSubmit && onSubmit && (
+        <Button
+          variant="primary"
+          size="md"
+          onClick={onSubmit}
+          isLoading={isLoading}
+          className="w-full"
+        >
+          <DocumentTextIcon className="w-4 h-4 mr-2" />
+          ដាក់ស្នើ (Submit)
+        </Button>
+      )}
 
-        <div className="flex flex-wrap gap-3">
-          {availableActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={action.key}
-                variant={action.variant}
-                onClick={() => setActiveModal(action.key)}
-                disabled={workflowTransition.isPending}
-                className="flex items-center"
-              >
-                <Icon className="h-4 w-4 mr-2" />
-                {action.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        {currentStatus === 'REJECTED' && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-start space-x-2">
-              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mt-0.5" />
+      {/* Teller Processing Actions */}
+      {canTellerProcess && (
+        <div className="space-y-3">
+          {!showTellerForm ? (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setShowTellerForm(true)}
+              className="w-full"
+            >
+              <ArrowRightIcon className="w-4 h-4 mr-2" />
+              {workflowStatus === 'USER_COMPLETED' 
+                ? 'ចាប់ផ្តើមដំណើរការ (Start Processing)' 
+                : 'ដាក់ទៅអ្នកគ្រប់គ្រង (Submit to Manager)'}
+            </Button>
+          ) : (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700 space-y-3">
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center">
+                <DocumentTextIcon className="w-5 h-5 mr-2" />
+                Teller Processing
+              </h4>
+              
               <div>
-                <p className="text-sm font-medium text-red-800">
-                  ពាក្យសុំនេះត្រូវបានបដិសេធ
-                </p>
-                <p className="text-sm text-red-700 mt-1">
-                  សូមពិនិត្យមូលហេតុបដិសេធ និងធ្វើការកែប្រែតាមតម្រូវការ
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Account ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  placeholder="Enter account ID (e.g., 00012345)"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <UserIcon className="w-4 h-4 inline mr-1" />
+                  Assign Reviewer (Optional)
+                </label>
+                <select
+                  value={reviewerId}
+                  onChange={(e) => setReviewerId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select Reviewer --</option>
+                  {reviewers.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name_khmer} ({emp.employee_code})
+                      {emp.position && ` - ${emp.position}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Assign a specific manager/reviewer for this application
                 </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add validation notes or special instructions..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleTellerSubmit}
+                  disabled={!accountId.trim()}
+                  isLoading={isLoading}
+                  className="flex-1"
+                >
+                  <CheckCircleIcon className="w-4 h-4 mr-2" />
+                  Submit to Manager
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setShowTellerForm(false);
+                    setAccountId('');
+                    setReviewerId('');
+                    setNotes('');
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Manager Review Actions */}
+      {canManagerReview && (
+        <div className="space-y-3">
+          <Button
+            variant="success"
+            size="md"
+            onClick={onManagerApprove}
+            isLoading={isLoading}
+            className="w-full"
+          >
+            <CheckCircleIcon className="w-4 h-4 mr-2" />
+            អនុម័ត (Approve)
+          </Button>
+          <Button
+            variant="error"
+            size="md"
+            onClick={() => setShowRejectModal(true)}
+            className="w-full"
+          >
+            <XCircleIcon className="w-4 h-4 mr-2" />
+            បដិសេធ (Reject)
+          </Button>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="p-3 bg-red-500 rounded-xl shadow-lg mr-4">
+                <XCircleIcon className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                បដិសេធពាក្យសុំ
+              </h3>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                មូលហេតុបដិសេធ <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 resize-none"
+                placeholder="សូមបញ្ជាក់មូលហេតុនៃការបដិសេធ..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectReason('');
+                }}
+              >
+                បោះបង់
+              </Button>
+              <Button
+                variant="error"
+                size="md"
+                onClick={handleManagerReject}
+                disabled={!rejectReason.trim()}
+                isLoading={isLoading}
+              >
+                បដិសេធ
+              </Button>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Action Modals */}
-      {activeModal && (
-        <ActionModal
-          isOpen={true}
-          onClose={() => setActiveModal(null)}
-          onConfirm={handleAction}
-          action={activeModal}
-          currentStatus={currentStatus}
-          loading={workflowTransition.isPending}
-        />
+        </div>
       )}
-    </>
+    </div>
   );
-}
-
-export default WorkflowActions;
+};

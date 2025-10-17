@@ -13,6 +13,7 @@ import { useApplicationAssignments } from '@/hooks/useEmployeeAssignments';
 import { EmployeeSelector } from '@/components/employees/EmployeeSelector';
 import { EmployeeAssignmentCreate } from '@/types/models';
 import { useAuth } from '@/hooks/useAuth';
+import { AddressField } from '../../../applications/new/components/AddressField';
 
 
 import { getIDNumberPlaceholder } from '@/utils/idCardHelpers';
@@ -110,6 +111,10 @@ export default function EditApplicationPage() {
     guarantor_address: '',
     guarantor_relationship: '',
     current_address: '',
+    province: '',
+    district: '',
+    commune: '',
+    village: '',
     sex: '',
     marital_status: '',
     loan_purposes: [] as string[],
@@ -160,6 +165,10 @@ export default function EditApplicationPage() {
       guarantor_address: application.guarantor_address || '',
       guarantor_relationship: application.guarantor_relationship || '',
       current_address: application.current_address || '',
+      province: application.province || '',
+      district: application.district || '',
+      commune: application.commune || '',
+      village: application.village || '',
       sex: application.sex || '',
       marital_status: application.marital_status || '',
       accountId: application.account_id || '',
@@ -202,6 +211,10 @@ export default function EditApplicationPage() {
       requested_disbursement_date: formData.requested_disbursement_date || undefined,
       // Additional fields from create page
       current_address: formData.current_address || undefined,
+      province: formData.province || undefined,
+      district: formData.district || undefined,
+      commune: formData.commune || undefined,
+      village: formData.village || undefined,
       sex: formData.sex || undefined,
       marital_status: formData.marital_status || undefined,
       guarantor_id_number: formData.guarantor_id_number || undefined,
@@ -430,6 +443,11 @@ export default function EditApplicationPage() {
                                 type="date"
                                 value={formData.date_of_birth}
                                 onChange={(e) => handleChange('date_of_birth', e.target.value)}
+                                max={(() => {
+                                  const date = new Date();
+                                  date.setFullYear(date.getFullYear() - 18);
+                                  return date.toISOString().split('T')[0];
+                                })()}
                                 className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                               />
                             </div>
@@ -461,14 +479,25 @@ export default function EditApplicationPage() {
                             </select>
                           </div>
                         </div>
-                        <div className="mt-6 space-y-2">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">អាសយដ្ឋានបច្ចុប្បន្ន</label>
-                          <textarea
-                            rows={3}
+                        <div className="mt-6">
+                          <AddressField
+                            label="អាសយដ្ឋានបច្ចុប្បន្ន"
+                            name="current_address"
                             value={formData.current_address}
-                            onChange={(e) => handleChange('current_address', e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
-                            placeholder="បញ្ចូលអាសយដ្ឋានបច្ចុប្បន្ន..."
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('current_address', e.target.value)}
+                            onAddressDataChange={(addressData: any) => {
+                              handleChange('province', addressData.province || '');
+                              handleChange('district', addressData.district || '');
+                              handleChange('commune', addressData.commune || '');
+                              handleChange('village', addressData.village || '');
+                            }}
+                            initialAddress={{
+                              province: formData.province,
+                              district: formData.district,
+                              commune: formData.commune,
+                              village: formData.village,
+                            }}
+                            placeholder="ជ្រើសរើសអាសយដ្ឋាន"
                           />
                         </div>
 
@@ -478,8 +507,11 @@ export default function EditApplicationPage() {
                             Employee Assignment
                           </h4>
                           
-                          {/* Show migration alert if using legacy portfolio officer */}
-                          {!application?.portfolio_officer_migrated && formData.portfolio_officer_name && (
+                          {/* Show migration alert if using legacy portfolio officer and no employee assignments */}
+                          {!application?.portfolio_officer_migrated && 
+                           formData.portfolio_officer_name && 
+                           (!existingAssignments || existingAssignments.length === 0) &&
+                           (!formData.employee_assignments || formData.employee_assignments.length === 0) && (
                             <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                               <div className="flex items-start">
                                 <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -490,6 +522,9 @@ export default function EditApplicationPage() {
                                   <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">
                                     This application uses legacy portfolio officer name: <strong>{formData.portfolio_officer_name}</strong>. 
                                     Consider migrating to employee assignments for better tracking.
+                                  </p>
+                                  <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-2">
+                                    💡 Tip: Add employee assignments above, then you can clear the legacy field below.
                                   </p>
                                 </div>
                               </div>
@@ -611,6 +646,11 @@ export default function EditApplicationPage() {
                               type="date"
                               value={formData.requested_disbursement_date}
                               onChange={(e) => handleChange('requested_disbursement_date', e.target.value)}
+                              min={(() => {
+                                const date = new Date();
+                                date.setDate(date.getDate() + 1);
+                                return date.toISOString().split('T')[0];
+                              })()}
                               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors duration-200"
                             />
                           </div>

@@ -194,6 +194,10 @@ export interface CustomerApplication extends BaseModel {
   phone?: string;
   date_of_birth?: string;
   current_address?: string;
+  province?: string;
+  district?: string;
+  commune?: string;
+  village?: string;
   sex?: string;
   marital_status?: string;
   portfolio_officer_name?: string;
@@ -221,13 +225,43 @@ export interface CustomerApplication extends BaseModel {
   submitted_at?: string;
   approved_at?: string;
 
-  // New workflow status tracking
+  // Workflow Tracking fields
+  workflow_stage?: string;
+  assigned_reviewer?: string;
+  priority_level?: string;
+  po_created_at?: string;
+  po_created_by?: string;
   user_completed_at?: string;
-  teller_processing_at?: string;
+  user_completed_by?: string;
+  teller_processed_at?: string;
   teller_processed_by?: string;
-  manager_review_at?: string;
   manager_reviewed_at?: string;
   manager_reviewed_by?: string;
+  
+  // Account validation
+  account_id_validated?: boolean;
+  account_id_validation_notes?: string;
+
+  // Financial Information
+  monthly_expenses?: number;
+  assets_value?: number;
+  existing_loans?: any[];
+
+  // Risk Assessment
+  credit_score?: number;
+  risk_category?: string;
+  assessment_notes?: string;
+
+  // Additional Loan Fields
+  interest_rate?: number;
+  loan_status?: string;
+  loan_purpose?: string;
+  loan_start_date?: string;
+  loan_end_date?: string;
+
+  // Legacy workflow tracking (kept for compatibility)
+  teller_processing_at?: string;
+  manager_review_at?: string;
   approved_by?: string;
   rejected_at?: string;
   rejected_by?: string;
@@ -352,6 +386,10 @@ export interface CustomerApplicationCreate {
   phone?: string;
   date_of_birth?: string;
   current_address?: string;
+  province?: string;
+  district?: string;
+  commune?: string;
+  village?: string;
   sex?: string;
   marital_status?: string;
   portfolio_officer_name?: string;

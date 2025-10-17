@@ -42,19 +42,27 @@ export const useAddressPicker = (initialAddress?: AddressData): UseAddressPicker
     const parts: string[] = [];
     
     if (address.village) {
-      parts.push(language === 'km' ? address.village.name_km : address.village.name_en);
+      const label = language === 'km' ? 'ភូមិ' : 'Village';
+      const name = language === 'km' ? address.village.name_km : address.village.name_en;
+      parts.push(`${label} ${name}`);
     }
     if (address.commune) {
-      parts.push(language === 'km' ? address.commune.name_km : address.commune.name_en);
+      const label = language === 'km' ? 'ឃុំ/សង្កាត់' : 'Commune';
+      const name = language === 'km' ? address.commune.name_km : address.commune.name_en;
+      parts.push(`${label} ${name}`);
     }
     if (address.district) {
-      parts.push(language === 'km' ? address.district.name_km : address.district.name_en);
+      const label = language === 'km' ? 'ស្រុក/ក្រុង' : 'District';
+      const name = language === 'km' ? address.district.name_km : address.district.name_en;
+      parts.push(`${label} ${name}`);
     }
     if (address.province) {
-      parts.push(language === 'km' ? address.province.name_km : address.province.name_en);
+      const label = language === 'km' ? 'ខេត្ត' : 'Province';
+      const name = language === 'km' ? address.province.name_km : address.province.name_en;
+      parts.push(`${label} ${name}`);
     }
 
-    return parts.join(', ');
+    return parts.join(' ');
   }, [address]);
 
   const getAddressCodes = useCallback(() => {

@@ -7,6 +7,18 @@ interface AddressFieldProps {
   name: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onAddressDataChange?: (addressData: {
+    province?: string;
+    district?: string;
+    commune?: string;
+    village?: string;
+  }) => void;
+  initialAddress?: {
+    province?: string;
+    district?: string;
+    commune?: string;
+    village?: string;
+  };
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
@@ -18,6 +30,8 @@ export const AddressField: React.FC<AddressFieldProps> = ({
   name,
   value,
   onChange,
+  onAddressDataChange,
+  initialAddress,
   placeholder = "ភូមិ ឃុំ ស្រុក ខេត្ត",
   required = false,
   disabled = false,
@@ -36,11 +50,14 @@ export const AddressField: React.FC<AddressFieldProps> = ({
 
     onChange(syntheticEvent);
     
-    // Store additional address data in a custom event if needed
-    // You can access this in the parent component if you need the structured data
-    if (addressData) {
-      console.log('Selected address data:', addressData);
-      // You could dispatch a custom event or use a callback prop for this data
+    // Pass the structured address data to parent component
+    if (addressData && onAddressDataChange) {
+      onAddressDataChange({
+        province: addressData.province_code,
+        district: addressData.district_code,
+        commune: addressData.commune_code,
+        village: addressData.village_code,
+      });
     }
   };
 
@@ -116,6 +133,12 @@ export const AddressField: React.FC<AddressFieldProps> = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddressSelect={handleAddressSelect}
+        initialAddress={initialAddress ? {
+          province_code: initialAddress.province,
+          district_code: initialAddress.district,
+          commune_code: initialAddress.commune,
+          village_code: initialAddress.village,
+        } : undefined}
         language="km"
         title="ជ្រើសរើសអាសយដ្ឋាន"
       />

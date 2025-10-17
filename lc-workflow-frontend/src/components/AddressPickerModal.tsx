@@ -37,15 +37,14 @@ const AddressPickerModal: React.FC<AddressPickerModalProps> = ({
   const [selectedLanguage, setSelectedLanguage] = useState<'km' | 'en'>(language);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Reset when modal opens and handle animation
+  // Initialize with initialAddress when modal opens
   useEffect(() => {
     if (isOpen) {
-      reset();
       setIsAnimating(true);
       // Small delay to trigger animation
       setTimeout(() => setIsAnimating(false), 50);
     }
-  }, [isOpen, reset]);
+  }, [isOpen]);
 
   const handleConfirm = () => {
     if (isComplete) {

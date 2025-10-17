@@ -19,30 +19,34 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuthContext } from '@/providers/AuthProvider';
 import { UserAvatar } from '@/components/users/OptimizedAvatar';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   requiredRoles?: string[];
+  requiredPermission?: { resource: ResourceType | string; action: PermissionAction | string };
 }
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Applications', href: '/applications', icon: DocumentTextIcon },
-  { name: 'Employees', href: '/employees', icon: UserGroupIcon },
-  { name: 'Files', href: '/files', icon: FolderIcon },
+  { name: 'Applications', href: '/applications', icon: DocumentTextIcon, requiredPermission: { resource: 'application', action: 'read' } },
+  { name: 'Employees', href: '/employees', icon: UserGroupIcon, requiredPermission: { resource: 'employee', action: 'read' } },
+  { name: 'Files', href: '/files', icon: FolderIcon, requiredPermission: { resource: 'file', action: 'read' } },
 ];
 
 const adminNavigation: NavItem[] = [
-  { name: 'Departments', href: '/departments', icon: BuildingOfficeIcon, requiredRoles: ['admin', 'manager'] },
-  { name: 'Positions', href: '/positions', icon: BriefcaseIcon, requiredRoles: ['admin', 'manager'] },
-  { name: 'Users', href: '/users', icon: UsersIcon, requiredRoles: ['admin', 'manager'] },
-  { name: 'Branches', href: '/branches', icon: MapPinIcon, requiredRoles: ['admin', 'manager'] },
-  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, requiredRoles: ['admin', 'manager'] },
-  { name: 'Notifications', href: '/notifications', icon: BellIcon, requiredRoles: ['admin', 'manager'] },
-  { name: 'Security', href: '/security', icon: ShieldCheckIcon, requiredRoles: ['admin'] },
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, requiredRoles: ['admin'] },
+  { name: 'Departments', href: '/departments', icon: BuildingOfficeIcon, requiredPermission: { resource: 'department', action: 'read' } },
+  { name: 'Positions', href: '/positions', icon: BriefcaseIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+  { name: 'Users', href: '/users', icon: UsersIcon, requiredPermission: { resource: 'user', action: 'read' } },
+  { name: 'Branches', href: '/branches', icon: MapPinIcon, requiredPermission: { resource: 'branch', action: 'read' } },
+  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, requiredPermission: { resource: 'analytics', action: 'read' } },
+  { name: 'Notifications', href: '/notifications', icon: BellIcon, requiredPermission: { resource: 'notification', action: 'read' } },
+  { name: 'Permissions', href: '/permissions', icon: ShieldCheckIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+  { name: 'Security', href: '/security', icon: ShieldCheckIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, requiredPermission: { resource: 'system', action: 'manage' } },
 ];
 
 interface SidebarProps {
@@ -53,10 +57,18 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, isAdmin, isManager } = useAuthContext();
+  const { can, loading: permissionsLoading } = usePermissionCheck();
 
   const hasRequiredRole = (requiredRoles?: string[]) => {
     if (!requiredRoles) return true;
     return isAdmin || (isManager && requiredRoles.includes('manager'));
+  };
+
+  const hasRequiredPermission = (requiredPermission?: { resource: ResourceType | string; action: PermissionAction | string }) => {
+    if (!requiredPermission) return true;
+    // While permissions are loading, fall back to role-based check
+    if (permissionsLoading) return hasRequiredRole(undefined);
+    return can(requiredPermission.resource, requiredPermission.action);
   };
 
   const allNavigation = [...navigation, ...adminNavigation];
@@ -64,7 +76,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const NavLink = ({ item }: { item: NavItem }) => {
     const isActive = pathname === item.href;
 
+    // Check both role-based and permission-based access
     if (!hasRequiredRole(item.requiredRoles)) return null;
+    if (!hasRequiredPermission(item.requiredPermission)) return null;
 
     return (
       <Link

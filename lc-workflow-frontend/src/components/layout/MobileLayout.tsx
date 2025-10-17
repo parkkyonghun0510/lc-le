@@ -3,8 +3,10 @@
 import { useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { useSyncService } from '@/services/syncService';
 import { getDeviceInfo, DeviceInfo } from '@/utils/deviceDetection';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import {
     Bars3Icon,
     XMarkIcon,
@@ -14,9 +16,48 @@ import {
     CloudIcon,
     DevicePhoneMobileIcon,
     ComputerDesktopIcon,
-    DeviceTabletIcon
+    DeviceTabletIcon,
+    HomeIcon,
+    DocumentTextIcon,
+    UsersIcon,
+    BuildingOfficeIcon,
+    MapPinIcon,
+    Cog6ToothIcon,
+    FolderIcon,
+    BriefcaseIcon,
+    BellIcon,
+    ChartBarIcon,
+    ShieldCheckIcon,
+    UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+
+interface NavItem {
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    requiredRoles?: string[];
+    requiredPermission?: { resource: ResourceType | string; action: PermissionAction | string };
+}
+
+const navigation: NavItem[] = [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Applications', href: '/applications', icon: DocumentTextIcon, requiredPermission: { resource: 'application', action: 'read' } },
+    { name: 'Employees', href: '/employees', icon: UserGroupIcon, requiredPermission: { resource: 'employee', action: 'read' } },
+    { name: 'Files', href: '/files', icon: FolderIcon, requiredPermission: { resource: 'file', action: 'read' } },
+];
+
+const adminNavigation: NavItem[] = [
+    { name: 'Departments', href: '/departments', icon: BuildingOfficeIcon, requiredPermission: { resource: 'department', action: 'read' } },
+    { name: 'Positions', href: '/positions', icon: BriefcaseIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+    { name: 'Users', href: '/users', icon: UsersIcon, requiredPermission: { resource: 'user', action: 'read' } },
+    { name: 'Branches', href: '/branches', icon: MapPinIcon, requiredPermission: { resource: 'branch', action: 'read' } },
+    { name: 'Analytics', href: '/analytics', icon: ChartBarIcon, requiredPermission: { resource: 'analytics', action: 'read' } },
+    { name: 'Notifications', href: '/notifications', icon: BellIcon, requiredPermission: { resource: 'notification', action: 'read' } },
+    { name: 'Permissions', href: '/permissions', icon: ShieldCheckIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+    { name: 'Security', href: '/security', icon: ShieldCheckIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, requiredPermission: { resource: 'system', action: 'manage' } },
+];
 
 interface MobileLayoutProps {
     children: ReactNode;
@@ -32,6 +73,7 @@ export default function MobileLayout({
     showDeviceInfo = false
 }: MobileLayoutProps) {
     const { user } = useAuth();
+    const { can, loading: permissionsLoading } = usePermissionCheck();
     const { syncStatus, sync, forceRefresh } = useSyncService();
     const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -233,36 +275,33 @@ export default function MobileLayout({
                         </div>
 
                         <div className="p-4">
-                            {/* Add your mobile menu items here */}
+                            {/* Navigation menu items */}
                             <div className="space-y-2">
-                                <Link
-                                    href="/files"
-                                    className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                    onClick={() => setShowMobileMenu(false)}
-                                >
-                                    Files
-                                </Link>
-                                <Link
-                                    href="/applications"
-                                    className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                    onClick={() => setShowMobileMenu(false)}
-                                >
-                                    Applications
-                                </Link>
-                                <Link
-                                    href="/employees"
-                                    className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                    onClick={() => setShowMobileMenu(false)}
-                                >
-                                    Employees
-                                </Link>
-                                <Link
-                                    href="/dashboard"
-                                    className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                    onClick={() => setShowMobileMenu(false)}
-                                >
-                                    Dashboard
-                                </Link>
+                                {[...navigation, ...adminNavigation].map((item) => {
+                                    // Check if user has required role
+                                    const hasRequiredRole = !item.requiredRoles || 
+                                        (user?.role === 'admin') || 
+                                        (user?.role === 'manager' && item.requiredRoles.includes('manager'));
+                                    
+                                    // Check if user has required permission
+                                    const hasRequiredPermission = !item.requiredPermission || 
+                                        permissionsLoading || 
+                                        can(item.requiredPermission.resource, item.requiredPermission.action);
+                                    
+                                    if (!hasRequiredRole || !hasRequiredPermission) return null;
+
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                            onClick={() => setShowMobileMenu(false)}
+                                        >
+                                            <item.icon className="h-5 w-5" />
+                                            {item.name}
+                                        </Link>
+                                    );
+                                })}
                             </div>
 
                             {/* Sync status in menu */}

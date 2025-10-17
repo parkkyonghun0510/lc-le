@@ -113,11 +113,30 @@ class PermissionTemplateResponse(BaseSchema):
     updated_at: datetime
 
 
+class PermissionMatrixRole(BaseSchema):
+    """Schema for role in permission matrix."""
+    id: str
+    name: str
+    display_name: str
+    level: int
+    is_system_role: bool
+
+
+class PermissionMatrixPermission(BaseSchema):
+    """Schema for permission in permission matrix."""
+    id: str
+    name: str
+    resource_type: str
+    action: str
+    scope: Optional[str]
+    is_system_permission: bool
+
+
 class PermissionMatrixResponse(BaseSchema):
     """Schema for permission matrix responses."""
-    users: List[Dict[str, Any]]
-    permissions: List[PermissionResponse]
-    matrix: List[List[bool]]
+    roles: List[PermissionMatrixRole]
+    permissions: List[PermissionMatrixPermission]
+    assignments: Dict[str, List[str]]  # role_id -> [permission_ids]
 
 
 class BulkRoleAssignment(BaseSchema):
@@ -172,3 +191,53 @@ class TemplatePreviewResponse(BaseSchema):
     role_analysis: Dict[str, Any]
     suggested_permissions: List[PermissionResponse]
     estimated_template_size: int
+
+
+# ==================== AUDIT TRAIL SCHEMAS ====================
+
+class AuditActionType(str, Enum):
+    """Types of audit actions for permissions."""
+    PERMISSION_CREATED = "permission_created"
+    PERMISSION_UPDATED = "permission_updated"
+    PERMISSION_DELETED = "permission_deleted"
+    PERMISSION_TOGGLED = "permission_toggled"
+    ROLE_CREATED = "role_created"
+    ROLE_UPDATED = "role_updated"
+    ROLE_DELETED = "role_deleted"
+    ROLE_ASSIGNED = "role_assigned"
+    ROLE_REVOKED = "role_revoked"
+    PERMISSION_GRANTED = "permission_granted"
+    PERMISSION_REVOKED = "permission_revoked"
+    ROLE_PERMISSION_ASSIGNED = "role_permission_assigned"
+    ROLE_PERMISSION_REVOKED = "role_permission_revoked"
+
+
+class AuditEntryResponse(BaseSchema):
+    """Schema for audit trail entry responses."""
+    id: int
+    action: str
+    entity_type: str
+    entity_id: Optional[str] = None
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    target_user_id: Optional[str] = None
+    target_user_name: Optional[str] = None
+    target_role_id: Optional[str] = None
+    target_role_name: Optional[str] = None
+    permission_id: Optional[str] = None
+    permission_name: Optional[str] = None
+    role_id: Optional[str] = None
+    role_name: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+    reason: Optional[str] = None
+    timestamp: datetime
+    ip_address: Optional[str] = None
+
+
+class AuditListResponse(BaseSchema):
+    """Schema for paginated audit trail responses."""
+    items: List[AuditEntryResponse]
+    total: int
+    page: int
+    size: int
+    pages: int

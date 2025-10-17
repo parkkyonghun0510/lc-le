@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useDepartmentsWithCounts, useDeleteDepartment } from '@/hooks/useDepartments';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { Department } from '@/types/models';
 import { 
   Search, 
@@ -18,6 +19,7 @@ import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function DepartmentsPage() {
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showDeleteModal, setShowDeleteModal] = useState<Department | null>(null);
@@ -77,13 +79,15 @@ export default function DepartmentsPage() {
               <h1 className="text-3xl font-bold text-gray-900">Departments</h1>
               <p className="text-gray-600">Manage organizational departments</p>
             </div>
-            <Link
-              href="/departments/new"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Department
-            </Link>
+            {can('department', 'create') && (
+              <Link
+                href="/departments/new"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Department
+              </Link>
+            )}
           </div>
         </div>
 
@@ -124,7 +128,7 @@ export default function DepartmentsPage() {
               <p className="mt-1 text-sm text-gray-500">
                 {searchTerm ? 'Try adjusting your search criteria.' : 'Get started by creating a new department.'}
               </p>
-              {!searchTerm && (
+              {!searchTerm && can('department', 'create') && (
                 <div className="mt-6">
                   <Link
                     href="/departments/new"
@@ -199,32 +203,38 @@ export default function DepartmentsPage() {
                           {dropdownOpen === department.id && (
                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                               <div className="py-1">
-                                <Link
-                                  href={`/departments/${department.id}`}
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  onClick={() => setDropdownOpen(null)}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </Link>
-                                <Link
-                                  href={`/departments/${department.id}/edit`}
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  onClick={() => setDropdownOpen(null)}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit
-                                </Link>
-                                <button
-                                  onClick={() => {
-                                    setShowDeleteModal(department);
-                                    setDropdownOpen(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </button>
+                                {can('department', 'read') && (
+                                  <Link
+                                    href={`/departments/${department.id}`}
+                                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    onClick={() => setDropdownOpen(null)}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </Link>
+                                )}
+                                {can('department', 'update') && (
+                                  <Link
+                                    href={`/departments/${department.id}/edit`}
+                                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    onClick={() => setDropdownOpen(null)}
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </Link>
+                                )}
+                                {can('department', 'delete') && (
+                                  <button
+                                    onClick={() => {
+                                      setShowDeleteModal(department);
+                                      setDropdownOpen(null);
+                                    }}
+                                    className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </button>
+                                )}
                               </div>
                             </div>
                           )}

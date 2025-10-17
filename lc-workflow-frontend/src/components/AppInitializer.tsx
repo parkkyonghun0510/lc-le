@@ -4,6 +4,7 @@ import { useEffect, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { syncService } from '@/services/syncService';
 import { getDeviceInfo } from '@/utils/deviceDetection';
+import { BrowserCompatibilityWarning } from './BrowserCompatibilityWarning';
 import toast from 'react-hot-toast';
 
 interface AppInitializerProps {
@@ -144,5 +145,10 @@ export function AppInitializer({ children }: AppInitializerProps) {
     handleShare();
   }, []);
 
-  return <>{children}</>;
+  return (
+    <>
+      <BrowserCompatibilityWarning />
+      {children}
+    </>
+  );
 }

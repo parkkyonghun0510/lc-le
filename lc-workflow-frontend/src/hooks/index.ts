@@ -2,6 +2,7 @@
 export { default as useLocalStorage } from './useLocalStorage';
 export { default as useDebounce } from './useDebounce';
 export { default as useOnlineStatus } from './useOnlineStatus';
+export { default as useDraftSaving, useDraftSaving as default, useCleanupOldDrafts, cleanupOldDrafts } from './useDraftSaving';
 
 // Employee hooks
 export {
@@ -40,3 +41,12 @@ export {
   useCheckEmployeeCode,
   useGenerateEmployeeCodes,
 } from './useEmployeeCode';
+
+// Permission checking hooks
+export {
+  usePermissionCheck,
+  permissionCheckKeys,
+  createPermissionName,
+  parsePermissionName,
+  type UsePermissionCheckReturn,
+} from './usePermissionCheck';

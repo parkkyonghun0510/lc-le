@@ -5,6 +5,7 @@ import { useEmployees, useDeleteEmployee } from '@/hooks/useEmployees';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
 import useDebounce from '@/hooks/useDebounce';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { Employee } from '@/types/models';
 import { 
   Plus, 
@@ -33,6 +34,7 @@ const EmployeeFormModal = dynamic(
 );
 
 export default function EmployeesPage() {
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -126,20 +128,24 @@ export default function EmployeesPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Link
-                href="/employees/workload"
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Workload Dashboard
-              </Link>
-              <button
-                onClick={handleCreateClick}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Create Employee
-              </button>
+              {can('employee', 'view_all') && (
+                <Link
+                  href="/employees/workload"
+                  className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <BarChart3 className="h-5 w-5 mr-2" />
+                  Workload Dashboard
+                </Link>
+              )}
+              {can('employee', 'create') && (
+                <button
+                  onClick={handleCreateClick}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Employee
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -306,20 +312,24 @@ export default function EmployeesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end space-x-2">
-                            <button
-                              onClick={() => handleEditClick(employee)}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Edit"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(employee.id)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Deactivate"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {can('employee', 'update') && (
+                              <button
+                                onClick={() => handleEditClick(employee)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            )}
+                            {can('employee', 'delete') && (
+                              <button
+                                onClick={() => handleDelete(employee.id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Deactivate"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -388,7 +398,7 @@ export default function EmployeesPage() {
                   ? 'Try adjusting your search or filter criteria.'
                   : 'Get started by creating a new employee.'}
               </p>
-              {!(search || departmentFilter || branchFilter || isActiveFilter !== undefined) && (
+              {!(search || departmentFilter || branchFilter || isActiveFilter !== undefined) && can('employee', 'create') && (
                 <div className="mt-6">
                   <button
                     onClick={handleCreateClick}

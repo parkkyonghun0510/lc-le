@@ -1,22 +1,159 @@
 "use client";
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   ShieldCheckIcon,
   UserGroupIcon,
   CogIcon,
   ChartBarIcon,
   DocumentTextIcon,
-  PlusIcon
+  PlusIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
-import PermissionMatrix from '@/components/permissions/PermissionMatrix';
-import RoleManagement from '@/components/permissions/RoleManagement';
-import GenerateTemplatesModal from '@/components/permissions/GenerateTemplatesModal';
 import { useRoles, useApplyPermissionTemplate, usePermissionTemplates } from '@/hooks/usePermissions';
+import { useUsers } from '@/hooks/useUsers';
+import { User } from '@/types/models';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { useQueryClient } from '@tanstack/react-query';
+
+// Lazy load heavy components with loading fallbacks
+const PermissionMatrix = dynamic(
+  () => import('@/components/permissions/PermissionMatrix'),
+  {
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-4 bg-gray-200 rounded w-full"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const RoleManagement = dynamic(
+  () => import('@/components/permissions/RoleManagement'),
+  {
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const UserPermissionAssignment = dynamic(
+  () => import('@/components/permissions/UserPermissionAssignment'),
+  {
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const GenerateTemplatesModal = dynamic(
+  () => import('@/components/permissions/GenerateTemplatesModal'),
+  {
+    loading: () => null,
+    ssr: false
+  }
+);
+
+const PermissionManagement = dynamic(
+  () => import('@/components/permissions/PermissionManagement'),
+  {
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const PermissionAuditTrail = dynamic(
+  () => import('@/components/permissions/PermissionAuditTrail'),
+  {
+    loading: () => (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+);
 
 export default function PermissionsPage() {
-  const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'users' | 'templates' | 'audit'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'users' | 'permissions' | 'templates' | 'audit'>('matrix');
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Prefetch data for tabs on hover
+  const handleTabHover = (tabId: string) => {
+    if (tabId === 'matrix') {
+      queryClient.prefetchQuery({
+        queryKey: ['permission-matrix'],
+        queryFn: async () => {
+          const response = await fetch('/api/v1/permissions/matrix', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+          });
+          if (!response.ok) throw new Error('Failed to fetch permission matrix');
+          return response.json();
+        },
+        staleTime: 5 * 60 * 1000 // 5 minutes
+      });
+    } else if (tabId === 'roles') {
+      queryClient.prefetchQuery({
+        queryKey: ['roles', { showInactive: false }],
+        queryFn: async () => {
+          const response = await fetch('/api/v1/permissions/roles?is_active=true', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+          });
+          if (!response.ok) throw new Error('Failed to fetch roles');
+          return response.json();
+        },
+        staleTime: 5 * 60 * 1000
+      });
+    }
+  };
 
   const tabs = [
     {
@@ -38,6 +175,12 @@ export default function PermissionsPage() {
       description: 'Manage individual user permissions'
     },
     {
+      id: 'permissions',
+      name: 'Permissions',
+      icon: KeyIcon,
+      description: 'Manage individual permissions'
+    },
+    {
       id: 'templates',
       name: 'Permission Templates',
       icon: DocumentTextIcon,
@@ -52,162 +195,310 @@ export default function PermissionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Permission Management
-                </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Manage roles, permissions, and access control across the system
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Phase 3.1 Complete
-                </span>
+    <ErrorBoundary context="PermissionsPage">
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Permission Management
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Manage roles, permissions, and access control across the system
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Phase 3.1 Complete
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="border-b border-gray-200 mt-6">
-          <nav className="-mb-px flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
+        {/* Tab Navigation */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="border-b border-gray-200 mt-6">
+            <nav className="-mb-px flex space-x-8">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    onMouseEnter={() => handleTabHover(tab.id)}
+                    className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
                       ? 'border-indigo-500 text-indigo-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon
-                    className={`-ml-0.5 mr-2 h-5 w-5 ${
-                      activeTab === tab.id
+                      }`}
+                  >
+                    <Icon
+                      className={`-ml-0.5 mr-2 h-5 w-5 ${activeTab === tab.id
                         ? 'text-indigo-500'
                         : 'text-gray-400 group-hover:text-gray-500'
-                    }`}
-                  />
-                  <span>{tab.name}</span>
-                </button>
-              );
-            })}
-          </nav>
+                        }`}
+                    />
+                    <span>{tab.name}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
         </div>
+
+        {/* Tab Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {activeTab === 'matrix' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900">Permission Matrix</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  View and manage permissions assigned to roles. Click on the permission indicators to grant or revoke permissions.
+                </p>
+              </div>
+              <PermissionMatrix />
+            </div>
+          )}
+
+          {activeTab === 'roles' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900">Role Management</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Create, edit, and manage system roles. Define role hierarchies and organize permissions into logical groups.
+                </p>
+              </div>
+              <RoleManagement />
+            </div>
+          )}
+
+          {activeTab === 'users' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900">User Permissions</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Manage individual user permissions and role assignments. Override role-based permissions for specific users.
+                </p>
+              </div>
+              <UserPermissionManagement />
+            </div>
+          )}
+
+          {activeTab === 'permissions' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900">Permission Management</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Create, edit, and manage individual permissions. Define what actions users can perform on specific resources.
+                </p>
+              </div>
+              <PermissionManagement />
+            </div>
+          )}
+
+          {activeTab === 'templates' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900">Permission Templates</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Create and manage permission templates for common role configurations. Apply templates to quickly set up new roles.
+                </p>
+              </div>
+              <PermissionTemplates onGenerateClick={() => setIsGenerateModalOpen(true)} />
+            </div>
+          )}
+
+          {activeTab === 'audit' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900">Audit Trail</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Track all permission changes, role assignments, and access patterns. Monitor system security and compliance.
+                </p>
+              </div>
+              <PermissionAuditTrail />
+            </div>
+          )}
+        </div>
+
+        {/* Generate Templates Modal */}
+        <GenerateTemplatesModal
+          isOpen={isGenerateModalOpen}
+          onClose={() => setIsGenerateModalOpen(false)}
+          onTemplateGenerated={(template) => {
+            console.log('Template generated:', template);
+            // You could add a toast notification here
+          }}
+        />
       </div>
-
-      {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'matrix' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Permission Matrix</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                View and manage permissions assigned to roles. Click on the permission indicators to grant or revoke permissions.
-              </p>
-            </div>
-            <PermissionMatrix />
-          </div>
-        )}
-
-        {activeTab === 'roles' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Role Management</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Create, edit, and manage system roles. Define role hierarchies and organize permissions into logical groups.
-              </p>
-            </div>
-            <RoleManagement />
-          </div>
-        )}
-
-        {activeTab === 'users' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-medium text-gray-900">User Permissions</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Manage individual user permissions and role assignments. Override role-based permissions for specific users.
-              </p>
-            </div>
-            <UserPermissionManagement />
-          </div>
-        )}
-
-        {activeTab === 'templates' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Permission Templates</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Create and manage permission templates for common role configurations. Apply templates to quickly set up new roles.
-              </p>
-            </div>
-            <PermissionTemplates onGenerateClick={() => setIsGenerateModalOpen(true)} />
-          </div>
-        )}
-
-        {activeTab === 'audit' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Audit Trail</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Track all permission changes, role assignments, and access patterns. Monitor system security and compliance.
-              </p>
-            </div>
-            <PermissionAuditTrail />
-          </div>
-        )}
-      </div>
-
-      {/* Generate Templates Modal */}
-      <GenerateTemplatesModal
-        isOpen={isGenerateModalOpen}
-        onClose={() => setIsGenerateModalOpen(false)}
-        onTemplateGenerated={(template) => {
-          console.log('Template generated:', template);
-          // You could add a toast notification here
-        }}
-      />
-    </div>
+    </ErrorBoundary>
   );
 }
 
-// Placeholder components for remaining tabs
+// User Permission Management Component
 function UserPermissionManagement() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  // Debounce search term
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch users based on search
+  const { data: usersData, isLoading: isSearching } = useUsers({
+    search: debouncedSearchTerm,
+    size: 10,
+    status: 'active'
+  });
+
+  const users = usersData?.items || [];
+
+  const handleSelectUser = (user: User) => {
+    setSelectedUser(user);
+    setSearchTerm('');
+  };
+
+  const handleClearSelection = () => {
+    setSelectedUser(null);
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="text-center py-12">
-        <CogIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">User Permission Management</h3>
-        <p className="text-gray-500 mb-4">
-          Search for users and manage their individual permissions and role assignments.
-        </p>
-        <div className="max-w-md mx-auto">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search users..."
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-            <div className="absolute left-3 top-2.5">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+    <div className="space-y-6">
+      {/* User Search Section */}
+      {!selectedUser && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-center py-8">
+            <CogIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">User Permission Management</h3>
+            <p className="text-gray-500 mb-6">
+              Search for users by name, email, or employee code to manage their permissions and role assignments.
+            </p>
+
+            {/* Search Input */}
+            <div className="max-w-md mx-auto">
+              <div className="relative">
+                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search users by name, email, or employee code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-3">
+                    <div className="animate-spin h-5 w-5 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Search Results */}
+              {searchTerm && debouncedSearchTerm && (
+                <div className="mt-2 bg-white border border-gray-200 rounded-md shadow-lg max-h-80 overflow-y-auto">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                      Searching users...
+                    </div>
+                  ) : users.length > 0 ? (
+                    <div className="divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => handleSelectUser(user)}
+                          className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">{user.email}</p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                  {user.role}
+                                </span>
+                                {user.department?.name && (
+                                  <span className="text-xs text-gray-500">
+                                    {user.department.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">
+                      No users found matching "{debouncedSearchTerm}"
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Selected User Permission Assignment */}
+      {selectedUser && (
+        <div>
+          {/* Selected User Header */}
+          <div className="bg-white rounded-lg shadow p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <span className="text-lg font-medium text-indigo-600">
+                    {selectedUser.first_name[0]}{selectedUser.last_name[0]}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    {selectedUser.first_name} {selectedUser.last_name}
+                  </h3>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <p className="text-sm text-gray-500">{selectedUser.email}</p>
+                    {selectedUser.department?.name && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-sm text-gray-500">{selectedUser.department.name}</span>
+                      </>
+                    )}
+                    {selectedUser.branch?.name && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-sm text-gray-500">{selectedUser.branch.name}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleClearSelection}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Change user"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* User Permission Assignment Component */}
+          <UserPermissionAssignment userId={selectedUser.id} />
+        </div>
+      )}
     </div>
   );
 }
@@ -321,9 +612,8 @@ function PermissionTemplates({ onGenerateClick }: { onGenerateClick: () => void 
                         <p className="text-sm font-medium text-gray-900">{role.display_name}</p>
                         <p className="text-xs text-gray-500">{role.description}</p>
                       </div>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        role.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${role.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
                         {role.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -347,108 +637,3 @@ function PermissionTemplates({ onGenerateClick }: { onGenerateClick: () => void 
   );
 }
 
-function PermissionAuditTrail() {
-  const auditEntries = [
-    {
-      id: 1,
-      action: 'Permission Granted',
-      target: 'User: John Doe',
-      permission: 'application_approve',
-      performedBy: 'Admin User',
-      timestamp: '2025-09-27 14:30:00',
-      reason: 'Promotion to senior officer'
-    },
-    {
-      id: 2,
-      action: 'Role Assigned',
-      target: 'User: Jane Smith',
-      permission: 'Manager Role',
-      performedBy: 'Admin User',
-      timestamp: '2025-09-27 13:15:00',
-      reason: 'Department restructuring'
-    },
-    {
-      id: 3,
-      action: 'Permission Revoked',
-      target: 'Role: Officer',
-      permission: 'user_delete',
-      performedBy: 'Security Admin',
-      timestamp: '2025-09-27 11:45:00',
-      reason: 'Security policy update'
-    }
-  ];
-
-  return (
-    <div className="bg-white rounded-lg shadow">
-      {/* Filters */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <option>All Actions</option>
-            <option>Permission Granted</option>
-            <option>Permission Revoked</option>
-            <option>Role Assigned</option>
-            <option>Role Revoked</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Search target..."
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <input
-            type="date"
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <button className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">
-            Filter
-          </button>
-        </div>
-      </div>
-
-      {/* Audit Entries */}
-      <div className="divide-y divide-gray-200">
-        {auditEntries.map((entry) => (
-          <div key={entry.id} className="p-6 hover:bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    entry.action.includes('Granted') || entry.action.includes('Assigned')
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {entry.action}
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">{entry.target}</span>
-                </div>
-                <div className="mt-1 text-sm text-gray-600">
-                  <span className="font-medium">{entry.permission}</span>
-                  {entry.reason && <span> • {entry.reason}</span>}
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  by {entry.performedBy} at {entry.timestamp}
-                </div>
-              </div>
-              <ChartBarIcon className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">Showing 1-3 of 150 entries</span>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
-              Previous
-            </button>
-            <button className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

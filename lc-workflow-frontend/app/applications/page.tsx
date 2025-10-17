@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useApplications, useDeleteApplication } from '@/hooks/useApplications';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import {
   DocumentTextIcon,
   PlusIcon,
@@ -80,6 +81,7 @@ const workflowStatusConfig = {
 
 function ApplicationsContent() {
   const { user } = useAuth();
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const [searchTerm, setSearchTerm] = useState('');
   const formatCurrencyWithConversion = useFormatCurrency();
   const [statusFilter, setStatusFilter] = useState('');
@@ -303,14 +305,16 @@ function ApplicationsContent() {
                   </button>
                 </div>
 
-                {/* Create Button */}
-                <Link
-                  href="/applications/new"
-                  className="inline-flex items-center justify-center px-4 sm:px-6 lg:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 text-sm sm:text-base font-medium"
-                >
-                  <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" />
-                  <span className="whitespace-nowrap">បង្កើតពាក្យសុំថ្មី</span>
-                </Link>
+                {/* Create Button - Permission Check */}
+                {can('application', 'create') && (
+                  <Link
+                    href="/applications/new"
+                    className="inline-flex items-center justify-center px-4 sm:px-6 lg:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 text-sm sm:text-base font-medium"
+                  >
+                    <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" />
+                    <span className="whitespace-nowrap">បង្កើតពាក្យសុំថ្មី</span>
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -440,15 +444,17 @@ function ApplicationsContent() {
               <p className="text-gray-500 dark:text-gray-400 text-lg mb-8">
                 ចាប់ផ្តើមដោយការបង្កើតពាក្យសុំកម្ចីថ្មី
               </p>
-              <div>
-                <Link
-                  href="/applications/new"
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-                >
-                  <PlusIcon className="w-5 h-5 mr-3" />
-                  បង្កើតពាក្យសុំថ្មី
-                </Link>
-              </div>
+              {can('application', 'create') && (
+                <div>
+                  <Link
+                    href="/applications/new"
+                    className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+                  >
+                    <PlusIcon className="w-5 h-5 mr-3" />
+                    បង្កើតពាក្យសុំថ្មី
+                  </Link>
+                </div>
+              )}
             </div>
           ) : viewMode === 'table' ? (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -564,7 +570,7 @@ function ApplicationsContent() {
                               <EyeIcon className="w-4 h-4 mr-1.5" />
                               មើល
                             </Link>
-                            {(user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                            {(can('application', 'update') || application.user_id === user?.id) && (
                               <Link
                                 href={`/applications/${application.id}/edit`}
                                 className="inline-flex items-center px-3 py-2 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 rounded-lg transition-all duration-200"
@@ -573,7 +579,7 @@ function ApplicationsContent() {
                                 កែប្រែ
                               </Link>
                             )}
-                            {application.status === 'draft' && (user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                            {application.status === 'draft' && (can('application', 'delete') || application.user_id === user?.id) && (
                               <button
                                 onClick={() => handleDeleteClick(application)}
                                 className="inline-flex items-center px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900 dark:text-red-400 dark:hover:bg-red-800 rounded-lg transition-all duration-200"
@@ -586,9 +592,8 @@ function ApplicationsContent() {
                             {/* Workflow Actions */}
                             <WorkflowActions
                               applicationId={application.id}
-                              currentStatus={application.workflow_status}
+                              workflowStatus={application.workflow_status}
                               userRole={user?.role || 'officer'}
-                              className="ml-2"
                             />
                           </div>
                         </td>
@@ -747,7 +752,7 @@ function ApplicationsContent() {
                           <EyeIcon className="w-4 h-4 mr-2" />
                           មើល
                         </Link>
-                        {(user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                        {(can('application', 'update') || application.user_id === user?.id) && (
                           <Link
                             href={`/applications/${application.id}/edit`}
                             className="inline-flex items-center px-4 py-2.5 text-sm font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
@@ -757,7 +762,7 @@ function ApplicationsContent() {
                           </Link>
                         )}
                         {/* Delete button - only for draft applications */}
-                        {application.status === 'draft' && (user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id) && (
+                        {application.status === 'draft' && (can('application', 'delete') || application.user_id === user?.id) && (
                           <button
                             onClick={() => handleDeleteClick(application)}
                             className="inline-flex items-center px-4 py-2.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900 dark:text-red-400 dark:hover:bg-red-800 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
@@ -770,9 +775,8 @@ function ApplicationsContent() {
                         {/* Workflow Actions */}
                         <WorkflowActions
                           applicationId={application.id}
-                          currentStatus={application.workflow_status}
+                          workflowStatus={application.workflow_status}
                           userRole={user?.role || 'officer'}
-                          className=""
                         />
                       </div>
 

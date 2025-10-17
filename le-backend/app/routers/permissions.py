@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 from uuid import UUID
+from datetime import datetime
 import logging
 
 from app.database import get_db
@@ -19,14 +20,15 @@ from app.models.permissions import (
     Permission, Role, RolePermission, UserRole, UserPermission, PermissionTemplate,
     ResourceType, PermissionAction, PermissionScope
 )
-from app.services.permission_service import PermissionService, require_permission
+from app.services.permission_service import PermissionService, require_permission, require_permission_or_role
 from app.routers.auth import get_current_user
 from app.permission_schemas import (
     PermissionCreate, PermissionUpdate, PermissionResponse,
     RoleCreate, RoleUpdate, RoleResponse, RoleAssignmentCreate,
     UserPermissionCreate, UserPermissionResponse,
     PermissionTemplateCreate, PermissionTemplateResponse,
-    PermissionMatrixResponse, BulkRoleAssignment,
+    PermissionMatrixResponse, PermissionMatrixRole, PermissionMatrixPermission,
+    BulkRoleAssignment,
     TemplateGenerationRequest, TemplateSuggestionRequest, TemplateSuggestionResponse,
     BulkTemplateGenerationRequest, BulkTemplateGenerationResponse,
     TemplatePreviewRequest, TemplatePreviewResponse
@@ -36,132 +38,15 @@ router = APIRouter(tags=["permissions"])
 logger = logging.getLogger(__name__)
 
 
-# ==================== PERMISSION CRUD ====================
-
-@router.get("/", response_model=List[PermissionResponse])
-@require_permission(ResourceType.SYSTEM, PermissionAction.VIEW_ALL)
-async def list_permissions(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    resource_type: Optional[ResourceType] = Query(None),
-    action: Optional[PermissionAction] = Query(None),
-    scope: Optional[PermissionScope] = Query(None),
-    is_active: Optional[bool] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """List all permissions with optional filtering."""
-    query = select(Permission)
-    
-    # Apply filters
-    filters = []
-    if resource_type:
-        filters.append(Permission.resource_type == resource_type)
-    if action:
-        filters.append(Permission.action == action)
-    if scope:
-        filters.append(Permission.scope == scope)
-    if is_active is not None:
-        filters.append(Permission.is_active == is_active)
-    
-    if filters:
-        query = query.where(and_(*filters))
-    
-    query = query.offset(skip).limit(limit)
-    result = await db.execute(query)
-    permissions = result.scalars().all()
-    
-    return [PermissionResponse.from_orm(p) for p in permissions]
-
-
-@router.post("/", response_model=PermissionResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.CREATE)
-async def create_permission(
-    permission_data: PermissionCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Create a new permission."""
-    permission_service = PermissionService(db)
-    
-    permission = await permission_service.create_permission(
-        name=permission_data.name,
-        description=permission_data.description,
-        resource_type=permission_data.resource_type,
-        action=permission_data.action,
-        scope=permission_data.scope,
-        created_by=current_user.id
-    )
-    
-    return PermissionResponse.from_orm(permission)
-
-
-@router.get("/{permission_id}", response_model=PermissionResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
-async def get_permission(
-    permission_id: UUID = Path(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get a specific permission by ID."""
-    permission = await db.get(Permission, permission_id)
-    if not permission:
-        raise HTTPException(status_code=404, detail="Permission not found")
-    
-    return PermissionResponse.from_orm(permission)
-
-
-@router.put("/{permission_id}", response_model=PermissionResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.UPDATE)
-async def update_permission(
-    permission_data: PermissionUpdate,
-    permission_id: UUID = Path(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Update a permission."""
-    permission = await db.get(Permission, permission_id)
-    if not permission:
-        raise HTTPException(status_code=404, detail="Permission not found")
-    
-    if permission.is_system_permission:
-        raise HTTPException(status_code=403, detail="Cannot modify system permission")
-    
-    # Update fields
-    for field, value in permission_data.dict(exclude_unset=True).items():
-        setattr(permission, field, value)
-    
-    await db.commit()
-    await db.refresh(permission)
-    
-    return PermissionResponse.from_orm(permission)
-
-
-@router.delete("/{permission_id}")
-@require_permission(ResourceType.SYSTEM, PermissionAction.DELETE)
-async def delete_permission(
-    permission_id: UUID = Path(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Delete a permission."""
-    permission = await db.get(Permission, permission_id)
-    if not permission:
-        raise HTTPException(status_code=404, detail="Permission not found")
-    
-    if permission.is_system_permission:
-        raise HTTPException(status_code=403, detail="Cannot delete system permission")
-    
-    await db.delete(permission)
-    await db.commit()
-    
-    return {"message": "Permission deleted successfully"}
-
-
 # ==================== ROLE CRUD ====================
+# NOTE: Specific routes must come before generic /{permission_id} routes
 
 @router.get("/roles", response_model=List[RoleResponse])
-@require_permission(ResourceType.SYSTEM, PermissionAction.VIEW_ALL)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.VIEW_ALL,
+    allowed_roles=['admin', 'super_admin']
+)
 async def list_roles(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -213,7 +98,11 @@ async def create_role(
 
 
 @router.get("/roles/{role_id}", response_model=RoleResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
 async def get_role(
     role_id: UUID = Path(...),
     current_user: User = Depends(get_current_user),
@@ -499,50 +388,97 @@ async def bulk_assign_roles(
 # ==================== PERMISSION MATRIX ====================
 
 @router.get("/matrix", response_model=PermissionMatrixResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.VIEW_ALL)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.VIEW_ALL,
+    allowed_roles=['admin', 'super_admin']
+)
 async def get_permission_matrix(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get a comprehensive permission matrix showing roles and their permissions."""
-    # Get all roles with their permissions
-    stmt = select(Role).options(
-        selectinload(Role.role_permissions).selectinload(RolePermission.permission)
-    ).where(Role.is_active == True)
-    
-    result = await db.execute(stmt)
-    roles = result.scalars().all()
-    
-    # Get all permissions
-    perm_stmt = select(Permission).where(Permission.is_active == True)
-    perm_result = await db.execute(perm_stmt)
-    all_permissions = perm_result.scalars().all()
-    
-    # Build matrix
-    matrix = {
-        "roles": [],
-        "permissions": [PermissionResponse.from_orm(p) for p in all_permissions],
-        "matrix": {}
-    }
-    
-    for role in roles:
-        role_data = RoleResponse.from_orm(role)
-        matrix["roles"].append(role_data)
+    """
+    Get a comprehensive permission matrix showing roles and their permissions.
+    Returns a matrix of roles vs permissions with assignment indicators.
+    """
+    try:
+        # Get all active roles with their permissions
+        roles_query = select(Role).options(
+            selectinload(Role.role_permissions).selectinload(RolePermission.permission)
+        ).where(Role.is_active == True).order_by(Role.level.desc(), Role.display_name)
         
-        # Map role permissions
-        role_permission_ids = {rp.permission_id for rp in role.role_permissions if rp.is_granted}
-        matrix["matrix"][str(role.id)] = {
-            str(perm.id): str(perm.id) in role_permission_ids
-            for perm in all_permissions
+        roles_result = await db.execute(roles_query)
+        roles = roles_result.scalars().all()
+        
+        # Get all active permissions
+        permissions_query = select(Permission).where(
+            Permission.is_active == True
+        ).order_by(
+            Permission.resource_type,
+            Permission.action,
+            Permission.scope
+        )
+        
+        permissions_result = await db.execute(permissions_query)
+        permissions = permissions_result.scalars().all()
+        
+        # Build matrix data structure
+        matrix_data = {
+            "roles": [
+                {
+                    "id": str(role.id),
+                    "name": role.name,
+                    "display_name": role.display_name,
+                    "level": role.level,
+                    "is_system_role": role.is_system_role
+                }
+                for role in roles
+            ],
+            "permissions": [
+                {
+                    "id": str(perm.id),
+                    "name": perm.name,
+                    "resource_type": perm.resource_type.value,
+                    "action": perm.action.value,
+                    "scope": perm.scope.value if perm.scope else None,
+                    "is_system_permission": perm.is_system_permission
+                }
+                for perm in permissions
+            ],
+            "assignments": {}
         }
-    
-    return PermissionMatrixResponse(**matrix)
+        
+        # Build assignments map: role_id -> [permission_ids]
+        for role in roles:
+            role_id = str(role.id)
+            matrix_data["assignments"][role_id] = [
+                str(rp.permission_id)
+                for rp in role.role_permissions
+                if rp.is_granted
+            ]
+        
+        return PermissionMatrixResponse(**matrix_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching permission matrix: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "matrix_fetch_failed",
+                "message": "Failed to fetch permission matrix",
+                "details": str(e)
+            }
+        )
 
 
 # ==================== PERMISSION TEMPLATES ====================
 
 @router.get("/templates", response_model=List[PermissionTemplateResponse])
-@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
 async def list_permission_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -674,7 +610,11 @@ async def generate_template_from_roles(
 
 
 @router.post("/templates/suggestions", response_model=TemplateSuggestionResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
 async def get_template_suggestions(
     request: TemplateSuggestionRequest,
     current_user: User = Depends(get_current_user),
@@ -857,7 +797,11 @@ async def bulk_generate_templates(
 
 
 @router.post("/templates/preview", response_model=TemplatePreviewResponse)
-@require_permission(ResourceType.SYSTEM, PermissionAction.READ)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
 async def preview_template_generation(
     request: TemplatePreviewRequest,
     current_user: User = Depends(get_current_user),
@@ -1302,3 +1246,226 @@ async def initialize_default_permissions(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to initialize permissions: {str(e)}")
+
+
+# ==================== PERMISSION CRUD ====================
+# NOTE: These generic routes are placed at the end to avoid conflicts with specific routes
+
+@router.get("/", response_model=List[PermissionResponse])
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.VIEW_ALL,
+    allowed_roles=['admin', 'super_admin']
+)
+async def list_permissions(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    resource_type: Optional[ResourceType] = Query(None),
+    action: Optional[PermissionAction] = Query(None),
+    scope: Optional[PermissionScope] = Query(None),
+    is_active: Optional[bool] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all permissions with optional filtering."""
+    query = select(Permission)
+    
+    # Apply filters
+    filters = []
+    if resource_type:
+        filters.append(Permission.resource_type == resource_type)
+    if action:
+        filters.append(Permission.action == action)
+    if scope:
+        filters.append(Permission.scope == scope)
+    if is_active is not None:
+        filters.append(Permission.is_active == is_active)
+    
+    if filters:
+        query = query.where(and_(*filters))
+    
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    permissions = result.scalars().all()
+    
+    return [PermissionResponse.from_orm(p) for p in permissions]
+
+
+@router.post("/", response_model=PermissionResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.CREATE)
+async def create_permission(
+    permission_data: PermissionCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new permission."""
+    permission_service = PermissionService(db)
+    
+    permission = await permission_service.create_permission(
+        name=permission_data.name,
+        description=permission_data.description,
+        resource_type=permission_data.resource_type,
+        action=permission_data.action,
+        scope=permission_data.scope,
+        created_by=current_user.id
+    )
+    
+    return PermissionResponse.from_orm(permission)
+
+
+@router.get("/{permission_id}", response_model=PermissionResponse)
+@require_permission_or_role(
+    ResourceType.SYSTEM, 
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
+async def get_permission(
+    permission_id: UUID = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get a specific permission by ID."""
+    permission = await db.get(Permission, permission_id)
+    if not permission:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    
+    return PermissionResponse.from_orm(permission)
+
+
+@router.put("/{permission_id}", response_model=PermissionResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.UPDATE)
+async def update_permission(
+    permission_data: PermissionUpdate,
+    permission_id: UUID = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a permission."""
+    permission = await db.get(Permission, permission_id)
+    if not permission:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    
+    if permission.is_system_permission:
+        raise HTTPException(status_code=403, detail="Cannot modify system permission")
+    
+    # Update fields
+    for field, value in permission_data.dict(exclude_unset=True).items():
+        setattr(permission, field, value)
+    
+    await db.commit()
+    await db.refresh(permission)
+    
+    return PermissionResponse.from_orm(permission)
+
+
+@router.delete("/{permission_id}")
+@require_permission(ResourceType.SYSTEM, PermissionAction.DELETE)
+async def delete_permission(
+    permission_id: UUID = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a permission."""
+    permission = await db.get(Permission, permission_id)
+    if not permission:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    
+    if permission.is_system_permission:
+        raise HTTPException(status_code=403, detail="Cannot delete system permission")
+    
+    await db.delete(permission)
+    await db.commit()
+    
+    return {"message": "Permission deleted successfully"}
+
+
+# ==================== AUDIT TRAIL ====================
+
+@router.get("/audit", response_model=Dict[str, Any])
+@require_permission(ResourceType.AUDIT, PermissionAction.VIEW_ALL)
+async def get_audit_trail(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=100),
+    action_type: Optional[str] = Query(None),
+    entity_type: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    target_user_id: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    search: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get audit trail for permission changes.
+    
+    Supports filtering by:
+    - action_type: Type of action (permission_created, role_assigned, etc.)
+    - entity_type: Type of entity (permission, role, user_role, user_permission)
+    - user_id: User who performed the action
+    - target_user_id: User who was affected by the action
+    - start_date: Start of date range
+    - end_date: End of date range
+    - search: Search in action, entity_type, and details
+    """
+    from app.services.permission_audit_service import PermissionAuditService
+    
+    audit_service = PermissionAuditService(db)
+    
+    entries, total = await audit_service.get_audit_trail(
+        page=page,
+        size=size,
+        action_type=action_type,
+        entity_type=entity_type,
+        user_id=user_id,
+        target_user_id=target_user_id,
+        start_date=start_date,
+        end_date=end_date,
+        search=search
+    )
+    
+    # Enrich entries with user and entity names
+    enriched_entries = []
+    for entry in entries:
+        entry_dict = {
+            "id": entry.id,
+            "action": entry.action,
+            "entity_type": entry.entity_type,
+            "entity_id": entry.entity_id,
+            "user_id": entry.user_id,
+            "timestamp": entry.timestamp,
+            "ip_address": entry.ip_address,
+            "details": entry.details or {}
+        }
+        
+        # Get user name
+        if entry.user_id:
+            user = await db.get(User, UUID(entry.user_id))
+            if user:
+                entry_dict["user_name"] = f"{user.first_name} {user.last_name}"
+        
+        # Extract additional info from details
+        if entry.details:
+            entry_dict["permission_name"] = entry.details.get("permission_name")
+            entry_dict["role_name"] = entry.details.get("role_name")
+            entry_dict["reason"] = entry.details.get("reason")
+            entry_dict["target_user_id"] = entry.details.get("target_user_id")
+            
+            # Get target user name
+            if entry.details.get("target_user_id"):
+                target_user = await db.get(User, UUID(entry.details["target_user_id"]))
+                if target_user:
+                    entry_dict["target_user_name"] = f"{target_user.first_name} {target_user.last_name}"
+        
+        enriched_entries.append(entry_dict)
+    
+    # Calculate pagination
+    pages = (total + size - 1) // size
+    
+    return {
+        "items": enriched_entries,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": pages
+    }

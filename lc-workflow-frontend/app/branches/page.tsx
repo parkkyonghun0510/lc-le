@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useBranches, useDeleteBranch } from '@/hooks/useBranches';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { Plus, Search, Edit, Trash2, Eye, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function BranchesPage() {
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const [searchTerm, setSearchTerm] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,13 +65,15 @@ export default function BranchesPage() {
               <h1 className="text-3xl font-bold text-gray-900">Branches</h1>
               <p className="text-gray-600 mt-1">Manage branch locations and information</p>
             </div>
-            <Link
-              href="/branches/new"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Branch
-            </Link>
+            {can('branch', 'create') && (
+              <Link
+                href="/branches/new"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Branch
+              </Link>
+            )}
           </div>
         </div>
 
@@ -112,7 +116,7 @@ export default function BranchesPage() {
                   ? 'Try adjusting your search criteria.'
                   : 'Get started by creating a new branch.'}
               </p>
-              {!searchTerm && (
+              {!searchTerm && can('branch', 'create') && (
                 <div className="mt-6">
                   <Link
                     href="/branches/new"
@@ -164,27 +168,33 @@ export default function BranchesPage() {
                       </div> */}
                       <div className="col-span-1">
                         <div className="flex items-center justify-end space-x-2">
-                          <Link
-                            href={`/branches/${branch.id}`}
-                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="View branch"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          <Link
-                            href={`/branches/${branch.id}/edit`}
-                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Edit branch"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => setDeleteConfirm(branch.id)}
-                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Delete branch"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {can('branch', 'read') && (
+                            <Link
+                              href={`/branches/${branch.id}`}
+                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="View branch"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          )}
+                          {can('branch', 'update') && (
+                            <Link
+                              href={`/branches/${branch.id}/edit`}
+                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Edit branch"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          )}
+                          {can('branch', 'delete') && (
+                            <button
+                              onClick={() => setDeleteConfirm(branch.id)}
+                              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                              title="Delete branch"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

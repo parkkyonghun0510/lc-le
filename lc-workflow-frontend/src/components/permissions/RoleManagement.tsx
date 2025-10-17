@@ -14,6 +14,10 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
+import toast from 'react-hot-toast';
+import { showErrorToast, ErrorToasts } from '@/components/ui/ErrorToast';
+import { useDraftSaving, useCleanupOldDrafts } from '@/hooks/useDraftSaving';
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
 
 interface Role {
   id: string;
@@ -51,13 +55,29 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   
   // State management
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  
+  // Accessibility: Screen reader announcements
+  const [announcement, setAnnouncement] = useState('');
+  
+  // Cleanup old drafts on mount (drafts older than 7 days)
+  useCleanupOldDrafts(7, 'draft-role-');
+
+  // Debounce search term (300ms)
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Fetch roles
-  const { data: roles, isLoading, error } = useQuery<Role[]>({
+  const { data: roles, isLoading, error, refetch } = useQuery<Role[]>({
     queryKey: ['roles', { showInactive }],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -70,10 +90,20 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch roles');
+        const errorData = await response.json().catch(() => ({}));
+        const error: any = new Error(errorData.detail || 'Failed to fetch roles');
+        error.status = response.status;
+        error.response = { status: response.status, data: errorData };
+        throw error;
       }
       
       return response.json();
+    },
+    retry: (failureCount, error: any) => {
+      if (error?.status >= 400 && error?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
     }
   });
 
@@ -90,14 +120,67 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create role');
+        const errorData = await response.json().catch(() => ({}));
+        const error: any = new Error(errorData.detail || 'Failed to create role');
+        error.status = response.status;
+        error.response = { status: response.status, data: errorData };
+        throw error;
       }
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       setIsCreateModalOpen(false);
+      setAnnouncement(`Role ${data.display_name} created successfully`);
+      toast.success(`Role "${data.display_name}" created successfully`, { duration: 3000 });
+    },
+    onError: (error: any) => {
+      const status = error?.status || error?.response?.status;
+      
+      if (status === 403) {
+        showErrorToast(
+          'Permission denied',
+          {
+            context: 'You don\'t have permission to create roles.',
+            suggestions: [
+              'Contact your administrator for access',
+              'Verify your role has role management rights'
+            ]
+          }
+        );
+      } else if (status === 409) {
+        showErrorToast(
+          'Role already exists',
+          {
+            context: 'A role with this name already exists.',
+            suggestions: [
+              'Choose a different role name',
+              'Check if the role was already created'
+            ]
+          }
+        );
+      } else if (status === 422) {
+        showErrorToast(
+          'Invalid data',
+          {
+            context: error.message || 'Please check your input and try again.',
+            suggestions: [
+              'Review all required fields',
+              'Ensure the role level is between 0 and 100',
+              'Check that the role name contains only valid characters'
+            ]
+          }
+        );
+      } else if (status === 500 || status >= 500) {
+        ErrorToasts.serverError();
+      } else if (!status) {
+        ErrorToasts.networkError();
+      } else {
+        showErrorToast('Failed to create role', {
+          context: error.message || 'An unexpected error occurred'
+        });
+      }
     }
   });
 
@@ -114,20 +197,73 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       });
       
       if (!response.ok) {
-        throw new Error('Failed to update role');
+        const errorData = await response.json().catch(() => ({}));
+        const error: any = new Error(errorData.detail || 'Failed to update role');
+        error.status = response.status;
+        error.response = { status: response.status, data: errorData };
+        throw error;
       }
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       setEditingRole(null);
+      setAnnouncement(`Role ${data.display_name} updated successfully`);
+      toast.success(`Role "${data.display_name}" updated successfully`, { duration: 3000 });
+    },
+    onError: (error: any) => {
+      const status = error?.status || error?.response?.status;
+      
+      if (status === 403) {
+        showErrorToast(
+          'Permission denied',
+          {
+            context: 'You don\'t have permission to update this role.',
+            suggestions: [
+              'Contact your administrator for access',
+              'Check if this is a system role that cannot be modified'
+            ]
+          }
+        );
+      } else if (status === 404) {
+        showErrorToast(
+          'Role not found',
+          {
+            context: 'The role you are trying to update no longer exists.',
+            suggestions: [
+              'Refresh the page to reload the data',
+              'The role may have been deleted by another user'
+            ],
+            onRetry: () => refetch()
+          }
+        );
+      } else if (status === 422) {
+        showErrorToast(
+          'Invalid data',
+          {
+            context: error.message || 'Please check your input and try again.',
+            suggestions: [
+              'Review all required fields',
+              'Ensure the role level is between 0 and 100'
+            ]
+          }
+        );
+      } else if (status === 500 || status >= 500) {
+        ErrorToasts.serverError();
+      } else if (!status) {
+        ErrorToasts.networkError();
+      } else {
+        showErrorToast('Failed to update role', {
+          context: error.message || 'An unexpected error occurred'
+        });
+      }
     }
   });
 
   // Delete role mutation
   const deleteRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
+    mutationFn: async ({ roleId, roleName }: { roleId: string; roleName: string }) => {
       const response = await fetch(`/api/v1/permissions/roles/${roleId}`, {
         method: 'DELETE',
         headers: {
@@ -136,21 +272,74 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete role');
+        const errorData = await response.json().catch(() => ({}));
+        const error: any = new Error(errorData.detail || 'Failed to delete role');
+        error.status = response.status;
+        error.response = { status: response.status, data: errorData };
+        throw error;
       }
       
-      return response.json();
+      return { roleName };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
+      setAnnouncement(`Role ${data.roleName} deleted successfully`);
+      toast.success(`Role "${data.roleName}" deleted successfully`, { duration: 3000 });
+    },
+    onError: (error: any, variables) => {
+      const status = error?.status || error?.response?.status;
+      
+      if (status === 403) {
+        showErrorToast(
+          'Permission denied',
+          {
+            context: 'You don\'t have permission to delete this role.',
+            suggestions: [
+              'Contact your administrator for access',
+              'Check if this is a system role that cannot be deleted'
+            ]
+          }
+        );
+      } else if (status === 404) {
+        showErrorToast(
+          'Role not found',
+          {
+            context: 'The role you are trying to delete no longer exists.',
+            suggestions: [
+              'Refresh the page to reload the data',
+              'The role may have already been deleted'
+            ],
+            onRetry: () => refetch()
+          }
+        );
+      } else if (status === 409) {
+        showErrorToast(
+          'Cannot delete role',
+          {
+            context: 'This role is currently assigned to users and cannot be deleted.',
+            suggestions: [
+              'Remove all users from this role first',
+              'Deactivate the role instead of deleting it'
+            ]
+          }
+        );
+      } else if (status === 500 || status >= 500) {
+        ErrorToasts.serverError();
+      } else if (!status) {
+        ErrorToasts.networkError();
+      } else {
+        showErrorToast('Failed to delete role', {
+          context: error.message || 'An unexpected error occurred'
+        });
+      }
     }
   });
 
   // Filter roles based on search
   const filteredRoles = roles?.filter(role => 
-    role.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    role.description.toLowerCase().includes(searchTerm.toLowerCase())
+    role.display_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    role.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    role.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
   ) || [];
 
   // Sort roles by level and then by name
@@ -171,7 +360,7 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
 
   const handleDeleteRole = (role: Role) => {
     if (window.confirm(`Are you sure you want to delete the role "${role.display_name}"?`)) {
-      deleteRoleMutation.mutate(role.id);
+      deleteRoleMutation.mutate({ roleId: role.id, roleName: role.display_name });
     }
   };
 
@@ -191,12 +380,81 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   }
 
   if (error) {
+    const errorObj = error as any;
+    const status = errorObj?.status || errorObj?.response?.status;
+    
+    let errorMessage = 'Error loading roles';
+    let errorContext = errorObj.message || 'An unexpected error occurred';
+    let suggestions: string[] = [];
+    
+    if (status === 403) {
+      errorMessage = 'Access denied';
+      errorContext = 'You don\'t have permission to view roles.';
+      suggestions = [
+        'Contact your administrator for access',
+        'Verify you are logged in with the correct account'
+      ];
+    } else if (status === 404) {
+      errorMessage = 'Resource not found';
+      errorContext = 'The roles data could not be found.';
+      suggestions = ['Refresh the page', 'Contact support if the problem persists'];
+    } else if (status === 500 || status >= 500) {
+      errorMessage = 'Server error';
+      errorContext = 'The server encountered an error while loading roles.';
+      suggestions = [
+        'Try again in a few moments',
+        'Refresh the page',
+        'Contact support if the error continues'
+      ];
+    } else if (!status) {
+      errorMessage = 'Network error';
+      errorContext = 'Unable to connect to the server.';
+      suggestions = [
+        'Check your internet connection',
+        'Try refreshing the page'
+      ];
+    }
+    
     return (
       <div className={`bg-white rounded-lg shadow ${className}`}>
         <div className="p-6">
-          <div className="text-center text-red-600">
-            <p>Error loading roles</p>
-            <p className="text-sm text-gray-500 mt-1">{error.message}</p>
+          <div className="text-center">
+            <div className="mb-4">
+              <svg
+                className="mx-auto h-12 w-12 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{errorMessage}</h3>
+            <p className="text-sm text-gray-500 mb-4">{errorContext}</p>
+            {suggestions.length > 0 && (
+              <div className="text-left max-w-md mx-auto mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Try these solutions:</p>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  {suggestions.map((suggestion, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>{suggestion}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <button
+              onClick={() => refetch()}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Try Again
+            </button>
           </div>
         </div>
       </div>
@@ -204,7 +462,17 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow ${className}`}>
+    <div className={`bg-white rounded-lg shadow ${className}`} role="region" aria-label="Role Management">
+      {/* Screen reader announcements */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {announcement}
+      </div>
+      
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -218,8 +486,9 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              aria-label="Create new role"
             >
-              <PlusIcon className="h-4 w-4 mr-2" />
+              <PlusIcon className="h-4 w-4 mr-2" aria-hidden="true" />
               Create Role
             </button>
           </div>
@@ -227,38 +496,51 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       </div>
 
       {/* Filters */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50" role="search" aria-label="Filter roles">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+            <label htmlFor="role-search" className="sr-only">
+              Search roles
+            </label>
+            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" aria-hidden="true" />
             <input
+              id="role-search"
               type="text"
               placeholder="Search roles..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 w-full"
+              className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full"
+              aria-describedby="role-search-description"
             />
+            <span id="role-search-description" className="sr-only">
+              Filter roles by name or description
+            </span>
           </div>
 
           {/* Show inactive toggle */}
           <label className="flex items-center">
             <input
+              id="show-inactive-roles-toggle"
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              className="h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300 rounded"
+              aria-describedby="show-inactive-description"
             />
             <span className="ml-2 text-sm text-gray-700">Show inactive roles</span>
+            <span id="show-inactive-description" className="sr-only">
+              Toggle to show or hide inactive roles in the list
+            </span>
           </label>
         </div>
       </div>
 
       {/* Roles List */}
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-gray-200" role="list" aria-label="Roles list">
         {sortedRoles.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
-            <UserGroupIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+          <div className="p-6 text-center text-gray-500" role="status">
+            <UserGroupIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" aria-hidden="true" />
             <p>No roles found</p>
             {searchTerm && (
               <p className="text-sm">Try adjusting your search criteria</p>
@@ -266,15 +548,18 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
           </div>
         ) : (
           sortedRoles.map(role => (
-            <div key={role.id} className="p-6 hover:bg-gray-50">
+            <div key={role.id} className="p-6 hover:bg-gray-50" role="listitem">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
                   {/* Role Icon */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    role.is_active 
-                      ? 'bg-indigo-100 text-indigo-600' 
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
+                  <div 
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      role.is_active 
+                        ? 'bg-indigo-100 text-indigo-600' 
+                        : 'bg-gray-100 text-gray-400'
+                    }`}
+                    aria-hidden="true"
+                  >
                     <ShieldCheckIcon className="h-5 w-5" />
                   </div>
 
@@ -284,27 +569,30 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
                       <h3 className="text-lg font-medium text-gray-900">
                         {role.display_name}
                       </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        role.level >= 80 
-                          ? 'bg-red-100 text-red-800'
-                          : role.level >= 60
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
+                      <span 
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          role.level >= 80 
+                            ? 'bg-red-100 text-red-800'
+                            : role.level >= 60
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                        aria-label={`Role level ${role.level}`}
+                      >
                         Level {role.level}
                       </span>
                       {role.is_system_role && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" aria-label="System role">
                           System
                         </span>
                       )}
                       {role.is_default && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800" aria-label="Default role">
                           Default
                         </span>
                       )}
                       {!role.is_active && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800" aria-label="Inactive role">
                           Inactive
                         </span>
                       )}
@@ -312,46 +600,53 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
                     <p className="text-sm text-gray-500 mt-1">
                       {role.description}
                     </p>
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500" aria-label={`${role.permission_count} permissions, created ${new Date(role.created_at).toLocaleDateString()}`}>
                       <span>{role.permission_count} permissions</span>
-                      <span>•</span>
+                      <span aria-hidden="true">•</span>
                       <span>Created {new Date(role.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" role="group" aria-label={`Actions for ${role.display_name}`}>
                   <button
                     onClick={() => setSelectedRole(role)}
-                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded"
+                    aria-label={`View details for ${role.display_name}`}
                     title="View details"
                   >
-                    <EyeIcon className="h-5 w-5" />
+                    <EyeIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                   
                   {!role.is_system_role && (
                     <>
                       <button
                         onClick={() => setEditingRole(role)}
-                        className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                        className="p-2 text-gray-400 hover:text-indigo-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded"
+                        aria-label={`Edit ${role.display_name}`}
                         title="Edit role"
                       >
-                        <PencilIcon className="h-5 w-5" />
+                        <PencilIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
                       
                       <button
                         onClick={() => handleDeleteRole(role)}
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Delete role"
+                        className="p-2 text-gray-400 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Delete ${role.display_name}`}
+                        title={deleteRoleMutation.isPending ? "Deleting..." : "Delete role"}
                         disabled={deleteRoleMutation.isPending}
                       >
-                        <TrashIcon className="h-5 w-5" />
+                        {deleteRoleMutation.isPending ? (
+                          <div className="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full" aria-hidden="true" />
+                        ) : (
+                          <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                        )}
                       </button>
                     </>
                   )}
                   
-                  <ChevronRightIcon className="h-5 w-5 text-gray-300" />
+                  <ChevronRightIcon className="h-5 w-5 text-gray-300" aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -410,7 +705,7 @@ interface RoleFormModalProps {
   availableRoles: Role[];
 }
 
-function RoleFormModal({ role, isOpen, onClose, onSubmit, isLoading, availableRoles }: RoleFormModalProps) {
+const RoleFormModal = React.memo(({ role, isOpen, onClose, onSubmit, isLoading, availableRoles }: RoleFormModalProps) => {
   const [formData, setFormData] = useState<RoleFormData>({
     name: role?.name || '',
     display_name: role?.display_name || '',
@@ -422,91 +717,233 @@ function RoleFormModal({ role, isOpen, onClose, onSubmit, isLoading, availableRo
     allowed_departments: [],
     allowed_branches: []
   });
+  
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  
+  // Draft saving hook
+  const {
+    hasDraft,
+    restoreDraft,
+    saveDraft,
+    clearDraft,
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
+    getDraftAge
+  } = useDraftSaving<RoleFormData>({
+    draftKey: role ? `draft-role-edit-${role.id}` : 'draft-role-create',
+    formType: role ? 'role-edit' : 'role-create',
+    autoSaveInterval: 30000, // 30 seconds
+    onDraftRestored: () => {
+      const age = getDraftAge();
+      const ageInMinutes = age ? Math.floor(age / 60000) : 0;
+      toast.success(
+        `Draft restored from ${ageInMinutes} minute${ageInMinutes !== 1 ? 's' : ''} ago`,
+        { duration: 4000 }
+      );
+    },
+    onDraftSaved: () => {
+      // Silent auto-save
+    }
+  });
+  
+  // Restore draft on mount if available
+  React.useEffect(() => {
+    if (isOpen && !role && hasDraft && !draftRestored) {
+      const draft = restoreDraft();
+      if (draft) {
+        setFormData(draft);
+        setDraftRestored(true);
+      }
+    }
+  }, [isOpen, role, hasDraft, restoreDraft, draftRestored]);
+  
+  // Auto-save draft every 30 seconds when form data changes
+  React.useEffect(() => {
+    if (isOpen && !role) {
+      // Only auto-save for create form, not edit
+      const timer = setTimeout(() => {
+        saveDraft(formData);
+      }, 30000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [formData, isOpen, role, saveDraft]);
+  
+  // Track unsaved changes
+  React.useEffect(() => {
+    if (isOpen) {
+      const hasChanges = 
+        formData.name !== (role?.name || '') ||
+        formData.display_name !== (role?.display_name || '') ||
+        formData.description !== (role?.description || '') ||
+        formData.level !== (role?.level || 0) ||
+        formData.parent_role_id !== (role?.parent_role_id || '');
+      
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [formData, role, isOpen, setHasUnsavedChanges]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
+    // Clear draft on successful submission
+    clearDraft();
   };
+  
+  const handleClose = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedDialog(true);
+    } else {
+      clearDraft();
+      onClose();
+    }
+  };
+  
+  const handleConfirmClose = () => {
+    clearDraft();
+    setShowUnsavedDialog(false);
+    onClose();
+  };
+  
+  // Handle Escape key to close modal
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      // Trap focus in modal
+      const modal = document.getElementById('role-form-modal');
+      if (modal) {
+        const focusableElements = modal.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+        
+        firstElement?.focus();
+      }
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+    <div 
+      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="role-form-title"
+    >
+      <div id="role-form-modal" className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
         <div className="mt-3">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 id="role-form-title" className="text-lg font-medium text-gray-900 mb-4">
             {role ? 'Edit Role' : 'Create New Role'}
           </h3>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" aria-label={role ? 'Edit role form' : 'Create role form'}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Role Name (System)
+                <label htmlFor="role-name" className="block text-sm font-medium text-gray-700">
+                  Role Name (System) <span className="text-red-500" aria-label="required">*</span>
                 </label>
                 <input
+                  id="role-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="admin, manager, officer"
                   required
+                  aria-required="true"
+                  aria-describedby="role-name-description"
                 />
+                <span id="role-name-description" className="sr-only">
+                  Enter a system name for the role using lowercase letters and underscores
+                </span>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Display Name
+                <label htmlFor="role-display-name" className="block text-sm font-medium text-gray-700">
+                  Display Name <span className="text-red-500" aria-label="required">*</span>
                 </label>
                 <input
+                  id="role-display-name"
                   type="text"
                   value={formData.display_name}
                   onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="System Administrator"
                   required
+                  aria-required="true"
+                  aria-describedby="role-display-name-description"
                 />
+                <span id="role-display-name-description" className="sr-only">
+                  Enter a user-friendly display name for the role
+                </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Description
+              <label htmlFor="role-description" className="block text-sm font-medium text-gray-700">
+                Description <span className="text-red-500" aria-label="required">*</span>
               </label>
               <textarea
+                id="role-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Describe the role's responsibilities and scope"
                 required
+                aria-required="true"
+                aria-describedby="role-description-description"
               />
+              <span id="role-description-description" className="sr-only">
+                Describe the role's responsibilities and scope of access
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Level (0-100)
+                <label htmlFor="role-level" className="block text-sm font-medium text-gray-700">
+                  Level (0-100) <span className="text-red-500" aria-label="required">*</span>
                 </label>
                 <input
+                  id="role-level"
                   type="number"
                   min="0"
                   max="100"
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   required
+                  aria-required="true"
+                  aria-describedby="role-level-description"
                 />
+                <span id="role-level-description" className="sr-only">
+                  Enter a level between 0 and 100, where higher numbers indicate more authority
+                </span>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="role-parent" className="block text-sm font-medium text-gray-700">
                   Parent Role
                 </label>
                 <select
+                  id="role-parent"
                   value={formData.parent_role_id}
                   onChange={(e) => setFormData({ ...formData, parent_role_id: e.target.value || undefined })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  aria-describedby="role-parent-description"
                 >
                   <option value="">No parent role</option>
                   {availableRoles.map(r => (
@@ -515,14 +952,18 @@ function RoleFormModal({ role, isOpen, onClose, onSubmit, isLoading, availableRo
                     </option>
                   ))}
                 </select>
+                <span id="role-parent-description" className="sr-only">
+                  Optionally select a parent role for inheritance
+                </span>
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                aria-label="Cancel and close form"
               >
                 Cancel
               </button>
@@ -530,6 +971,8 @@ function RoleFormModal({ role, isOpen, onClose, onSubmit, isLoading, availableRo
                 type="submit"
                 disabled={isLoading}
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                aria-label={isLoading ? 'Saving role' : (role ? 'Update role' : 'Create role')}
+                aria-disabled={isLoading}
               >
                 {isLoading ? 'Saving...' : (role ? 'Update' : 'Create')} Role
               </button>
@@ -537,9 +980,18 @@ function RoleFormModal({ role, isOpen, onClose, onSubmit, isLoading, availableRo
           </form>
         </div>
       </div>
+      
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        isOpen={showUnsavedDialog}
+        onConfirm={handleConfirmClose}
+        onCancel={() => setShowUnsavedDialog(false)}
+      />
     </div>
   );
-}
+});
+
+RoleFormModal.displayName = 'RoleFormModal';
 
 // Role Details Modal Component
 interface RoleDetailsModalProps {
@@ -548,22 +1000,45 @@ interface RoleDetailsModalProps {
   onClose: () => void;
 }
 
-function RoleDetailsModal({ role, isOpen, onClose }: RoleDetailsModalProps) {
+const RoleDetailsModal = React.memo(({ role, isOpen, onClose }: RoleDetailsModalProps) => {
+  // Handle Escape key to close modal
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+  
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div 
+      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="role-details-title"
+    >
       <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
         <div className="mt-3">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 id="role-details-title" className="text-lg font-medium text-gray-900">
               Role Details
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded"
+              aria-label="Close role details"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
           
@@ -635,4 +1110,6 @@ function RoleDetailsModal({ role, isOpen, onClose }: RoleDetailsModalProps) {
       </div>
     </div>
   );
-}
+});
+
+RoleDetailsModal.displayName = 'RoleDetailsModal';

@@ -5,6 +5,7 @@ import { useUsers, useDeleteUser } from '@/hooks/useUsers';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
 import { useSavedSearches } from '@/hooks/useSavedSearches';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { User } from '@/types/models';
 import { 
   Plus, 
@@ -97,6 +98,7 @@ export default function UsersPage() {
   usePagePerformance('users');
   
   const router = useRouter();
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -590,27 +592,33 @@ export default function UsersPage() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={exportUsers}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Export CSV
-              </button>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                <Upload className="h-5 w-5 mr-2" />
-                Import CSV
-              </button>
-              <Link
-                href="/users/new"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Add User
-              </Link>
+              {can('user', 'export') && (
+                <button
+                  onClick={exportUsers}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Download className="h-5 w-5 mr-2" />
+                  Export CSV
+                </button>
+              )}
+              {can('user', 'import') && (
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  Import CSV
+                </button>
+              )}
+              {can('user', 'create') && (
+                <Link
+                  href="/users/new"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Add User
+                </Link>
+              )}
             </div>
           </div>
         </div>

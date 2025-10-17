@@ -426,13 +426,20 @@ class PermissionService:
         scope: Optional[PermissionScope]
     ) -> bool:
         """Check permissions granted through user's roles."""
-        stmt = select(RolePermission).join(Permission).join(UserRole).where(
-            and_(
-                UserRole.user_id == user_id,
-                UserRole.is_active == True,
-                RolePermission.is_granted == True,
-                Permission.resource_type == resource_type,
-                Permission.action == action
+        stmt = (
+            select(RolePermission)
+            .join(Permission, RolePermission.permission_id == Permission.id)
+            .join(Role, RolePermission.role_id == Role.id)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(
+                and_(
+                    UserRole.user_id == user_id,
+                    UserRole.is_active == True,
+                    RolePermission.is_granted == True,
+                    Permission.resource_type == resource_type,
+                    Permission.action == action,
+                    Permission.is_active == True
+                )
             )
         )
         
@@ -655,6 +662,81 @@ def require_permission(
                     status_code=403,
                     detail=f"Insufficient permissions: {resource_type.value}:{action.value}"
                 )
+            
+            return await func(*args, **kwargs)
+        
+        return permission_wrapper
+    return decorator
+
+
+def require_permission_or_role(
+    resource_type: ResourceType,
+    action: PermissionAction,
+    allowed_roles: Optional[List[str]] = None,
+    scope: Optional[PermissionScope] = None
+):
+    """
+    Decorator for endpoints that require specific permissions OR role membership.
+    
+    This decorator allows access if the user either:
+    1. Has the required permission (resource_type + action)
+    2. Has one of the allowed roles (e.g., 'admin')
+    
+    Usage:
+        @require_permission_or_role(
+            ResourceType.SYSTEM, 
+            PermissionAction.VIEW_ALL,
+            allowed_roles=['admin', 'super_admin']
+        )
+        async def list_roles(current_user: User = Depends(get_current_user)):
+            ...
+    
+    Args:
+        resource_type: Type of resource being accessed
+        action: Action being performed
+        allowed_roles: List of role names that are allowed access (bypasses permission check)
+        scope: Optional scope restriction
+    """
+    def decorator(func):
+        @wraps(func)
+        async def permission_wrapper(*args, **kwargs):
+            # Extract current_user from kwargs
+            current_user = kwargs.get('current_user')
+            if not current_user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+            
+            # Get database session
+            db = kwargs.get('db')
+            if not db:
+                raise HTTPException(status_code=500, detail="Database session not available")
+            
+            # Check if user has one of the allowed roles
+            if allowed_roles:
+                # Get user's roles
+                permission_service = PermissionService(db)
+                user_roles = await permission_service.get_user_roles(current_user.id)
+                user_role_names = {role.name for role in user_roles}
+                
+                # Check if user has any of the allowed roles
+                if any(role_name in user_role_names for role_name in allowed_roles):
+                    # User has an allowed role, grant access
+                    return await func(*args, **kwargs)
+            
+            # User doesn't have an allowed role, check permission
+            permission_service = PermissionService(db)
+            has_perm = await permission_service.has_permission(
+                current_user, resource_type, action, scope=scope
+            )
+            
+            if not has_perm:
+                # Build detailed error message
+                error_detail = {
+                    "error": "insufficient_permissions",
+                    "message": f"You need {resource_type.value}.{action.value} permission or one of these roles to access this resource",
+                    "required_permission": f"{resource_type.value}.{action.value}",
+                    "required_roles": allowed_roles or []
+                }
+                raise HTTPException(status_code=403, detail=error_detail)
             
             return await func(*args, **kwargs)
         

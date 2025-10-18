@@ -712,7 +712,12 @@ def require_permission_or_role(
             
             # Check if user has one of the allowed roles
             if allowed_roles:
-                # Get user's roles
+                # Check legacy role field first (for backward compatibility)
+                if hasattr(current_user, 'role') and current_user.role in allowed_roles:
+                    # User has an allowed role via legacy field, grant access
+                    return await func(*args, **kwargs)
+                
+                # Get user's roles from Role table
                 permission_service = PermissionService(db)
                 user_roles = await permission_service.get_user_roles(current_user.id)
                 user_role_names = {role.name for role in user_roles}

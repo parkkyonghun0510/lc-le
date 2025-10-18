@@ -541,6 +541,30 @@ export const useCreatePermissionTemplate = () => {
   });
 };
 
+export const useUpdatePermissionTemplate = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; description?: string; template_type?: string; permissions?: string[]; is_active?: boolean }) =>
+      apiClient.put<PermissionTemplate>(`/permissions/templates/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['permission-templates'] });
+    }
+  });
+};
+
+export const useDeletePermissionTemplate = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete(`/permissions/templates/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['permission-templates'] });
+    }
+  });
+};
+
 export const useApplyPermissionTemplate = () => {
   const queryClient = useQueryClient();
 

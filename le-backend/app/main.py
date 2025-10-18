@@ -71,6 +71,22 @@ async def lifespan(app: FastAPI):
         print(f"Warning: Could not create database tables: {e}")
         print("Application will start without database connectivity")
 
+    # Run permission seeding automatically
+    try:
+        import sys
+        import os
+        # Add the parent directory to the path to import scripts
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from scripts.seed_permissions import seed_default_permissions
+        from app.database import AsyncSessionLocal
+        
+        async with AsyncSessionLocal() as db:
+            results = await seed_default_permissions(db)
+            print(f"Permission seeding completed: {results['permissions_created']} permissions created, {results['roles_created']} roles created")
+    except Exception as e:
+        print(f"Warning: Could not run permission seeding: {e}")
+        print("Permission system may not be fully initialized")
+
     # Initialize notification pub/sub service
     try:
         from app.services.notification_pubsub_service import notification_pubsub

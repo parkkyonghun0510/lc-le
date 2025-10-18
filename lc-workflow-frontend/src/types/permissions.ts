@@ -319,7 +319,30 @@ export interface MatrixFilters {
 }
 
 /**
- * Permission matrix response
+ * Permission matrix role (for role-based matrix view)
+ */
+export interface PermissionMatrixRole {
+  id: string;
+  name: string;
+  display_name: string;
+  level: number;
+  permission_ids: string[];
+}
+
+/**
+ * Permission matrix permission (for matrix view)
+ */
+export interface PermissionMatrixPermission {
+  id: string;
+  name: string;
+  description: string;
+  resource_type: ResourceType;
+  action: PermissionAction;
+  category?: string;
+}
+
+/**
+ * Permission matrix response (user-based)
  */
 export interface PermissionMatrixResponse {
   users: Array<{
@@ -333,6 +356,15 @@ export interface PermissionMatrixResponse {
   }>;
   permissions: Permission[];
   matrix: Record<string, Record<string, MatrixCell>>;
+}
+
+/**
+ * Role-based permission matrix response
+ */
+export interface RolePermissionMatrixResponse {
+  roles: PermissionMatrixRole[];
+  permissions: PermissionMatrixPermission[];
+  assignments: Record<string, string[]>; // role_id -> permission_ids[]
 }
 
 // ============================================================================
@@ -372,6 +404,118 @@ export interface BulkRoleAssignment {
   user_ids: string[];
   role_id: string;
   assigned_by?: string;
+}
+
+// ============================================================================
+// Permission Template Types
+// ============================================================================
+
+/**
+ * Permission template entity
+ */
+export interface PermissionTemplate {
+  id: string;
+  name: string;
+  description: string;
+  template_type: string;
+  category?: string;
+  is_system_template: boolean;
+  is_active: boolean;
+  permission_ids: string[];
+  permissions?: Permission[];
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  usage_count?: number;
+}
+
+/**
+ * Template creation request
+ */
+export interface CreateTemplateRequest {
+  name: string;
+  description: string;
+  template_type: string;
+  category?: string;
+  permission_ids: string[];
+  is_active?: boolean;
+}
+
+/**
+ * Template update request
+ */
+export interface UpdateTemplateRequest {
+  name?: string;
+  description?: string;
+  template_type?: string;
+  category?: string;
+  permission_ids?: string[];
+  is_active?: boolean;
+}
+
+/**
+ * Template generation from roles request
+ */
+export interface TemplateGenerationRequest {
+  name: string;
+  description: string;
+  template_type: string;
+  category?: string;
+  source_role_ids: string[];
+  merge_strategy?: 'union' | 'intersection';
+}
+
+/**
+ * Template application request
+ */
+export interface TemplateApplicationRequest {
+  template_id: string;
+  target_type: 'role' | 'user';
+  target_id: string;
+  merge_strategy?: 'replace' | 'merge';
+}
+
+/**
+ * Template list filters
+ */
+export interface TemplateFilters {
+  template_type?: string;
+  category?: string;
+  is_active?: boolean;
+  search?: string;
+}
+
+/**
+ * Template list parameters
+ */
+export interface ListTemplatesParams extends TemplateFilters {
+  page?: number;
+  size?: number;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+}
+
+/**
+ * Template list response
+ */
+export interface ListTemplatesResponse {
+  items: PermissionTemplate[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+/**
+ * Template comparison result
+ */
+export interface TemplateComparison {
+  template1: PermissionTemplate;
+  template2: PermissionTemplate;
+  common_permissions: Permission[];
+  unique_to_template1: Permission[];
+  unique_to_template2: Permission[];
+  similarity_percentage: number;
 }
 
 // ============================================================================

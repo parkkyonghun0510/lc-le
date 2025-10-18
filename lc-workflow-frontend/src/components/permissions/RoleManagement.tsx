@@ -18,6 +18,8 @@ import toast from 'react-hot-toast';
 import { showErrorToast, ErrorToasts } from '@/components/ui/ErrorToast';
 import { useDraftSaving, useCleanupOldDrafts } from '@/hooks/useDraftSaving';
 import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
+import RoleHierarchyView from './RoleHierarchyView';
+import BulkRoleOperationsModal from './BulkRoleOperationsModal';
 
 interface Role {
   id: string;
@@ -44,6 +46,17 @@ interface RoleFormData {
   branch_restricted: boolean;
   allowed_departments?: string[];
   allowed_branches?: string[];
+  permission_ids?: string[];
+}
+
+interface Permission {
+  id: string;
+  name: string;
+  description: string;
+  resource_type: string;
+  action: string;
+  scope: string;
+  is_active: boolean;
 }
 
 interface RoleManagementProps {
@@ -60,6 +73,23 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'name' | 'level' | 'created_at' | 'permission_count'>('level');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // Filter state
+  const [minLevel, setMinLevel] = useState<number | undefined>(undefined);
+  const [maxLevel, setMaxLevel] = useState<number | undefined>(undefined);
+  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
+  
+  // View mode state
+  const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('list');
+  const [showBulkModal, setShowBulkModal] = useState(false);
   
   // Accessibility: Screen reader announcements
   const [announcement, setAnnouncement] = useState('');
@@ -335,18 +365,54 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
     }
   });
 
-  // Filter roles based on search
-  const filteredRoles = roles?.filter(role => 
-    role.display_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-    role.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-    role.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-  ) || [];
+  // Filter roles based on search and level range
+  const filteredRoles = roles?.filter(role => {
+    const matchesSearch = 
+      role.display_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      role.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      role.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+    
+    const matchesMinLevel = minLevel === undefined || role.level >= minLevel;
+    const matchesMaxLevel = maxLevel === undefined || role.level <= maxLevel;
+    
+    return matchesSearch && matchesMinLevel && matchesMaxLevel;
+  }) || [];
 
-  // Sort roles by level and then by name
+  // Sort roles based on selected criteria
   const sortedRoles = [...filteredRoles].sort((a, b) => {
-    if (a.level !== b.level) return b.level - a.level; // Higher level first
-    return a.display_name.localeCompare(b.display_name);
+    let comparison = 0;
+    
+    switch (sortBy) {
+      case 'name':
+        comparison = a.display_name.localeCompare(b.display_name);
+        break;
+      case 'level':
+        comparison = a.level - b.level;
+        break;
+      case 'created_at':
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+      case 'permission_count':
+        comparison = a.permission_count - b.permission_count;
+        break;
+      default:
+        comparison = 0;
+    }
+    
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
+  
+  // Paginate roles
+  const totalPages = Math.ceil(sortedRoles.length / pageSize);
+  const paginatedRoles = sortedRoles.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+  
+  // Reset to first page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, showInactive, minLevel, maxLevel, sortBy, sortOrder]);
 
   const handleCreateRole = (formData: RoleFormData) => {
     createRoleMutation.mutate(formData);
@@ -475,14 +541,40 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
       
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-lg font-medium text-gray-900">Role Management</h2>
             <p className="mt-1 text-sm text-gray-500">
               Create and manage system roles and their hierarchies
             </p>
           </div>
-          <div className="mt-4 sm:mt-0">
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="inline-flex rounded-md shadow-sm" role="group">
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-2 text-sm font-medium rounded-l-md border ${
+                  viewMode === 'list'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+              >
+                List View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('hierarchy')}
+                className={`px-3 py-2 text-sm font-medium rounded-r-md border-t border-r border-b ${
+                  viewMode === 'hierarchy'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+              >
+                Hierarchy
+              </button>
+            </div>
+            
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -497,48 +589,163 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
 
       {/* Filters */}
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50" role="search" aria-label="Filter roles">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <label htmlFor="role-search" className="sr-only">
-              Search roles
-            </label>
-            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" aria-hidden="true" />
-            <input
-              id="role-search"
-              type="text"
-              placeholder="Search roles..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full"
-              aria-describedby="role-search-description"
-            />
-            <span id="role-search-description" className="sr-only">
-              Filter roles by name or description
-            </span>
-          </div>
+        <div className="space-y-4">
+          {/* Search and Toggle Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 gap-4">
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <label htmlFor="role-search" className="sr-only">
+                Search roles
+              </label>
+              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" aria-hidden="true" />
+              <input
+                id="role-search"
+                type="text"
+                placeholder="Search roles..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                aria-describedby="role-search-description"
+              />
+              <span id="role-search-description" className="sr-only">
+                Filter roles by name or description
+              </span>
+            </div>
 
-          {/* Show inactive toggle */}
-          <label className="flex items-center">
-            <input
-              id="show-inactive-roles-toggle"
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300 rounded"
-              aria-describedby="show-inactive-description"
-            />
-            <span className="ml-2 text-sm text-gray-700">Show inactive roles</span>
-            <span id="show-inactive-description" className="sr-only">
-              Toggle to show or hide inactive roles in the list
-            </span>
-          </label>
+            {/* Show inactive toggle */}
+            <label className="flex items-center whitespace-nowrap">
+              <input
+                id="show-inactive-roles-toggle"
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300 rounded"
+                aria-describedby="show-inactive-description"
+              />
+              <span className="ml-2 text-sm text-gray-700">Show inactive</span>
+              <span id="show-inactive-description" className="sr-only">
+                Toggle to show or hide inactive roles in the list
+              </span>
+            </label>
+          </div>
+          
+          {/* Advanced Filters Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* Level Range Filter */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="min-level" className="text-sm text-gray-700 whitespace-nowrap">
+                Level:
+              </label>
+              <input
+                id="min-level"
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Min"
+                value={minLevel ?? ''}
+                onChange={(e) => setMinLevel(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                aria-label="Minimum role level"
+              />
+              <span className="text-gray-500">-</span>
+              <input
+                id="max-level"
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Max"
+                value={maxLevel ?? ''}
+                onChange={(e) => setMaxLevel(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                aria-label="Maximum role level"
+              />
+            </div>
+            
+            {/* Sort By */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="sort-by" className="text-sm text-gray-700 whitespace-nowrap">
+                Sort by:
+              </label>
+              <select
+                id="sort-by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                aria-label="Sort roles by"
+              >
+                <option value="level">Level</option>
+                <option value="name">Name</option>
+                <option value="created_at">Created Date</option>
+                <option value="permission_count">Permissions</option>
+              </select>
+            </div>
+            
+            {/* Sort Order */}
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="px-3 py-1 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label={`Sort order: ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
+              title={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+            >
+              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
+            
+            {/* Clear Filters */}
+            {(minLevel !== undefined || maxLevel !== undefined || searchTerm) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setMinLevel(undefined);
+                  setMaxLevel(undefined);
+                }}
+                className="px-3 py-1 text-sm text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
+                aria-label="Clear all filters"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Roles List */}
-      <div className="divide-y divide-gray-200" role="list" aria-label="Roles list">
-        {sortedRoles.length === 0 ? (
+      {/* Bulk Actions Bar */}
+      {selectedRoles.size > 0 && viewMode === 'list' && (
+        <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-200">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-indigo-700">
+              {selectedRoles.size} role{selectedRoles.size !== 1 ? 's' : ''} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowBulkModal(true)}
+                className="px-3 py-1 text-sm text-indigo-700 hover:text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
+              >
+                Bulk Actions
+              </button>
+              <button
+                onClick={() => setSelectedRoles(new Set())}
+                className="px-3 py-1 text-sm text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Hierarchy View */}
+      {viewMode === 'hierarchy' ? (
+        <div className="p-6">
+          <RoleHierarchyView
+            roles={sortedRoles}
+            onRoleSelect={(role) => setSelectedRole(role)}
+            selectedRoleId={selectedRole?.id}
+          />
+        </div>
+      ) : (
+        /* Roles List */
+        <div className="divide-y divide-gray-200" role="list" aria-label="Roles list">
+        {paginatedRoles.length === 0 ? (
           <div className="p-6 text-center text-gray-500" role="status">
             <UserGroupIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" aria-hidden="true" />
             <p>No roles found</p>
@@ -547,10 +754,29 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
             )}
           </div>
         ) : (
-          sortedRoles.map(role => (
+          paginatedRoles.map(role => (
             <div key={role.id} className="p-6 hover:bg-gray-50" role="listitem">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
+                  {/* Checkbox for bulk selection */}
+                  {!role.is_system_role && (
+                    <input
+                      type="checkbox"
+                      checked={selectedRoles.has(role.id)}
+                      onChange={(e) => {
+                        const newSelected = new Set(selectedRoles);
+                        if (e.target.checked) {
+                          newSelected.add(role.id);
+                        } else {
+                          newSelected.delete(role.id);
+                        }
+                        setSelectedRoles(newSelected);
+                      }}
+                      className="h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300 rounded"
+                      aria-label={`Select ${role.display_name}`}
+                    />
+                  )}
+                  
                   {/* Role Icon */}
                   <div 
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -652,19 +878,83 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
             </div>
           ))
         )}
-      </div>
+        </div>
+      )}
 
-      {/* Footer */}
+      {/* Footer with Pagination */}
       <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex justify-between items-center text-sm text-gray-500">
-          <span>
-            Showing {sortedRoles.length} of {roles?.length || 0} roles
-          </span>
-          <div className="flex items-center space-x-4">
-            {(createRoleMutation.isPending || updateRoleMutation.isPending || deleteRoleMutation.isPending) && (
-              <span className="text-indigo-600">Processing...</span>
-            )}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          {/* Results info */}
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">
+              Showing {paginatedRoles.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to{' '}
+              {Math.min(currentPage * pageSize, sortedRoles.length)} of {sortedRoles.length} roles
+            </span>
+            
+            {/* Page size selector */}
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(parseInt(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label="Roles per page"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="50">50 per page</option>
+            </select>
           </div>
+          
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="First page"
+              >
+                First
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="Previous page"
+              >
+                Previous
+              </button>
+              
+              <span className="px-3 py-1 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="Next page"
+              >
+                Next
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="Last page"
+              >
+                Last
+              </button>
+            </div>
+          )}
+          
+          {/* Processing indicator */}
+          {(createRoleMutation.isPending || updateRoleMutation.isPending || deleteRoleMutation.isPending) && (
+            <span className="text-sm text-indigo-600">Processing...</span>
+          )}
         </div>
       </div>
 
@@ -691,6 +981,19 @@ export default function RoleManagement({ className = '' }: RoleManagementProps) 
           onClose={() => setSelectedRole(null)}
         />
       )}
+      
+      {/* Bulk Operations Modal */}
+      {showBulkModal && (
+        <BulkRoleOperationsModal
+          isOpen={showBulkModal}
+          onClose={() => setShowBulkModal(false)}
+          selectedRoles={roles?.filter(r => selectedRoles.has(r.id)) || []}
+          onComplete={() => {
+            setSelectedRoles(new Set());
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -715,11 +1018,51 @@ const RoleFormModal = React.memo(({ role, isOpen, onClose, onSubmit, isLoading, 
     department_restricted: false,
     branch_restricted: false,
     allowed_departments: [],
-    allowed_branches: []
+    allowed_branches: [],
+    permission_ids: []
   });
   
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [showPermissions, setShowPermissions] = useState(false);
+  const [permissionSearch, setPermissionSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  // Fetch available permissions
+  const { data: permissions, isLoading: permissionsLoading } = useQuery<Permission[]>({
+    queryKey: ['permissions'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/permissions', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch permissions');
+      return response.json();
+    },
+    enabled: isOpen
+  });
+  
+  // Fetch role permissions if editing
+  React.useEffect(() => {
+    if (role && isOpen) {
+      fetch(`/api/v1/permissions/roles/${role.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.permissions) {
+            setFormData(prev => ({
+              ...prev,
+              permission_ids: data.permissions.map((p: Permission) => p.id)
+            }));
+          }
+        })
+        .catch(err => console.error('Failed to fetch role permissions:', err));
+    }
+  }, [role, isOpen]);
   
   // Draft saving hook
   const {
@@ -956,6 +1299,128 @@ const RoleFormModal = React.memo(({ role, isOpen, onClose, onSubmit, isLoading, 
                   Optionally select a parent role for inheritance
                 </span>
               </div>
+            </div>
+            
+            {/* Permission Assignment Section */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Permissions ({formData.permission_ids?.length || 0} selected)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPermissions(!showPermissions)}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
+                >
+                  {showPermissions ? 'Hide' : 'Show'} Permissions
+                </button>
+              </div>
+              
+              {showPermissions && (
+                <div className="border border-gray-300 rounded-md p-4 max-h-96 overflow-y-auto">
+                  {permissionsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full mx-auto" />
+                      <p className="text-sm text-gray-500 mt-2">Loading permissions...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Permission Search and Filter */}
+                      <div className="mb-4 space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Search permissions..."
+                          value={permissionSearch}
+                          onChange={(e) => setPermissionSearch(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <select
+                          value={selectedCategory}
+                          onChange={(e) => setSelectedCategory(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="all">All Categories</option>
+                          {Array.from(new Set(permissions?.map(p => p.resource_type) || [])).map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const filtered = permissions?.filter(p => {
+                                const matchesSearch = p.name.toLowerCase().includes(permissionSearch.toLowerCase());
+                                const matchesCategory = selectedCategory === 'all' || p.resource_type === selectedCategory;
+                                return matchesSearch && matchesCategory;
+                              }) || [];
+                              setFormData({
+                                ...formData,
+                                permission_ids: filtered.map(p => p.id)
+                              });
+                            }}
+                            className="px-3 py-1 text-xs text-indigo-600 hover:text-indigo-700 focus:outline-none"
+                          >
+                            Select All Filtered
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, permission_ids: [] })}
+                            className="px-3 py-1 text-xs text-gray-600 hover:text-gray-700 focus:outline-none"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Permission List */}
+                      <div className="space-y-2">
+                        {permissions
+                          ?.filter(p => {
+                            const matchesSearch = p.name.toLowerCase().includes(permissionSearch.toLowerCase()) ||
+                                                 p.description.toLowerCase().includes(permissionSearch.toLowerCase());
+                            const matchesCategory = selectedCategory === 'all' || p.resource_type === selectedCategory;
+                            return matchesSearch && matchesCategory;
+                          })
+                          .map(permission => (
+                            <label
+                              key={permission.id}
+                              className="flex items-start p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.permission_ids?.includes(permission.id) || false}
+                                onChange={(e) => {
+                                  const currentIds = formData.permission_ids || [];
+                                  const newIds = e.target.checked
+                                    ? [...currentIds, permission.id]
+                                    : currentIds.filter(id => id !== permission.id);
+                                  setFormData({ ...formData, permission_ids: newIds });
+                                }}
+                                className="mt-1 h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300 rounded"
+                              />
+                              <div className="ml-3 flex-1">
+                                <div className="text-sm font-medium text-gray-900">{permission.name}</div>
+                                <div className="text-xs text-gray-500">{permission.description}</div>
+                                <div className="flex gap-2 mt-1">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    {permission.resource_type}
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    {permission.action}
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                    {permission.scope}
+                                  </span>
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">

@@ -257,8 +257,9 @@ function ApplicationDetailContent() {
   const config = statusConfig[application.status as keyof typeof statusConfig] || statusConfig.draft;
   const StatusIcon = config.icon;
 
-  const canEdit = user?.role === 'admin' || user?.role === 'manager' || application.user_id === user?.id;
-  const canApprove = (user?.role === 'admin' || user?.role === 'manager') && application.status === 'submitted';
+  // Permission-based access control
+  const canEdit = can('application', 'update') || application.user_id === user?.id;
+  const canApprove = can('application', 'approve') && application.status === 'submitted';
   const canSubmit = application.user_id === user?.id && application.status === 'draft';
 
   const handleSubmit = () => {

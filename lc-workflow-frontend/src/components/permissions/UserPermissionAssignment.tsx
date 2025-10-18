@@ -1,1002 +1,1373 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  UserPlusIcon,
-  ShieldCheckIcon,
-  XMarkIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  TrashIcon,
-  CalendarIcon
-} from '@heroicons/react/24/outline';
-import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
-import toast from 'react-hot-toast';
-import { showErrorToast, ErrorToasts } from '@/components/ui/ErrorToast';
+/**
+ * User Permission Assignment Component
+ * 
+ * Comprehensive interface for managing user roles and permissions.
+ * Supports user search, role assignment, direct permission grants, and effective permission display.
+ */
 
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-  status: string;
-  department?: {
-    id: string;
-    name: string;
-  };
-  branch?: {
-    id: string;
-    name: string;
-  };
-}
-
-interface Role {
-  id: string;
-  name: string;
-  display_name: string;
-  level: number;
-  is_active: boolean;
-}
-
-interface Permission {
-  id: string;
-  name: string;
-  description: string;
-  resource_type: string;
-  action: string;
-  scope: string;
-}
-
-interface UserRole {
-  id: string;
-  role: Role;
-  department_id?: string;
-  branch_id?: string;
-  is_active: boolean;
-  effective_from: string;
-  effective_until?: string;
-  assigned_by?: string;
-}
-
-interface UserPermission {
-  id: string;
-  permission: Permission;
-  is_granted: boolean;
-  resource_id?: string;
-  department_id?: string;
-  branch_id?: string;
-  override_reason?: string;
-  effective_until?: string;
-  granted_by?: string;
-}
+import React, { useState, useMemo } from 'react';
+import { Search, User as UserIcon, Shield, AlertCircle, X, Plus, Trash2, Filter } from 'lucide-react';
+import { useUsers } from '@/hooks/useUsers';
+import { 
+  useUserPermissions, 
+  useAssignRoleToUser, 
+  useRevokeRoleFromUser, 
+  useGrantPermissionToUser, 
+  useRevokePermissionFromUser,
+  useRoleList,
+  usePermissionList
+} from '@/hooks/usePermissionManagement';
+import useDebounce from '@/hooks/useDebounce';
+import { User, Department, Branch } from '@/types/models';
+import { EffectivePermission, ResourceType } from '@/types/permissions';
+import { PermissionErrorBoundary } from './PermissionErrorBoundary';
+import { PermissionListSkeleton } from './PermissionLoadingStates';
 
 interface UserPermissionAssignmentProps {
-  userId: string;
   className?: string;
+  userId?: string;
 }
 
-export default function UserPermissionAssignment({ userId, className = '' }: UserPermissionAssignmentProps) {
-  const queryClient = useQueryClient();
-  
-  // State
-  const [activeTab, setActiveTab] = useState<'roles' | 'permissions'>('roles');
-  const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
-  const [isGrantPermissionModalOpen, setIsGrantPermissionModalOpen] = useState(false);
-  
-  // Accessibility: Screen reader announcements
-  const [announcement, setAnnouncement] = useState('');
-
-  // Fetch user data
-  const { data: user } = useQuery<User>({
-    queryKey: ['user', userId],
-    queryFn: async () => {
-      const response = await fetch(`/api/v1/users/${userId}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch user');
-      return response.json();
-    }
+export default function UserPermissionAssignment({ className = '', userId }: UserPermissionAssignmentProps) {
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    department_id: '',
+    branch_id: '',
+    role: '',
   });
 
-  // Fetch user roles
-  const { data: userRoles, isLoading: rolesLoading } = useQuery<UserRole[]>({
-    queryKey: ['user-roles', userId],
-    queryFn: async () => {
-      const response = await fetch(`/api/v1/permissions/users/${userId}/roles`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch user roles');
-      return response.json();
-    }
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Fetch user if userId is provided
+  const { data: usersData } = useUsers({
+    search: '',
+    size: 1,
   });
 
-  // Fetch user permissions
-  const { data: userPermissions, isLoading: permissionsLoading } = useQuery<UserPermission[]>({
-    queryKey: ['user-permissions', userId],
-    queryFn: async () => {
-      const response = await fetch(`/api/v1/permissions/users/${userId}/permissions`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch user permissions');
-      return response.json();
-    }
-  });
-
-  // Fetch available roles
-  const { data: availableRoles } = useQuery<Role[]>({
-    queryKey: ['roles'],
-    queryFn: async () => {
-      const response = await fetch('/api/v1/permissions/roles?is_active=true', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch roles');
-      return response.json();
-    }
-  });
-
-  // Fetch available permissions
-  const { data: availablePermissions } = useQuery<Permission[]>({
-    queryKey: ['permissions'],
-    queryFn: async () => {
-      const response = await fetch('/api/v1/permissions?is_active=true', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch permissions');
-      return response.json();
-    }
-  });
-
-  // Revoke role mutation
-  const revokeRoleMutation = useMutation({
-    mutationFn: async ({ roleId, roleName }: { roleId: string; roleName: string }) => {
-      const response = await fetch(`/api/v1/permissions/users/${userId}/roles/${roleId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const error: any = new Error(errorData.detail || 'Failed to revoke role');
-        error.status = response.status;
-        error.response = { status: response.status, data: errorData };
-        throw error;
-      }
-      return { roleName };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['user-roles', userId] });
-      setAnnouncement(`Role ${data.roleName} revoked from user`);
-      toast.success(`Role "${data.roleName}" revoked successfully`, { duration: 3000 });
-    },
-    onError: (error: any, variables) => {
-      const status = error?.status || error?.response?.status;
-      
-      if (status === 403) {
-        showErrorToast(
-          'Permission denied',
-          {
-            context: 'You don\'t have permission to revoke roles from this user.',
-            suggestions: [
-              'Contact your administrator for access',
-              'Verify your role has user management rights'
-            ]
-          }
-        );
-      } else if (status === 404) {
-        showErrorToast(
-          'Role assignment not found',
-          {
-            context: 'The role assignment no longer exists.',
-            suggestions: [
-              'Refresh the page to reload the data',
-              'The role may have already been revoked'
-            ]
-          }
-        );
-      } else if (status === 500 || status >= 500) {
-        ErrorToasts.serverError();
-      } else if (!status) {
-        ErrorToasts.networkError();
-      } else {
-        showErrorToast('Failed to revoke role', {
-          context: error.message || 'An unexpected error occurred'
-        });
+  // Set selected user if userId prop is provided
+  React.useEffect(() => {
+    if (userId && usersData?.items) {
+      const user = usersData.items.find((u: User) => u.id === userId);
+      if (user) {
+        setSelectedUser(user);
       }
     }
-  });
+  }, [userId, usersData]);
 
-  // Revoke permission mutation
-  const revokePermissionMutation = useMutation({
-    mutationFn: async ({ permissionId, permissionName }: { permissionId: string; permissionName: string }) => {
-      const response = await fetch(`/api/v1/permissions/users/${userId}/permissions/${permissionId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const error: any = new Error(errorData.detail || 'Failed to revoke permission');
-        error.status = response.status;
-        error.response = { status: response.status, data: errorData };
-        throw error;
-      }
-      return { permissionName };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['user-permissions', userId] });
-      setAnnouncement(`Permission ${data.permissionName} revoked from user`);
-      toast.success(`Permission "${data.permissionName}" removed successfully`, { duration: 3000 });
-    },
-    onError: (error: any, variables) => {
-      const status = error?.status || error?.response?.status;
-      
-      if (status === 403) {
-        showErrorToast(
-          'Permission denied',
-          {
-            context: 'You don\'t have permission to modify this user\'s permissions.',
-            suggestions: [
-              'Contact your administrator for access',
-              'Verify your role has user management rights'
-            ]
-          }
-        );
-      } else if (status === 404) {
-        showErrorToast(
-          'Permission override not found',
-          {
-            context: 'The permission override no longer exists.',
-            suggestions: [
-              'Refresh the page to reload the data',
-              'The permission may have already been removed'
-            ]
-          }
-        );
-      } else if (status === 500 || status >= 500) {
-        ErrorToasts.serverError();
-      } else if (!status) {
-        ErrorToasts.networkError();
-      } else {
-        showErrorToast('Failed to remove permission', {
-          context: error.message || 'An unexpected error occurred'
-        });
-      }
-    }
-  });
+  return (
+    <PermissionErrorBoundary>
+      <div className={`space-y-6 ${className}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              User Permission Assignment
+            </h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Assign roles and permissions to users
+            </p>
+          </div>
+        </div>
 
-  const handleRevokeRole = (roleId: string, roleName: string) => {
-    if (window.confirm(`Are you sure you want to revoke the "${roleName}" role from this user?`)) {
-      revokeRoleMutation.mutate({ roleId, roleName });
-    }
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* User Search Panel */}
+          <div className="lg:col-span-1">
+            <UserSearchPanel
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              debouncedSearch={debouncedSearch}
+              filters={filters}
+              onFiltersChange={setFilters}
+              showFilters={showFilters}
+              onToggleFilters={() => setShowFilters(!showFilters)}
+              selectedUser={selectedUser}
+              onUserSelect={setSelectedUser}
+            />
+          </div>
+
+          {/* User Details and Permissions Panel */}
+          <div className="lg:col-span-2">
+            {selectedUser ? (
+              <UserPermissionsPanel user={selectedUser} />
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
+                <UserIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No User Selected
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Search and select a user to view and manage their permissions
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </PermissionErrorBoundary>
+  );
+}
+
+// ============================================================================
+// User Search Panel Component
+// ============================================================================
+
+interface UserSearchPanelProps {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  debouncedSearch: string;
+  filters: {
+    department_id: string;
+    branch_id: string;
+    role: string;
   };
+  onFiltersChange: (filters: any) => void;
+  showFilters: boolean;
+  onToggleFilters: () => void;
+  selectedUser: User | null;
+  onUserSelect: (user: User) => void;
+}
 
-  const handleRevokePermission = (permissionId: string, permissionName: string) => {
-    if (window.confirm(`Are you sure you want to revoke the "${permissionName}" permission from this user?`)) {
-      revokePermissionMutation.mutate({ permissionId, permissionName });
-    }
-  };
+function UserSearchPanel({
+  searchQuery,
+  onSearchChange,
+  debouncedSearch,
+  filters,
+  onFiltersChange,
+  showFilters,
+  onToggleFilters,
+  selectedUser,
+  onUserSelect,
+}: UserSearchPanelProps) {
+  const { data: usersData, isLoading, error } = useUsers({
+    search: debouncedSearch,
+    department_id: filters.department_id || undefined,
+    branch_id: filters.branch_id || undefined,
+    role: filters.role || undefined,
+    size: 50,
+  });
 
-  const isLoading = rolesLoading || permissionsLoading;
+  const users = usersData?.items || [];
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+      {/* Search Header */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search users by name, email, or username..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        {/* Filter Toggle */}
+        <button
+          onClick={onToggleFilters}
+          className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+        >
+          <Filter className="w-4 h-4" />
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </button>
+
+        {/* Filters */}
+        {showFilters && (
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Role
+              </label>
+              <select
+                value={filters.role}
+                onChange={(e) => onFiltersChange({ ...filters, role: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="officer">Officer</option>
+              </select>
+            </div>
+
+            {filters.role || filters.department_id || filters.branch_id ? (
+              <button
+                onClick={() => onFiltersChange({ department_id: '', branch_id: '', role: '' })}
+                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              >
+                Clear Filters
+              </button>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {/* User List */}
+      <div className="overflow-y-auto max-h-[600px]">
+        {isLoading ? (
+          <div className="p-4">
+            <PermissionListSkeleton count={3} />
+          </div>
+        ) : error ? (
+          <div className="p-4 text-center">
+            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+            <p className="text-sm text-red-600 dark:text-red-400">
+              Failed to load users
+            </p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="p-8 text-center">
+            <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No users found
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {users.map((user) => (
+              <UserListItem
+                key={user.id}
+                user={user}
+                isSelected={selectedUser?.id === user.id}
+                onSelect={() => onUserSelect(user)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Results Count */}
+      {usersData && (
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+          Showing {users.length} of {usersData.total} users
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// User List Item Component
+// ============================================================================
+
+interface UserListItemProps {
+  user: User;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function UserListItem({ user, isSelected, onSelect }: UserListItemProps) {
+  return (
+    <button
+      onClick={onSelect}
+      className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+        isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' : ''
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          {user.profile_image_url ? (
+            <img
+              src={user.profile_image_url}
+              alt={user.username}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+              <UserIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              {user.first_name} {user.last_name}
+            </p>
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+              user.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+              user.role === 'manager' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+            }`}>
+              {user.role}
+            </span>
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+            {user.email}
+          </p>
+          {user.department && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 truncate mt-1">
+              {user.department.name}
+            </p>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ============================================================================
+// User Permissions Panel Component
+// ============================================================================
+
+interface UserPermissionsPanelProps {
+  user: User;
+}
+
+function UserPermissionsPanel({ user }: UserPermissionsPanelProps) {
+  const { data: permissionsData, isLoading, error } = useUserPermissions(user.id);
 
   if (isLoading) {
     return (
-      <div className={`bg-white rounded-lg shadow ${className}`}>
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <PermissionListSkeleton count={3} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+          <p className="text-sm text-red-600 dark:text-red-400">
+            Failed to load user permissions
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow ${className}`} role="region" aria-label="User Permission Assignment">
-      {/* Screen reader announcements */}
-      <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
-        {announcement}
-      </div>
-      
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-medium text-gray-900">
-              Permission Assignment
-            </h2>
-            {user && (
-              <p className="mt-1 text-sm text-gray-500">
-                Manage roles and permissions for {user.first_name} {user.last_name}
-              </p>
-            )}
+    <div className="space-y-6">
+      {/* User Profile Summary */}
+      <UserProfileSummary user={user} permissionsData={permissionsData} />
+
+      {/* Role Assignments */}
+      <RoleAssignmentSection user={user} permissionsData={permissionsData} />
+
+      {/* Direct Permissions */}
+      <DirectPermissionsSection user={user} permissionsData={permissionsData} />
+
+      {/* Effective Permissions */}
+      <EffectivePermissionsSection permissionsData={permissionsData} />
+    </div>
+  );
+}
+
+// ============================================================================
+// User Profile Summary Component
+// ============================================================================
+
+interface UserProfileSummaryProps {
+  user: User;
+  permissionsData: any;
+}
+
+function UserProfileSummary({ user, permissionsData }: UserProfileSummaryProps) {
+  const roleCount = permissionsData?.roles?.length || 0;
+  const directPermissionCount = permissionsData?.direct_permissions?.length || 0;
+  const effectivePermissionCount = permissionsData?.effective_permissions?.length || 0;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          {user.profile_image_url ? (
+            <img
+              src={user.profile_image_url}
+              alt={user.username}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+              <UserIcon className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {user.first_name} {user.last_name}
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {user.email}
+          </p>
+          <div className="flex items-center gap-4 mt-3">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-500" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {roleCount} {roleCount === 1 ? 'Role' : 'Roles'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-green-500" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {directPermissionCount} Direct Permissions
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-purple-500" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {effectivePermissionCount} Total Permissions
+              </span>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200" role="tablist" aria-label="Permission assignment tabs">
-        <nav className="-mb-px flex">
+// ============================================================================
+// Role Assignment Section Component
+// ============================================================================
+
+interface RoleAssignmentSectionProps {
+  user: User;
+  permissionsData: any;
+}
+
+function RoleAssignmentSection({ user, permissionsData }: RoleAssignmentSectionProps) {
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [roleToRemove, setRoleToRemove] = useState<string | null>(null);
+
+  const assignedRoles = permissionsData?.roles || [];
+
+  return (
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Role Assignments
+          </h3>
           <button
-            role="tab"
-            aria-selected={activeTab === 'roles'}
-            aria-controls="roles-panel"
-            id="roles-tab"
-            onClick={() => setActiveTab('roles')}
-            className={`py-2 px-4 border-b-2 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 ${
-              activeTab === 'roles'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            onClick={() => setShowAssignModal(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
           >
-            Roles ({userRoles?.length || 0})
+            <Plus className="w-4 h-4" />
+            Assign Role
           </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'permissions'}
-            aria-controls="permissions-panel"
-            id="permissions-tab"
-            onClick={() => setActiveTab('permissions')}
-            className={`py-2 px-4 border-b-2 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 ${
-              activeTab === 'permissions'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Direct Permissions ({userPermissions?.length || 0})
-          </button>
-        </nav>
-      </div>
+        </div>
 
-      {/* Content */}
-      <div className="p-6">
-        {activeTab === 'roles' && (
-          <div role="tabpanel" id="roles-panel" aria-labelledby="roles-tab">
-            {/* Add Role Button */}
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-medium text-gray-900">Assigned Roles</h3>
-              <button
-                onClick={() => setIsAssignRoleModalOpen(true)}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                aria-label="Assign new role to user"
-              >
-                <PlusIcon className="h-4 w-4 mr-1" aria-hidden="true" />
-                Assign Role
-              </button>
-            </div>
-
-            {/* Roles List */}
-            {userRoles && userRoles.length > 0 ? (
-              <div className="space-y-3" role="list" aria-label="Assigned roles">
-                {userRoles.map((userRole) => (
-                  <div key={userRole.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg" role="listitem">
-                    <div className="flex items-center space-x-3">
-                      <ShieldCheckIcon className="h-8 w-8 text-indigo-500" aria-hidden="true" />
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900">
-                          {userRole.role.display_name}
-                        </h4>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500" aria-label={`Level ${userRole.role.level}${userRole.department_id ? ', Department scope' : ''}${userRole.branch_id ? ', Branch scope' : ''}${userRole.effective_until ? `, Expires ${new Date(userRole.effective_until).toLocaleDateString()}` : ''}`}>
-                          <span>Level {userRole.role.level}</span>
-                          {userRole.department_id && <span aria-hidden="true">• Department scope</span>}
-                          {userRole.branch_id && <span aria-hidden="true">• Branch scope</span>}
-                          {userRole.effective_until && (
-                            <span aria-hidden="true">• Expires {new Date(userRole.effective_until).toLocaleDateString()}</span>
-                          )}
-                        </div>
-                      </div>
-                      {userRole.is_active ? (
-                        <CheckCircleIcon className="h-5 w-5 text-green-500" aria-label="Active role" />
-                      ) : (
-                        <ExclamationCircleIcon className="h-5 w-5 text-yellow-500" aria-label="Inactive role" />
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleRevokeRole(userRole.role.id, userRole.role.display_name)}
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={`Revoke ${userRole.role.display_name} role`}
-                      title={revokeRoleMutation.isPending ? "Revoking..." : "Revoke role"}
-                      disabled={revokeRoleMutation.isPending}
-                    >
-                      {revokeRoleMutation.isPending ? (
-                        <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" aria-hidden="true" />
-                      ) : (
-                        <TrashIcon className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-gray-500" role="status">
-                <UserPlusIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" aria-hidden="true" />
-                <p>No roles assigned</p>
-                <p className="text-sm">Click "Assign Role" to add a role to this user</p>
-              </div>
-            )}
+        {assignedRoles.length === 0 ? (
+          <div className="text-center py-8">
+            <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No roles assigned to this user
+            </p>
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            >
+              Assign a role
+            </button>
           </div>
-        )}
-
-        {activeTab === 'permissions' && (
-          <div role="tabpanel" id="permissions-panel" aria-labelledby="permissions-tab">
-            {/* Add Permission Button */}
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-medium text-gray-900">Direct Permissions</h3>
-              <button
-                onClick={() => setIsGrantPermissionModalOpen(true)}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                aria-label="Grant new permission to user"
-              >
-                <PlusIcon className="h-4 w-4 mr-1" aria-hidden="true" />
-                Grant Permission
-              </button>
-            </div>
-
-            {/* Permissions List */}
-            {userPermissions && userPermissions.length > 0 ? (
-              <div className="space-y-3" role="list" aria-label="Direct permissions">
-                {userPermissions.map((userPermission) => (
-                  <div key={userPermission.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg" role="listitem">
-                    <div className="flex items-center space-x-3">
-                      <ShieldCheckIcon 
-                        className={`h-8 w-8 ${
-                          userPermission.is_granted ? 'text-green-500' : 'text-red-500'
-                        }`}
-                        aria-hidden="true"
-                      />
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900">
-                          {userPermission.permission.name}
-                        </h4>
-                        <p className="text-xs text-gray-500">
-                          {userPermission.permission.description}
-                        </p>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1" aria-label={`${userPermission.permission.resource_type} ${userPermission.permission.action}, ${userPermission.permission.scope} scope${userPermission.override_reason ? `, ${userPermission.override_reason}` : ''}`}>
-                          <span>{userPermission.permission.resource_type}:{userPermission.permission.action}</span>
-                          <span aria-hidden="true">• {userPermission.permission.scope}</span>
-                          {userPermission.override_reason && (
-                            <span aria-hidden="true">• {userPermission.override_reason}</span>
-                          )}
-                        </div>
-                      </div>
-                      <span 
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          userPermission.is_granted
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                        aria-label={userPermission.is_granted ? 'Permission granted' : 'Permission denied'}
-                      >
-                        {userPermission.is_granted ? 'Granted' : 'Denied'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleRevokePermission(userPermission.permission.id, userPermission.permission.name)}
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={`Remove ${userPermission.permission.name} permission override`}
-                      title={revokePermissionMutation.isPending ? "Removing..." : "Remove permission override"}
-                      disabled={revokePermissionMutation.isPending}
-                    >
-                      {revokePermissionMutation.isPending ? (
-                        <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" aria-hidden="true" />
-                      ) : (
-                        <TrashIcon className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-gray-500" role="status">
-                <ShieldCheckIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" aria-hidden="true" />
-                <p>No direct permissions assigned</p>
-                <p className="text-sm">Click "Grant Permission" to add specific permissions to this user</p>
-              </div>
-            )}
+        ) : (
+          <div className="space-y-3">
+            {assignedRoles.map((role: any) => (
+              <RoleAssignmentCard
+                key={role.id}
+                role={role}
+                onRemove={() => setRoleToRemove(role.id)}
+              />
+            ))}
           </div>
         )}
       </div>
 
       {/* Assign Role Modal */}
-      {isAssignRoleModalOpen && (
+      {showAssignModal && (
         <AssignRoleModal
-          userId={userId}
-          availableRoles={availableRoles || []}
-          assignedRoleIds={userRoles?.map(ur => ur.role.id) || []}
-          isOpen={isAssignRoleModalOpen}
-          onClose={() => setIsAssignRoleModalOpen(false)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['user-roles', userId] });
-            setIsAssignRoleModalOpen(false);
-          }}
+          userId={user.id}
+          assignedRoleIds={assignedRoles.map((r: any) => r.id)}
+          onClose={() => setShowAssignModal(false)}
         />
       )}
+
+      {/* Remove Role Confirmation */}
+      {roleToRemove && (
+        <RemoveRoleConfirmation
+          userId={user.id}
+          roleId={roleToRemove}
+          roleName={assignedRoles.find((r: any) => r.id === roleToRemove)?.display_name || ''}
+          onClose={() => setRoleToRemove(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ============================================================================
+// Direct Permissions Section Component
+// ============================================================================
+
+interface DirectPermissionsSectionProps {
+  user: User;
+  permissionsData: any;
+}
+
+function DirectPermissionsSection({ user, permissionsData }: DirectPermissionsSectionProps) {
+  const [showGrantModal, setShowGrantModal] = useState(false);
+  const [permissionToRevoke, setPermissionToRevoke] = useState<string | null>(null);
+
+  const directPermissions = permissionsData?.direct_permissions || [];
+
+  return (
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Direct Permissions
+            </h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+              Permissions granted or denied directly to this user, overriding role-based permissions
+            </p>
+          </div>
+          <button
+            onClick={() => setShowGrantModal(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Grant Permission
+          </button>
+        </div>
+
+        {directPermissions.length === 0 ? (
+          <div className="text-center py-8">
+            <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No direct permissions assigned
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              User permissions are inherited from assigned roles
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {directPermissions.map((userPerm: any) => (
+              <DirectPermissionCard
+                key={userPerm.id}
+                userPermission={userPerm}
+                onRevoke={() => setPermissionToRevoke(userPerm.permission_id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Grant Permission Modal */}
-      {isGrantPermissionModalOpen && (
+      {showGrantModal && (
         <GrantPermissionModal
-          userId={userId}
-          availablePermissions={availablePermissions || []}
-          grantedPermissionIds={userPermissions?.map(up => up.permission.id) || []}
-          isOpen={isGrantPermissionModalOpen}
-          onClose={() => setIsGrantPermissionModalOpen(false)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['user-permissions', userId] });
-            setIsGrantPermissionModalOpen(false);
-          }}
+          userId={user.id}
+          existingPermissionIds={directPermissions.map((p: any) => p.permission_id)}
+          onClose={() => setShowGrantModal(false)}
         />
+      )}
+
+      {/* Revoke Permission Confirmation */}
+      {permissionToRevoke && (
+        <RevokePermissionConfirmation
+          userId={user.id}
+          permissionId={permissionToRevoke}
+          permissionName={
+            directPermissions.find((p: any) => p.permission_id === permissionToRevoke)?.permission?.name || ''
+          }
+          onClose={() => setPermissionToRevoke(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ============================================================================
+// Role Assignment Card Component
+// ============================================================================
+
+interface RoleAssignmentCardProps {
+  role: any;
+  onRemove: () => void;
+}
+
+function RoleAssignmentCard({ role, onRemove }: RoleAssignmentCardProps) {
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0">
+          <Shield className="w-5 h-5 text-blue-500" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            {role.display_name}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            {role.description}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-gray-500 dark:text-gray-500">
+              Level {role.level}
+            </span>
+            {role.is_system_role && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded">
+                System
+              </span>
+            )}
+            {!role.is_active && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded">
+                Inactive
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={onRemove}
+        disabled={role.is_system_role}
+        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        title={role.is_system_role ? 'Cannot remove system role' : 'Remove role'}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================================
+// Assign Role Modal Component
+// ============================================================================
+
+interface AssignRoleModalProps {
+  userId: string;
+  assignedRoleIds: string[];
+  onClose: () => void;
+}
+
+function AssignRoleModal({ userId, assignedRoleIds, onClose }: AssignRoleModalProps) {
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const { data: rolesData, isLoading } = useRoleList({
+    is_active: true,
+    search: searchQuery,
+    size: 100,
+  });
+
+  const assignRoleMutation = useAssignRoleToUser();
+
+  const availableRoles = useMemo(() => {
+    const roles = rolesData?.items || [];
+    return roles.filter(role => !assignedRoleIds.includes(role.id));
+  }, [rolesData, assignedRoleIds]);
+
+  const handleAssign = async () => {
+    if (!selectedRoleId) return;
+
+    try {
+      await assignRoleMutation.mutateAsync({
+        userId,
+        data: { role_id: selectedRoleId },
+      });
+      onClose();
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Assign Role
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Search */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search roles..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+          </div>
+
+          {/* Role List */}
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : availableRoles.length === 0 ? (
+            <div className="text-center py-8">
+              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                No available roles to assign
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {availableRoles.map((role) => (
+                <label
+                  key={role.id}
+                  className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedRoleId === role.id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={role.id}
+                    checked={selectedRoleId === role.id}
+                    onChange={(e) => setSelectedRoleId(e.target.value)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {role.display_name}
+                      </p>
+                      <span className="text-xs text-gray-500 dark:text-gray-500">
+                        Level {role.level}
+                      </span>
+                      {role.is_system_role && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded">
+                          System
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      {role.description}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAssign}
+            disabled={!selectedRoleId || assignRoleMutation.isPending}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {assignRoleMutation.isPending ? 'Assigning...' : 'Assign Role'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Remove Role Confirmation Component
+// ============================================================================
+
+interface RemoveRoleConfirmationProps {
+  userId: string;
+  roleId: string;
+  roleName: string;
+  onClose: () => void;
+}
+
+function RemoveRoleConfirmation({ userId, roleId, roleName, onClose }: RemoveRoleConfirmationProps) {
+  const revokeRoleMutation = useRevokeRoleFromUser();
+
+  const handleRemove = async () => {
+    try {
+      await revokeRoleMutation.mutateAsync({ userId, roleId });
+      onClose();
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Remove Role
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This action cannot be undone
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-6">
+            Are you sure you want to remove the role <span className="font-semibold">{roleName}</span> from this user?
+            This will revoke all permissions associated with this role.
+          </p>
+
+          <div className="flex items-center justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRemove}
+              disabled={revokeRoleMutation.isPending}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {revokeRoleMutation.isPending ? 'Removing...' : 'Remove Role'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Direct Permission Card Component
+// ============================================================================
+
+interface DirectPermissionCardProps {
+  userPermission: any;
+  onRevoke: () => void;
+}
+
+function DirectPermissionCard({ userPermission, onRevoke }: DirectPermissionCardProps) {
+  const permission = userPermission.permission;
+  const isGranted = userPermission.is_granted;
+
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-lg border ${
+      isGranted
+        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+    }`}>
+      <div className="flex items-center gap-3 flex-1">
+        <div className="flex-shrink-0">
+          <Shield className={`w-5 h-5 ${isGranted ? 'text-green-600' : 'text-red-600'}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
+              {permission.name}
+            </p>
+            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+              isGranted
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+            }`}>
+              {isGranted ? 'Granted' : 'Denied'}
+            </span>
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+            {permission.description}
+          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-xs text-gray-500 dark:text-gray-500">
+              {permission.resource_type} • {permission.action}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-500">
+              Scope: {permission.scope}
+            </span>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={onRevoke}
+        className="p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        title="Revoke permission"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================================
+// Grant Permission Modal Component
+// ============================================================================
+
+interface GrantPermissionModalProps {
+  userId: string;
+  existingPermissionIds: string[];
+  onClose: () => void;
+}
+
+function GrantPermissionModal({ userId, existingPermissionIds, onClose }: GrantPermissionModalProps) {
+  const [selectedPermissionId, setSelectedPermissionId] = useState('');
+  const [isGranted, setIsGranted] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resourceTypeFilter, setResourceTypeFilter] = useState<ResourceType | ''>('');
+
+  const { data: permissionsData, isLoading } = usePermissionList({
+    is_active: true,
+    search: searchQuery,
+    resource_type: resourceTypeFilter || undefined,
+    size: 100,
+  });
+
+  const grantPermissionMutation = useGrantPermissionToUser();
+
+  const availablePermissions = useMemo(() => {
+    const permissions = permissionsData?.items || [];
+    return permissions.filter(perm => !existingPermissionIds.includes(perm.id));
+  }, [permissionsData, existingPermissionIds]);
+
+  const handleGrant = async () => {
+    if (!selectedPermissionId) return;
+
+    try {
+      await grantPermissionMutation.mutateAsync({
+        userId,
+        data: {
+          permission_id: selectedPermissionId,
+          is_granted: isGranted,
+        },
+      });
+      onClose();
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Grant Direct Permission
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Grant/Deny Toggle */}
+          <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Permission Type
+            </label>
+            <div className="flex gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="permission-type"
+                  checked={isGranted}
+                  onChange={() => setIsGranted(true)}
+                  className="text-green-600"
+                />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  Grant (Allow access)
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="permission-type"
+                  checked={!isGranted}
+                  onChange={() => setIsGranted(false)}
+                  className="text-red-600"
+                />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  Deny (Override role permissions)
+                </span>
+              </label>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+              {isGranted
+                ? 'Grant this permission directly to the user'
+                : 'Deny this permission, overriding any role-based grants'}
+            </p>
+          </div>
+
+          {/* Filters */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search permissions..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+            </div>
+            <select
+              value={resourceTypeFilter}
+              onChange={(e) => setResourceTypeFilter(e.target.value as ResourceType | '')}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="">All Resource Types</option>
+              <option value={ResourceType.USER}>User</option>
+              <option value={ResourceType.APPLICATION}>Application</option>
+              <option value={ResourceType.DEPARTMENT}>Department</option>
+              <option value={ResourceType.BRANCH}>Branch</option>
+              <option value={ResourceType.FILE}>File</option>
+              <option value={ResourceType.ANALYTICS}>Analytics</option>
+              <option value={ResourceType.SYSTEM}>System</option>
+            </select>
+          </div>
+
+          {/* Permission List */}
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : availablePermissions.length === 0 ? (
+            <div className="text-center py-8">
+              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                No available permissions to assign
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {availablePermissions.map((permission) => (
+                <label
+                  key={permission.id}
+                  className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedPermissionId === permission.id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="permission"
+                    value={permission.id}
+                    checked={selectedPermissionId === permission.id}
+                    onChange={(e) => setSelectedPermissionId(e.target.value)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {permission.name}
+                      </p>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded">
+                        {permission.resource_type}
+                      </span>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
+                        {permission.action}
+                      </span>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded">
+                        {permission.scope}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      {permission.description}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleGrant}
+            disabled={!selectedPermissionId || grantPermissionMutation.isPending}
+            className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              isGranted
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-red-600 hover:bg-red-700'
+            }`}
+          >
+            {grantPermissionMutation.isPending
+              ? 'Processing...'
+              : isGranted
+              ? 'Grant Permission'
+              : 'Deny Permission'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Revoke Permission Confirmation Component
+// ============================================================================
+
+interface RevokePermissionConfirmationProps {
+  userId: string;
+  permissionId: string;
+  permissionName: string;
+  onClose: () => void;
+}
+
+function RevokePermissionConfirmation({ userId, permissionId, permissionName, onClose }: RevokePermissionConfirmationProps) {
+  const revokePermissionMutation = useRevokePermissionFromUser();
+
+  const handleRevoke = async () => {
+    try {
+      await revokePermissionMutation.mutateAsync({ userId, permissionId });
+      onClose();
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Revoke Permission
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This action cannot be undone
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-6">
+            Are you sure you want to revoke the permission <span className="font-semibold">{permissionName}</span> from this user?
+          </p>
+
+          <div className="flex items-center justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRevoke}
+              disabled={revokePermissionMutation.isPending}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {revokePermissionMutation.isPending ? 'Revoking...' : 'Revoke Permission'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Effective Permissions Section Component
+// ============================================================================
+
+interface EffectivePermissionsSectionProps {
+  permissionsData: any;
+}
+
+function EffectivePermissionsSection({ permissionsData }: EffectivePermissionsSectionProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resourceTypeFilter, setResourceTypeFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'role' | 'direct'>('all');
+
+  const effectivePermissions = permissionsData?.effective_permissions || [];
+
+  const filteredPermissions = useMemo(() => {
+    return effectivePermissions.filter((ep: EffectivePermission) => {
+      const matchesSearch = !searchQuery || 
+        ep.permission.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ep.permission.description.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesResourceType = !resourceTypeFilter || 
+        ep.permission.resource_type === resourceTypeFilter;
+      
+      const matchesSource = sourceFilter === 'all' || ep.source === sourceFilter;
+
+      return matchesSearch && matchesResourceType && matchesSource;
+    });
+  }, [effectivePermissions, searchQuery, resourceTypeFilter, sourceFilter]);
+
+  const groupedPermissions = useMemo(() => {
+    const groups: Record<string, EffectivePermission[]> = {};
+    filteredPermissions.forEach((ep: EffectivePermission) => {
+      const resourceType = ep.permission.resource_type;
+      if (!groups[resourceType]) {
+        groups[resourceType] = [];
+      }
+      groups[resourceType].push(ep);
+    });
+    return groups;
+  }, [filteredPermissions]);
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Effective Permissions
+        </h3>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+          All permissions currently active for this user from all sources
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search permissions..."
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <select
+          value={resourceTypeFilter}
+          onChange={(e) => setResourceTypeFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+        >
+          <option value="">All Resources</option>
+          <option value="user">User</option>
+          <option value="application">Application</option>
+          <option value="department">Department</option>
+          <option value="branch">Branch</option>
+          <option value="file">File</option>
+          <option value="analytics">Analytics</option>
+          <option value="system">System</option>
+        </select>
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value as any)}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+        >
+          <option value="all">All Sources</option>
+          <option value="role">From Roles</option>
+          <option value="direct">Direct</option>
+        </select>
+      </div>
+
+      {/* Permission Count */}
+      <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        Showing {filteredPermissions.length} of {effectivePermissions.length} permissions
+      </div>
+
+      {/* Grouped Permissions */}
+      {Object.keys(groupedPermissions).length === 0 ? (
+        <div className="text-center py-8">
+          <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            No permissions found
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(groupedPermissions).map(([resourceType, permissions]) => (
+            <div key={resourceType}>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 capitalize">
+                {resourceType} Permissions ({permissions.length})
+              </h4>
+              <div className="space-y-2">
+                {permissions.map((ep: EffectivePermission, index: number) => (
+                  <EffectivePermissionCard key={`${ep.permission.id}-${index}`} effectivePermission={ep} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-// Assign Role Modal Component
-interface AssignRoleModalProps {
-  userId: string;
-  availableRoles: Role[];
-  assignedRoleIds: string[];
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+// ============================================================================
+// Effective Permission Card Component
+// ============================================================================
+
+interface EffectivePermissionCardProps {
+  effectivePermission: EffectivePermission;
 }
 
-const AssignRoleModal = React.memo(({ userId, availableRoles, assignedRoleIds, isOpen, onClose, onSuccess }: AssignRoleModalProps) => {
-  const [selectedRoleId, setSelectedRoleId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [branchId, setBranchId] = useState('');
-  const [effectiveUntil, setEffectiveUntil] = useState('');
-
-  const assignRoleMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch(`/api/v1/permissions/users/${userId}/roles`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const error: any = new Error(errorData.detail || 'Failed to assign role');
-        error.status = response.status;
-        error.response = { status: response.status, data: errorData };
-        throw error;
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      onSuccess();
-      toast.success('Role assigned successfully', { duration: 3000 });
-    },
-    onError: (error: any) => {
-      const status = error?.status || error?.response?.status;
-      
-      if (status === 403) {
-        showErrorToast(
-          'Permission denied',
-          {
-            context: 'You don\'t have permission to assign roles to this user.',
-            suggestions: [
-              'Contact your administrator for access',
-              'Verify your role has user management rights'
-            ]
-          }
-        );
-      } else if (status === 409) {
-        showErrorToast(
-          'Role already assigned',
-          {
-            context: 'This role is already assigned to the user.',
-            suggestions: ['Choose a different role', 'Refresh the page to see current assignments']
-          }
-        );
-      } else if (status === 422) {
-        showErrorToast(
-          'Invalid data',
-          {
-            context: error.message || 'Please check your input and try again.',
-            suggestions: ['Ensure all required fields are filled', 'Check that the date format is correct']
-          }
-        );
-      } else if (status === 500 || status >= 500) {
-        ErrorToasts.serverError();
-      } else if (!status) {
-        ErrorToasts.networkError();
-      } else {
-        showErrorToast('Failed to assign role', {
-          context: error.message || 'An unexpected error occurred'
-        });
-      }
-    }
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    assignRoleMutation.mutate({
-      role_id: selectedRoleId,
-      department_id: departmentId || null,
-      branch_id: branchId || null,
-      effective_until: effectiveUntil || null
-    });
-  };
-  
-  // Handle Escape key to close modal
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-    }
-    
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
-
-  const unassignedRoles = availableRoles.filter(role => !assignedRoleIds.includes(role.id));
-
-  if (!isOpen) return null;
+function EffectivePermissionCard({ effectivePermission }: EffectivePermissionCardProps) {
+  const { permission, source, role_name, is_granted } = effectivePermission;
 
   return (
-    <div 
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="assign-role-title"
-    >
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <h3 id="assign-role-title" className="text-lg font-medium text-gray-900 mb-4">
-            Assign Role to User
-          </h3>
-          
-          <form onSubmit={handleSubmit} className="space-y-4" aria-label="Assign role form">
-            <div>
-              <label htmlFor="role-select" className="block text-sm font-medium text-gray-700">
-                Role <span className="text-red-500" aria-label="required">*</span>
-              </label>
-              <select
-                id="role-select"
-                value={selectedRoleId}
-                onChange={(e) => setSelectedRoleId(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-                aria-required="true"
-                aria-describedby="role-select-description"
-              >
-                <option value="">Select a role</option>
-                {unassignedRoles.map(role => (
-                  <option key={role.id} value={role.id}>
-                    {role.display_name} (Level {role.level})
-                  </option>
-                ))}
-              </select>
-              <span id="role-select-description" className="sr-only">
-                Select a role to assign to the user
+    <div className={`p-3 rounded-lg border ${
+      is_granted
+        ? 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
+              {permission.name}
+            </p>
+            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
+              {permission.action}
+            </span>
+            <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded">
+              {permission.scope}
+            </span>
+            {!is_granted && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded">
+                Denied
               </span>
-            </div>
-
-            <div>
-              <label htmlFor="effective-until" className="block text-sm font-medium text-gray-700">
-                Effective Until (Optional)
-              </label>
-              <input
-                id="effective-until"
-                type="date"
-                value={effectiveUntil}
-                onChange={(e) => setEffectiveUntil(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                aria-describedby="effective-until-description"
-              />
-              <span id="effective-until-description" className="sr-only">
-                Optionally set an expiration date for this role assignment
-              </span>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                aria-label="Cancel and close form"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={assignRoleMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                aria-label={assignRoleMutation.isPending ? 'Assigning role' : 'Assign role to user'}
-                aria-disabled={assignRoleMutation.isPending}
-              >
-                {assignRoleMutation.isPending ? 'Assigning...' : 'Assign Role'}
-              </button>
-            </div>
-          </form>
+            )}
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+            {permission.description}
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className={`text-xs px-2 py-0.5 rounded ${
+              source === 'role'
+                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+            }`}>
+              {source === 'role' ? `From Role: ${role_name}` : 'Direct Permission'}
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
-});
-
-AssignRoleModal.displayName = 'AssignRoleModal';
-
-// Grant Permission Modal Component
-interface GrantPermissionModalProps {
-  userId: string;
-  availablePermissions: Permission[];
-  grantedPermissionIds: string[];
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
 }
-
-const GrantPermissionModal = React.memo(({ userId, availablePermissions, grantedPermissionIds, isOpen, onClose, onSuccess }: GrantPermissionModalProps) => {
-  const [selectedPermissionId, setSelectedPermissionId] = useState('');
-  const [isGranted, setIsGranted] = useState(true);
-  const [reason, setReason] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const grantPermissionMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch(`/api/v1/permissions/users/${userId}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const error: any = new Error(errorData.detail || 'Failed to grant permission');
-        error.status = response.status;
-        error.response = { status: response.status, data: errorData };
-        throw error;
-      }
-      return response.json();
-    },
-    onSuccess: (data, variables) => {
-      onSuccess();
-      const action = variables.is_granted ? 'granted' : 'denied';
-      toast.success(`Permission ${action} successfully`, { duration: 3000 });
-    },
-    onError: (error: any) => {
-      const status = error?.status || error?.response?.status;
-      
-      if (status === 403) {
-        showErrorToast(
-          'Permission denied',
-          {
-            context: 'You don\'t have permission to modify this user\'s permissions.',
-            suggestions: [
-              'Contact your administrator for access',
-              'Verify your role has user management rights'
-            ]
-          }
-        );
-      } else if (status === 409) {
-        showErrorToast(
-          'Permission override already exists',
-          {
-            context: 'This permission override is already set for the user.',
-            suggestions: ['Choose a different permission', 'Refresh the page to see current overrides']
-          }
-        );
-      } else if (status === 422) {
-        showErrorToast(
-          'Invalid data',
-          {
-            context: error.message || 'Please check your input and try again.',
-            suggestions: ['Ensure all required fields are filled', 'Provide a reason for the override']
-          }
-        );
-      } else if (status === 500 || status >= 500) {
-        ErrorToasts.serverError();
-      } else if (!status) {
-        ErrorToasts.networkError();
-      } else {
-        showErrorToast('Failed to grant permission', {
-          context: error.message || 'An unexpected error occurred'
-        });
-      }
-    }
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    grantPermissionMutation.mutate({
-      permission_id: selectedPermissionId,
-      is_granted: isGranted,
-      reason: reason || null
-    });
-  };
-  
-  // Handle Escape key to close modal
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-    }
-    
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
-
-  const filteredPermissions = availablePermissions.filter(permission =>
-    permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    permission.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (!isOpen) return null;
-
-  return (
-    <div 
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="grant-permission-title"
-    >
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <h3 id="grant-permission-title" className="text-lg font-medium text-gray-900 mb-4">
-            Grant Permission to User
-          </h3>
-          
-          <form onSubmit={handleSubmit} className="space-y-4" aria-label="Grant permission form">
-            <div>
-              <label htmlFor="permission-search" className="block text-sm font-medium text-gray-700">
-                Search Permissions
-              </label>
-              <div className="relative mt-1">
-                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" aria-hidden="true" />
-                <input
-                  id="permission-search"
-                  type="text"
-                  placeholder="Search permissions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full"
-                  aria-describedby="permission-search-description"
-                />
-                <span id="permission-search-description" className="sr-only">
-                  Filter permissions by name or description
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="permission-select" className="block text-sm font-medium text-gray-700">
-                Permission <span className="text-red-500" aria-label="required">*</span>
-              </label>
-              <select
-                id="permission-select"
-                value={selectedPermissionId}
-                onChange={(e) => setSelectedPermissionId(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 max-h-40 overflow-y-auto"
-                required
-                aria-required="true"
-                aria-describedby="permission-select-description"
-                size={Math.min(filteredPermissions.length + 1, 6)}
-              >
-                <option value="">Select a permission</option>
-                {filteredPermissions.map(permission => (
-                  <option key={permission.id} value={permission.id}>
-                    {permission.name} ({permission.resource_type}:{permission.action})
-                  </option>
-                ))}
-              </select>
-              <span id="permission-select-description" className="sr-only">
-                Select a permission to grant or deny to the user
-              </span>
-            </div>
-
-            <div>
-              <fieldset>
-                <legend className="block text-sm font-medium text-gray-700">
-                  Grant Type <span className="text-red-500" aria-label="required">*</span>
-                </legend>
-                <div className="mt-1 space-y-2" role="radiogroup" aria-describedby="grant-type-description">
-                  <label className="flex items-center">
-                    <input
-                      id="grant-permission"
-                      type="radio"
-                      name="grant-type"
-                      checked={isGranted}
-                      onChange={() => setIsGranted(true)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300"
-                      aria-describedby="grant-permission-description"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Grant permission</span>
-                    <span id="grant-permission-description" className="sr-only">
-                      Allow the user to perform this action
-                    </span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      id="deny-permission"
-                      type="radio"
-                      name="grant-type"
-                      checked={!isGranted}
-                      onChange={() => setIsGranted(false)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300"
-                      aria-describedby="deny-permission-description"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Explicitly deny permission</span>
-                    <span id="deny-permission-description" className="sr-only">
-                      Prevent the user from performing this action, overriding role permissions
-                    </span>
-                  </label>
-                </div>
-                <span id="grant-type-description" className="sr-only">
-                  Choose whether to grant or deny this permission
-                </span>
-              </fieldset>
-            </div>
-
-            <div>
-              <label htmlFor="permission-reason" className="block text-sm font-medium text-gray-700">
-                Reason (Optional)
-              </label>
-              <textarea
-                id="permission-reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Explain why this permission override is necessary"
-                aria-describedby="permission-reason-description"
-              />
-              <span id="permission-reason-description" className="sr-only">
-                Optionally provide a reason for this permission override
-              </span>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                aria-label="Cancel and close form"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={grantPermissionMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                aria-label={grantPermissionMutation.isPending ? 'Processing permission' : `${isGranted ? 'Grant' : 'Deny'} permission to user`}
-                aria-disabled={grantPermissionMutation.isPending}
-              >
-                {grantPermissionMutation.isPending ? 'Processing...' : (isGranted ? 'Grant' : 'Deny') + ' Permission'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-GrantPermissionModal.displayName = 'GrantPermissionModal';

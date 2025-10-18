@@ -2,10 +2,22 @@
  * Permission Management System - API Client
  * 
  * Comprehensive API client for managing permissions, roles, and user access.
- * Provides type-safe methods for all permission-related operations.
+ * Provides type-safe methods for all permission-related operations with enhanced error handling.
  */
 
+import { AxiosError } from 'axios';
 import { apiClient } from '../api';
+import { 
+  PermissionError, 
+  ApiError, 
+  NetworkError, 
+  ValidationError,
+  createErrorFromAxiosError,
+  isPermissionError,
+  isApiError,
+  isNetworkError,
+  isValidationError
+} from './permissionErrors';
 import {
   // Permission types
   Permission,
@@ -42,14 +54,44 @@ import {
   PermissionCheckResponse,
 } from '@/types/permissions';
 
+// ============================================================================
+// Error Handling Utilities
+// ============================================================================
+
+/**
+ * Enhanced error handler for permission API calls
+ */
+const handlePermissionApiError = (error: any, endpoint: string, method: string = 'GET'): never => {
+  // Check if it's an Axios error (has response property or is network error)
+  if (error && (error.response || error.code || error.isAxiosError)) {
+    throw createErrorFromAxiosError(error as AxiosError, endpoint, method);
+  }
+  
+  // If it's already one of our custom errors, re-throw it
+  if (isPermissionError(error) || isApiError(error) || isNetworkError(error) || isValidationError(error)) {
+    throw error;
+  }
+  
+  // Fallback for unknown errors
+  throw new ApiError(
+    error.message || 'An unexpected error occurred',
+    500,
+    'unknown_error',
+    error,
+    endpoint,
+    method
+  );
+};
+
 /**
  * Permission Management API Client
  * 
  * Provides methods for all permission-related API operations with:
  * - Type safety
- * - Error handling
+ * - Enhanced error handling with custom error classes
  * - Request/response transformation
  * - Retry logic (inherited from base apiClient)
+ * - User-friendly error messages
  */
 export const permissionsApi = {
   // ============================================================================
@@ -119,20 +161,24 @@ export const permissionsApi = {
    * List all roles with optional filtering and pagination
    */
   listRoles: async (params?: ListRolesParams): Promise<ListRolesResponse> => {
-    const queryParams = new URLSearchParams();
-    
-    if (params?.page !== undefined) queryParams.append('page', params.page.toString());
-    if (params?.size !== undefined) queryParams.append('size', params.size.toString());
-    if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
-    if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
-    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
-    if (params?.is_system_role !== undefined) queryParams.append('is_system_role', params.is_system_role.toString());
-    if (params?.search) queryParams.append('search', params.search);
-    if (params?.min_member_count !== undefined) queryParams.append('min_member_count', params.min_member_count.toString());
-    if (params?.max_member_count !== undefined) queryParams.append('max_member_count', params.max_member_count.toString());
-    
-    const url = `/roles${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiClient.get<ListRolesResponse>(url);
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params?.page !== undefined) queryParams.append('page', params.page.toString());
+      if (params?.size !== undefined) queryParams.append('size', params.size.toString());
+      if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
+      if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
+      if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+      if (params?.is_system_role !== undefined) queryParams.append('is_system_role', params.is_system_role.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.min_member_count !== undefined) queryParams.append('min_member_count', params.min_member_count.toString());
+      if (params?.max_member_count !== undefined) queryParams.append('max_member_count', params.max_member_count.toString());
+      
+      const url = `/roles${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      return await apiClient.get<ListRolesResponse>(url);
+    } catch (error) {
+      return handlePermissionApiError(error, '/roles', 'GET');
+    }
   },
 
   /**
@@ -161,6 +207,21 @@ export const permissionsApi = {
    */
   deleteRole: async (id: string): Promise<void> => {
     return apiClient.delete<void>(`/roles/${id}`);
+  },
+
+  // ============================================================================
+  // Permission Templates Operations
+  // ============================================================================
+
+  /**
+   * List all permission templates
+   */
+  listTemplates: async (): Promise<any[]> => {
+    try {
+      return await apiClient.get<any[]>('/permissions/templates');
+    } catch (error) {
+      return handlePermissionApiError(error, '/permissions/templates', 'GET');
+    }
   },
 
   // ============================================================================
@@ -267,17 +328,28 @@ export const permissionsApi = {
    * Get permission matrix data with optional filters
    */
   getPermissionMatrix: async (filters?: MatrixFilters): Promise<PermissionMatrixResponse> => {
-    const queryParams = new URLSearchParams();
-    
-    if (filters?.department_id) queryParams.append('department_id', filters.department_id);
-    if (filters?.branch_id) queryParams.append('branch_id', filters.branch_id);
-    if (filters?.resource_type) queryParams.append('resource_type', filters.resource_type);
-    if (filters?.scope) queryParams.append('scope', filters.scope);
-    if (filters?.user_search) queryParams.append('user_search', filters.user_search);
-    if (filters?.permission_search) queryParams.append('permission_search', filters.permission_search);
-    
-    const url = `/permissions/matrix${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiClient.get<PermissionMatrixResponse>(url);
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (filters?.department_id) queryParams.append('department_id', filters.department_id);
+      if (filters?.branch_id) queryParams.append('branch_id', filters.branch_id);
+      if (filters?.resource_type) queryParams.append('resource_type', filters.resource_type);
+      if (filters?.scope) queryParams.append('scope', filters.scope);
+      if (filters?.user_search) queryParams.append('user_search', filters.user_search);
+      if (filters?.permission_search) queryParams.append('permission_search', filters.permission_search);
+      
+      const url = `/permissions/matrix${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      return await apiClient.get<PermissionMatrixResponse>(url);
+    } catch (error) {
+      return handlePermissionApiError(error, '/permissions/matrix', 'GET');
+    }
+  },
+
+  /**
+   * Alias for getPermissionMatrix for backward compatibility
+   */
+  getMatrix: async (filters?: MatrixFilters): Promise<PermissionMatrixResponse> => {
+    return permissionsApi.getPermissionMatrix(filters);
   },
 
   /**
@@ -374,6 +446,65 @@ export const permissionsApi = {
     });
     
     return response as unknown as Blob;
+  },
+
+  // ============================================================================
+  // Enhanced Error Handling Methods
+  // ============================================================================
+
+  /**
+   * Test permission API connectivity
+   */
+  testConnection: async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await apiClient.get('/permissions/health');
+      return { success: true };
+    } catch (error) {
+      // Convert to our custom error types first
+      let customError;
+      try {
+        handlePermissionApiError(error, '/permissions/health', 'GET');
+      } catch (e) {
+        customError = e;
+      }
+
+      if (isNetworkError(customError)) {
+        return { 
+          success: false, 
+          error: 'Network connection failed. Please check your internet connection.' 
+        };
+      } else if (isApiError(customError)) {
+        return { 
+          success: false, 
+          error: `API error: ${customError.getUserFriendlyMessage()}` 
+        };
+      } else if (isPermissionError(customError)) {
+        return { 
+          success: false, 
+          error: `Permission error: ${customError.getUserFriendlyMessage()}` 
+        };
+      }
+      return { 
+        success: false, 
+        error: 'Unknown error occurred while testing connection' 
+      };
+    }
+  },
+
+  /**
+   * Get user-friendly error message from any error
+   */
+  getErrorMessage: (error: any): string => {
+    if (isPermissionError(error)) {
+      return error.getUserFriendlyMessage();
+    } else if (isApiError(error)) {
+      return error.getUserFriendlyMessage();
+    } else if (isNetworkError(error)) {
+      return error.getUserFriendlyMessage();
+    } else if (isValidationError(error)) {
+      return error.getUserFriendlyMessage();
+    }
+    return error.message || 'An unexpected error occurred';
   },
 };
 
@@ -482,20 +613,24 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
 export const getAuditTrail = async (
   params: import('@/types/permissions').AuditTrailParams = {}
 ): Promise<import('@/types/permissions').AuditTrailResponse> => {
-  const queryString = buildQueryString({
-    page: params.page || 1,
-    size: params.size || 50,
-    action_type: params.action_type,
-    entity_type: params.entity_type,
-    user_id: params.user_id,
-    target_user_id: params.target_user_id,
-    start_date: params.start_date,
-    end_date: params.end_date,
-    search: params.search,
-  });
+  try {
+    const queryString = buildQueryString({
+      page: params.page || 1,
+      size: params.size || 50,
+      action_type: params.action_type,
+      entity_type: params.entity_type,
+      user_id: params.user_id,
+      target_user_id: params.target_user_id,
+      start_date: params.start_date,
+      end_date: params.end_date,
+      search: params.search,
+    });
 
-  const response = await apiClient.get(`/permissions/audit${queryString}`);
-  return response.data;
+    const response = await apiClient.get(`/permissions/audit${queryString}`);
+    return response.data;
+  } catch (error) {
+    return handlePermissionApiError(error, '/permissions/audit', 'GET');
+  }
 };
 
 /**
@@ -504,59 +639,63 @@ export const getAuditTrail = async (
 export const exportAuditTrailToCSV = async (
   params: import('@/types/permissions').AuditTrailFilters = {}
 ): Promise<void> => {
-  const queryString = buildQueryString({
-    action_type: params.action_type,
-    entity_type: params.entity_type,
-    user_id: params.user_id,
-    target_user_id: params.target_user_id,
-    start_date: params.start_date,
-    end_date: params.end_date,
-    search: params.search,
-  });
+  try {
+    const queryString = buildQueryString({
+      action_type: params.action_type,
+      entity_type: params.entity_type,
+      user_id: params.user_id,
+      target_user_id: params.target_user_id,
+      start_date: params.start_date,
+      end_date: params.end_date,
+      search: params.search,
+    });
 
-  // Get all entries (no pagination for export)
-  const response = await apiClient.get(`/permissions/audit${queryString}&size=10000`);
-  const data = response.data;
+    // Get all entries (no pagination for export)
+    const response = await apiClient.get(`/permissions/audit${queryString}&size=10000`);
+    const data = response.data;
 
-  // Convert to CSV
-  const entries = data.items as import('@/types/permissions').PermissionAuditEntry[];
-  
-  if (entries.length === 0) {
-    throw new Error('No audit entries to export');
+    // Convert to CSV
+    const entries = data.items as import('@/types/permissions').PermissionAuditEntry[];
+    
+    if (entries.length === 0) {
+      throw new ValidationError('No audit entries to export');
+    }
+
+    const headers = [
+      'ID',
+      'Timestamp',
+      'Action',
+      'Entity Type',
+      'Performed By',
+      'Target User',
+      'Permission/Role',
+      'Reason',
+      'IP Address'
+    ];
+
+    const rows = entries.map(entry => [
+      entry.id,
+      new Date(entry.timestamp).toLocaleString(),
+      entry.action,
+      entry.entity_type,
+      entry.user_name || entry.user_id || 'System',
+      entry.target_user_name || entry.target_user_id || '-',
+      entry.permission_name || entry.role_name || '-',
+      entry.reason || '-',
+      entry.ip_address || '-'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const filename = `audit-trail-${new Date().toISOString().split('T')[0]}.csv`;
+    downloadBlob(blob, filename);
+  } catch (error) {
+    handlePermissionApiError(error, '/permissions/audit', 'GET');
   }
-
-  const headers = [
-    'ID',
-    'Timestamp',
-    'Action',
-    'Entity Type',
-    'Performed By',
-    'Target User',
-    'Permission/Role',
-    'Reason',
-    'IP Address'
-  ];
-
-  const rows = entries.map(entry => [
-    entry.id,
-    new Date(entry.timestamp).toLocaleString(),
-    entry.action,
-    entry.entity_type,
-    entry.user_name || entry.user_id || 'System',
-    entry.target_user_name || entry.target_user_id || '-',
-    entry.permission_name || entry.role_name || '-',
-    entry.reason || '-',
-    entry.ip_address || '-'
-  ]);
-
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n');
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const filename = `audit-trail-${new Date().toISOString().split('T')[0]}.csv`;
-  downloadBlob(blob, filename);
 };
 
 export default permissionsApi;

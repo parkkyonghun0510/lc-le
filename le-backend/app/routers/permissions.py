@@ -1379,6 +1379,91 @@ async def delete_permission(
     return {"message": "Permission deleted successfully"}
 
 
+# ==================== HEALTH CHECK ====================
+
+@router.get("/health")
+async def permission_system_health(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check health of permission system.
+    
+    Verifies that:
+    - Permission table has data (count > 0)
+    - Role table has data (count > 0) 
+    - Admin role exists
+    - SYSTEM.VIEW_ALL permission exists
+    - Returns overall health status (healthy, degraded, unhealthy)
+    """
+    health_status = {
+        "status": "healthy",
+        "checks": {},
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    try:
+        # Check if permission tables exist and have data
+        permission_count = await db.scalar(select(func.count(Permission.id)))
+        role_count = await db.scalar(select(func.count(Role.id)))
+        
+        health_status["checks"]["permissions"] = {
+            "status": "healthy" if permission_count > 0 else "warning",
+            "count": permission_count,
+            "message": f"Found {permission_count} permissions" if permission_count > 0 else "No permissions found"
+        }
+        
+        health_status["checks"]["roles"] = {
+            "status": "healthy" if role_count > 0 else "warning", 
+            "count": role_count,
+            "message": f"Found {role_count} roles" if role_count > 0 else "No roles found"
+        }
+        
+        # Check if admin role exists
+        admin_role = await db.scalar(
+            select(Role).where(Role.name == "admin")
+        )
+        health_status["checks"]["admin_role"] = {
+            "status": "healthy" if admin_role else "unhealthy",
+            "exists": admin_role is not None,
+            "message": "Admin role found" if admin_role else "Admin role not found"
+        }
+        
+        # Check if SYSTEM.VIEW_ALL permission exists
+        view_all_perm = await db.scalar(
+            select(Permission).where(Permission.name == "SYSTEM.VIEW_ALL")
+        )
+        health_status["checks"]["system_permissions"] = {
+            "status": "healthy" if view_all_perm else "unhealthy",
+            "exists": view_all_perm is not None,
+            "message": "SYSTEM.VIEW_ALL permission found" if view_all_perm else "SYSTEM.VIEW_ALL permission not found"
+        }
+        
+        # Determine overall status
+        check_statuses = [check["status"] for check in health_status["checks"].values()]
+        if "unhealthy" in check_statuses:
+            health_status["status"] = "unhealthy"
+        elif "warning" in check_statuses:
+            health_status["status"] = "degraded"
+        else:
+            health_status["status"] = "healthy"
+            
+        # Add summary message
+        if health_status["status"] == "healthy":
+            health_status["message"] = "Permission system is functioning normally"
+        elif health_status["status"] == "degraded":
+            health_status["message"] = "Permission system has minor issues but is functional"
+        else:
+            health_status["message"] = "Permission system has critical issues"
+        
+    except Exception as e:
+        logger.error(f"Error checking permission system health: {e}")
+        health_status["status"] = "unhealthy"
+        health_status["error"] = str(e)
+        health_status["message"] = "Failed to check permission system health"
+    
+    return health_status
+
+
 # ==================== AUDIT TRAIL ====================
 
 @router.get("/audit", response_model=Dict[str, Any])

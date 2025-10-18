@@ -200,13 +200,13 @@ describe('usePermissionCheck', () => {
       expect(result.current.can('application', 'create')).toBe(true);
     });
     
-    it('should return false while loading', () => {
+    it('should return null while loading', () => {
       const { result } = renderHook(() => usePermissionCheck(), {
         wrapper: createWrapper(),
       });
       
-      // Should return false immediately while loading
-      expect(result.current.can(ResourceType.APPLICATION, PermissionAction.CREATE)).toBe(false);
+      // Should return null immediately while loading (not deny access)
+      expect(result.current.can(ResourceType.APPLICATION, PermissionAction.CREATE)).toBe(null);
     });
   });
   
@@ -361,7 +361,7 @@ describe('usePermissionCheck', () => {
   });
   
   describe('error handling', () => {
-    it('should return false for all checks on error', async () => {
+    it('should handle API errors gracefully', async () => {
       mockPermissionsApi.getCurrentUserPermissions.mockRejectedValue(
         new Error('API Error')
       );
@@ -375,12 +375,80 @@ describe('usePermissionCheck', () => {
         expect(result.current.loading).toBe(false);
       }, { timeout: 5000 });
       
-      // After error, all checks should return false (safe default)
+      // After error, permission checks should return false (no permission data)
       expect(result.current.can(ResourceType.APPLICATION, PermissionAction.CREATE)).toBe(false);
-      expect(result.current.hasRole('manager')).toBe(false);
       expect(result.current.hasPermission('application:create')).toBe(false);
       expect(result.current.permissions).toEqual([]);
       expect(result.current.roles).toEqual([]);
+      
+      // Role check should still work from auth data as fallback
+      expect(result.current.hasRole('manager')).toBe(true);
+      expect(result.current.hasRole('admin')).toBe(false);
+    });
+  });
+  
+  describe('admin role access', () => {
+    it('should grant admin users access to all system resources', async () => {
+      // Mock admin user
+      const adminUser = { ...mockUser, role: 'admin' };
+      mockUseAuth.mockReturnValue({
+        user: adminUser,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      
+      const { result } = renderHook(() => usePermissionCheck(), {
+        wrapper: createWrapper(),
+      });
+      
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+      
+      // Admin should have access to system resources
+      expect(result.current.can(ResourceType.SYSTEM, PermissionAction.VIEW_ALL)).toBe(true);
+      expect(result.current.can(ResourceType.PERMISSION, PermissionAction.CREATE)).toBe(true);
+      expect(result.current.can(ResourceType.ROLE, PermissionAction.UPDATE)).toBe(true);
+      expect(result.current.isAdmin()).toBe(true);
+    });
+    
+    it('should grant admin users system permissions', async () => {
+      // Mock admin user
+      const adminUser = { ...mockUser, role: 'admin' };
+      mockUseAuth.mockReturnValue({
+        user: adminUser,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      
+      const { result } = renderHook(() => usePermissionCheck(), {
+        wrapper: createWrapper(),
+      });
+      
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+      
+      // Admin should have all SYSTEM.* permissions
+      expect(result.current.hasPermission('SYSTEM.VIEW_ALL')).toBe(true);
+      expect(result.current.hasPermission('SYSTEM.CREATE')).toBe(true);
+      expect(result.current.hasPermission('SYSTEM.UPDATE')).toBe(true);
+    });
+  });
+  
+  describe('loading state handling', () => {
+    it('should return null for all checks while loading', () => {
+      const { result } = renderHook(() => usePermissionCheck(), {
+        wrapper: createWrapper(),
+      });
+      
+      // All checks should return null while loading
+      expect(result.current.can(ResourceType.APPLICATION, PermissionAction.CREATE)).toBe(null);
+      expect(result.current.hasRole('manager')).toBe(null);
+      expect(result.current.hasPermission('application:create')).toBe(null);
+      expect(result.current.isAdmin()).toBe(null);
     });
   });
   

@@ -1,306 +1,391 @@
 /**
- * Permission Management System - Error Handling Utilities
+ * Permission System - Custom Error Classes
  * 
- * Specialized error handling for permission-related API operations.
- * Provides user-friendly error messages and error categorization.
+ * Custom error classes for handling permission-related API errors with
+ * enhanced error information and user-friendly messages.
  */
 
 import { AxiosError } from 'axios';
-import { PermissionApiError } from '@/types/permissions';
 
 /**
- * Permission error categories
+ * Base class for permission-related errors
  */
-export enum PermissionErrorCategory {
-  VALIDATION = 'validation',
-  DUPLICATE = 'duplicate',
-  NOT_FOUND = 'not_found',
-  FORBIDDEN = 'forbidden',
-  SYSTEM_PERMISSION = 'system_permission',
-  IN_USE = 'in_use',
-  NETWORK = 'network',
-  SERVER = 'server',
-  UNKNOWN = 'unknown',
+export class PermissionError extends Error {
+  public readonly requiredPermission?: string;
+  public readonly requiredRoles?: string[];
+  public readonly statusCode?: number;
+  public readonly errorCode?: string;
+  public readonly details?: any;
+
+  constructor(
+    message: string,
+    requiredPermission?: string,
+    requiredRoles?: string[],
+    statusCode?: number,
+    errorCode?: string,
+    details?: any
+  ) {
+    super(message);
+    this.name = 'PermissionError';
+    this.requiredPermission = requiredPermission;
+    this.requiredRoles = requiredRoles;
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
+    this.details = details;
+
+    // Maintain proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, PermissionError);
+    }
+  }
+
+  /**
+   * Get user-friendly error message with actionable guidance
+   */
+  getUserFriendlyMessage(): string {
+    let message = this.message;
+
+    if (this.requiredPermission) {
+      message += `\n\nRequired permission: ${this.requiredPermission}`;
+    }
+
+    if (this.requiredRoles && this.requiredRoles.length > 0) {
+      message += `\n\nRequired roles: ${this.requiredRoles.join(', ')}`;
+    }
+
+    message += '\n\nPlease contact your system administrator to request access.';
+
+    return message;
+  }
+
+  /**
+   * Get structured error information for logging
+   */
+  getErrorInfo(): {
+    name: string;
+    message: string;
+    requiredPermission?: string;
+    requiredRoles?: string[];
+    statusCode?: number;
+    errorCode?: string;
+    details?: any;
+  } {
+    return {
+      name: this.name,
+      message: this.message,
+      requiredPermission: this.requiredPermission,
+      requiredRoles: this.requiredRoles,
+      statusCode: this.statusCode,
+      errorCode: this.errorCode,
+      details: this.details,
+    };
+  }
 }
 
 /**
- * Categorize permission API errors
+ * General API error class for non-permission specific errors
  */
-export const categorizePermissionError = (error: AxiosError<PermissionApiError>): PermissionErrorCategory => {
-  if (!error.response) {
-    return PermissionErrorCategory.NETWORK;
+export class ApiError extends Error {
+  public readonly statusCode: number;
+  public readonly errorCode?: string;
+  public readonly details?: any;
+  public readonly endpoint?: string;
+  public readonly method?: string;
+
+  constructor(
+    message: string,
+    statusCode: number,
+    errorCode?: string,
+    details?: any,
+    endpoint?: string,
+    method?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
+    this.details = details;
+    this.endpoint = endpoint;
+    this.method = method;
+
+    // Maintain proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, ApiError);
+    }
   }
 
-  const status = error.response.status;
-  const detail = error.response.data?.detail?.toLowerCase() || '';
-  const errorCode = error.response.data?.error_code?.toLowerCase() || '';
-
-  // Check for specific error codes first
-  if (errorCode.includes('duplicate') || detail.includes('already exists')) {
-    return PermissionErrorCategory.DUPLICATE;
+  /**
+   * Get user-friendly error message based on status code
+   */
+  getUserFriendlyMessage(): string {
+    switch (this.statusCode) {
+      case 400:
+        return 'Invalid request. Please check your input and try again.';
+      case 404:
+        return 'The requested resource was not found. It may have been deleted or moved.';
+      case 409:
+        return 'A conflict occurred. The resource may have been modified by another user. Please refresh and try again.';
+      case 422:
+        return 'Invalid data provided. Please check your input and try again.';
+      case 429:
+        return 'Too many requests. Please wait a moment and try again.';
+      case 500:
+        return 'Server error occurred. Our team has been notified. Please try again later.';
+      case 502:
+        return 'Service temporarily unavailable. Please try again in a few moments.';
+      case 503:
+        return 'Service is currently under maintenance. Please try again later.';
+      default:
+        return this.message || 'An unexpected error occurred. Please try again.';
+    }
   }
 
-  if (errorCode.includes('system') || detail.includes('system permission') || detail.includes('system role')) {
-    return PermissionErrorCategory.SYSTEM_PERMISSION;
+  /**
+   * Get structured error information for logging
+   */
+  getErrorInfo(): {
+    name: string;
+    message: string;
+    statusCode: number;
+    errorCode?: string;
+    details?: any;
+    endpoint?: string;
+    method?: string;
+  } {
+    return {
+      name: this.name,
+      message: this.message,
+      statusCode: this.statusCode,
+      errorCode: this.errorCode,
+      details: this.details,
+      endpoint: this.endpoint,
+      method: this.method,
+    };
   }
-
-  if (errorCode.includes('in_use') || detail.includes('in use') || detail.includes('assigned to')) {
-    return PermissionErrorCategory.IN_USE;
-  }
-
-  // Check by status code
-  switch (status) {
-    case 400:
-    case 422:
-      return PermissionErrorCategory.VALIDATION;
-    case 403:
-      return PermissionErrorCategory.FORBIDDEN;
-    case 404:
-      return PermissionErrorCategory.NOT_FOUND;
-    case 409:
-      return PermissionErrorCategory.DUPLICATE;
-    case 500:
-    case 502:
-    case 503:
-      return PermissionErrorCategory.SERVER;
-    default:
-      return PermissionErrorCategory.UNKNOWN;
-  }
-};
+}
 
 /**
- * Get user-friendly error message for permission errors
+ * Network-related error class
  */
-export const getPermissionErrorMessage = (
-  error: AxiosError<PermissionApiError>,
-  context?: {
-    operation?: 'create' | 'update' | 'delete' | 'assign' | 'revoke';
-    entityType?: 'permission' | 'role' | 'user_permission';
-  }
-): string => {
-  const category = categorizePermissionError(error);
-  const detail = error.response?.data?.detail || '';
-  const operation = context?.operation || 'perform this operation';
-  const entityType = context?.entityType || 'item';
+export class NetworkError extends Error {
+  public readonly originalError?: Error;
+  public readonly endpoint?: string;
+  public readonly method?: string;
 
-  switch (category) {
-    case PermissionErrorCategory.VALIDATION:
-      if (error.response?.data?.field_errors) {
-        const fieldErrors = Object.entries(error.response.data.field_errors)
-          .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
-          .join('; ');
-        return `Validation failed: ${fieldErrors}`;
-      }
-      return detail || `Invalid data provided. Please check your input and try again.`;
+  constructor(
+    message: string,
+    originalError?: Error,
+    endpoint?: string,
+    method?: string
+  ) {
+    super(message);
+    this.name = 'NetworkError';
+    this.originalError = originalError;
+    this.endpoint = endpoint;
+    this.method = method;
 
-    case PermissionErrorCategory.DUPLICATE:
-      return `A ${entityType} with this name already exists. Please use a different name.`;
-
-    case PermissionErrorCategory.NOT_FOUND:
-      return `The ${entityType} you're trying to ${operation} was not found. It may have been deleted.`;
-
-    case PermissionErrorCategory.FORBIDDEN:
-      return `You don't have permission to ${operation} this ${entityType}.`;
-
-    case PermissionErrorCategory.SYSTEM_PERMISSION:
-      return `Cannot modify system ${entityType}s. They are protected and managed by the system.`;
-
-    case PermissionErrorCategory.IN_USE:
-      return `Cannot delete this ${entityType} because it is currently in use. Remove all assignments first.`;
-
-    case PermissionErrorCategory.NETWORK:
-      return `Network error. Please check your connection and try again.`;
-
-    case PermissionErrorCategory.SERVER:
-      return `Server error occurred. Please try again later or contact support.`;
-
-    case PermissionErrorCategory.UNKNOWN:
-    default:
-      return detail || `An unexpected error occurred while trying to ${operation} the ${entityType}.`;
-  }
-};
-
-/**
- * Extract field errors from API response
- */
-export const extractFieldErrors = (
-  error: AxiosError<PermissionApiError>
-): Record<string, string> | null => {
-  const fieldErrors = error.response?.data?.field_errors;
-  
-  if (!fieldErrors) {
-    return null;
+    // Maintain proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, NetworkError);
+    }
   }
 
-  // Transform array of errors to single string per field
-  const transformedErrors: Record<string, string> = {};
-  
-  Object.entries(fieldErrors).forEach(([field, errors]) => {
-    transformedErrors[field] = Array.isArray(errors) ? errors.join(', ') : String(errors);
-  });
-
-  return transformedErrors;
-};
-
-/**
- * Check if error is a validation error
- */
-export const isValidationError = (error: AxiosError<PermissionApiError>): boolean => {
-  return categorizePermissionError(error) === PermissionErrorCategory.VALIDATION;
-};
-
-/**
- * Check if error is a duplicate error
- */
-export const isDuplicateError = (error: AxiosError<PermissionApiError>): boolean => {
-  return categorizePermissionError(error) === PermissionErrorCategory.DUPLICATE;
-};
-
-/**
- * Check if error is a system permission error
- */
-export const isSystemPermissionError = (error: AxiosError<PermissionApiError>): boolean => {
-  return categorizePermissionError(error) === PermissionErrorCategory.SYSTEM_PERMISSION;
-};
-
-/**
- * Check if error is an "in use" error
- */
-export const isInUseError = (error: AxiosError<PermissionApiError>): boolean => {
-  return categorizePermissionError(error) === PermissionErrorCategory.IN_USE;
-};
-
-/**
- * Format error for display in toast notification
- */
-export const formatErrorForToast = (
-  error: AxiosError<PermissionApiError>,
-  context?: {
-    operation?: 'create' | 'update' | 'delete' | 'assign' | 'revoke';
-    entityType?: 'permission' | 'role' | 'user_permission';
+  /**
+   * Get user-friendly error message
+   */
+  getUserFriendlyMessage(): string {
+    return 'Network connection problem. Please check your internet connection and try again.';
   }
-): {
-  title: string;
-  description: string;
-  variant: 'destructive' | 'default';
-} => {
-  const category = categorizePermissionError(error);
-  const message = getPermissionErrorMessage(error, context);
+}
 
-  let title = 'Error';
-  
-  switch (category) {
-    case PermissionErrorCategory.VALIDATION:
-      title = 'Validation Error';
-      break;
-    case PermissionErrorCategory.DUPLICATE:
-      title = 'Duplicate Entry';
-      break;
-    case PermissionErrorCategory.NOT_FOUND:
-      title = 'Not Found';
-      break;
-    case PermissionErrorCategory.FORBIDDEN:
-      title = 'Permission Denied';
-      break;
-    case PermissionErrorCategory.SYSTEM_PERMISSION:
-      title = 'System Protected';
-      break;
-    case PermissionErrorCategory.IN_USE:
-      title = 'Cannot Delete';
-      break;
-    case PermissionErrorCategory.NETWORK:
-      title = 'Network Error';
-      break;
-    case PermissionErrorCategory.SERVER:
-      title = 'Server Error';
-      break;
+/**
+ * Validation error class for form validation issues
+ */
+export class ValidationError extends Error {
+  public readonly fieldErrors: Record<string, string[]>;
+
+  constructor(message: string, fieldErrors: Record<string, string[]> = {}) {
+    super(message);
+    this.name = 'ValidationError';
+    this.fieldErrors = fieldErrors;
+
+    // Maintain proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, ValidationError);
+    }
   }
 
-  return {
-    title,
-    description: message,
-    variant: 'destructive',
-  };
-};
-
-/**
- * Handle permission API error with toast notification
- * 
- * This is a convenience function that can be used in catch blocks
- * to automatically show appropriate error messages to users.
- * 
- * @example
- * try {
- *   await permissionsApi.create(data);
- * } catch (error) {
- *   handlePermissionError(error, toast, { operation: 'create', entityType: 'permission' });
- * }
- */
-export const handlePermissionError = (
-  error: unknown,
-  toast: (options: { title: string; description: string; variant: 'destructive' | 'default' }) => void,
-  context?: {
-    operation?: 'create' | 'update' | 'delete' | 'assign' | 'revoke';
-    entityType?: 'permission' | 'role' | 'user_permission';
-  }
-): void => {
-  if (error instanceof Error && 'isAxiosError' in error) {
-    const axiosError = error as AxiosError<PermissionApiError>;
-    const toastOptions = formatErrorForToast(axiosError, context);
-    toast(toastOptions);
-  } else {
-    toast({
-      title: 'Error',
-      description: 'An unexpected error occurred. Please try again.',
-      variant: 'destructive',
+  /**
+   * Get formatted field errors as a string
+   */
+  getFieldErrorsString(): string {
+    const errors: string[] = [];
+    
+    Object.entries(this.fieldErrors).forEach(([field, fieldErrors]) => {
+      errors.push(`${field}: ${fieldErrors.join(', ')}`);
     });
+
+    return errors.join('\n');
   }
-};
 
-/**
- * Retry configuration for permission operations
- */
-export const PERMISSION_RETRY_CONFIG = {
-  maxRetries: 3,
-  retryDelay: 1000,
-  retryableErrors: [
-    PermissionErrorCategory.NETWORK,
-    PermissionErrorCategory.SERVER,
-  ],
-};
+  /**
+   * Get user-friendly error message with field details
+   */
+  getUserFriendlyMessage(): string {
+    let message = this.message;
+    
+    const fieldErrorsString = this.getFieldErrorsString();
+    if (fieldErrorsString) {
+      message += `\n\nField errors:\n${fieldErrorsString}`;
+    }
 
-/**
- * Check if error should be retried
- */
-export const shouldRetryPermissionError = (error: AxiosError<PermissionApiError>): boolean => {
-  const category = categorizePermissionError(error);
-  return PERMISSION_RETRY_CONFIG.retryableErrors.includes(category);
-};
-
-/**
- * Get suggested action for error
- */
-export const getSuggestedAction = (error: AxiosError<PermissionApiError>): string | null => {
-  const category = categorizePermissionError(error);
-
-  switch (category) {
-    case PermissionErrorCategory.VALIDATION:
-      return 'Please check your input and correct any errors.';
-    case PermissionErrorCategory.DUPLICATE:
-      return 'Try using a different name or modify the existing entry.';
-    case PermissionErrorCategory.NOT_FOUND:
-      return 'Refresh the page to see the latest data.';
-    case PermissionErrorCategory.FORBIDDEN:
-      return 'Contact your administrator to request access.';
-    case PermissionErrorCategory.SYSTEM_PERMISSION:
-      return 'System items cannot be modified. Create a custom version instead.';
-    case PermissionErrorCategory.IN_USE:
-      return 'Remove all assignments before attempting to delete.';
-    case PermissionErrorCategory.NETWORK:
-      return 'Check your internet connection and try again.';
-    case PermissionErrorCategory.SERVER:
-      return 'Wait a moment and try again. If the problem persists, contact support.';
-    default:
-      return null;
+    return message;
   }
-};
+}
+
+/**
+ * Extract error details from backend API response
+ */
+export interface BackendErrorDetail {
+  error?: string;
+  message?: string;
+  detail?: string | string[];
+  required_permission?: string;
+  required_roles?: string[];
+  field_errors?: Record<string, string[]>;
+  error_code?: string;
+}
+
+/**
+ * Utility function to extract error details from Axios error response
+ */
+export function extractErrorDetails(error: AxiosError): BackendErrorDetail {
+  const responseData = error.response?.data as any;
+  
+  if (!responseData) {
+    return {};
+  }
+
+  // Handle different backend error response formats
+  const details: BackendErrorDetail = {};
+
+  // Extract main error message
+  if (responseData.detail) {
+    if (typeof responseData.detail === 'string') {
+      details.message = responseData.detail;
+    } else if (Array.isArray(responseData.detail)) {
+      details.message = responseData.detail.join(', ');
+    } else if (typeof responseData.detail === 'object') {
+      // Handle structured detail object
+      details.message = responseData.detail.message || 'An error occurred';
+      details.required_permission = responseData.detail.required_permission;
+      details.required_roles = responseData.detail.required_roles;
+      details.error_code = responseData.detail.error_code || responseData.detail.error;
+    }
+  } else if (responseData.message) {
+    details.message = responseData.message;
+  } else if (responseData.error) {
+    details.message = responseData.error;
+  }
+
+  // Extract permission requirements
+  if (responseData.required_permission) {
+    details.required_permission = responseData.required_permission;
+  }
+
+  if (responseData.required_roles) {
+    details.required_roles = responseData.required_roles;
+  }
+
+  // Extract field errors for validation
+  if (responseData.field_errors) {
+    details.field_errors = responseData.field_errors;
+  }
+
+  // Extract error code
+  if (responseData.error_code) {
+    details.error_code = responseData.error_code;
+  }
+
+  return details;
+}
+
+/**
+ * Create appropriate error instance from Axios error
+ */
+export function createErrorFromAxiosError(
+  axiosError: AxiosError,
+  endpoint?: string,
+  method?: string
+): PermissionError | ApiError | NetworkError | ValidationError {
+  const status = axiosError.response?.status;
+  const details = extractErrorDetails(axiosError);
+
+  // Network errors (no response)
+  if (!axiosError.response) {
+    return new NetworkError(
+      details.message || 'Network connection failed',
+      axiosError,
+      endpoint,
+      method
+    );
+  }
+
+  // Permission errors (403 Forbidden)
+  if (status === 403) {
+    return new PermissionError(
+      details.message || 'You do not have permission to perform this action',
+      details.required_permission,
+      details.required_roles,
+      status,
+      details.error_code,
+      details
+    );
+  }
+
+  // Validation errors (422 Unprocessable Entity)
+  if (status === 422 && details.field_errors) {
+    return new ValidationError(
+      details.message || 'Validation failed',
+      details.field_errors
+    );
+  }
+
+  // General API errors
+  return new ApiError(
+    details.message || axiosError.message || 'An API error occurred',
+    status || 500,
+    details.error_code,
+    details,
+    endpoint,
+    method
+  );
+}
+
+/**
+ * Type guard to check if error is a PermissionError
+ */
+export function isPermissionError(error: any): error is PermissionError {
+  return error instanceof PermissionError;
+}
+
+/**
+ * Type guard to check if error is an ApiError
+ */
+export function isApiError(error: any): error is ApiError {
+  return error instanceof ApiError;
+}
+
+/**
+ * Type guard to check if error is a NetworkError
+ */
+export function isNetworkError(error: any): error is NetworkError {
+  return error instanceof NetworkError;
+}
+
+/**
+ * Type guard to check if error is a ValidationError
+ */
+export function isValidationError(error: any): error is ValidationError {
+  return error instanceof ValidationError;
+}

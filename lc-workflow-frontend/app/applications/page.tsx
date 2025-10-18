@@ -100,7 +100,7 @@ function ApplicationsContent() {
     return primary || app.employee_assignments?.[0];
   };
 
-  // Role-based filtering
+  // Permission-based filtering
   const getRoleBasedFilters = () => {
     const baseFilters = {
       search: searchTerm,
@@ -109,12 +109,14 @@ function ApplicationsContent() {
       page,
       size: 10
     };
-    // Add role-specific filtering
-    if (user?.role === 'officer') {
-      // Officers see applications they need to process
+    
+    // Permission-based filtering instead of role-based
+    // Officers with process permission see applications they need to process
+    if (can('application', 'process') && !can('application', 'approve')) {
       return { ...baseFilters, workflow_status: workflowStatusFilter || 'USER_COMPLETED' as WorkflowStatus };
-    } else if (user?.role === 'manager') {
-      // Managers see applications ready for review
+    } 
+    // Managers with approve permission see applications ready for review
+    else if (can('application', 'approve')) {
       return { ...baseFilters, workflow_status: workflowStatusFilter || 'TELLER_PROCESSING' as WorkflowStatus };
     }
 
@@ -593,7 +595,6 @@ function ApplicationsContent() {
                             <WorkflowActions
                               applicationId={application.id}
                               workflowStatus={application.workflow_status}
-                              userRole={user?.role || 'officer'}
                             />
                           </div>
                         </td>
@@ -776,7 +777,6 @@ function ApplicationsContent() {
                         <WorkflowActions
                           applicationId={application.id}
                           workflowStatus={application.workflow_status}
-                          userRole={user?.role || 'officer'}
                         />
                       </div>
 

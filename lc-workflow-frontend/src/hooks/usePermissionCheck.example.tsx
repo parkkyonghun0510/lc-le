@@ -1,341 +1,264 @@
 /**
  * usePermissionCheck Hook - Usage Examples
  * 
- * This file demonstrates how to use the usePermissionCheck hook
- * to implement dynamic permission checking throughout the application.
+ * This file demonstrates how to properly use the updated usePermissionCheck hook
+ * with proper loading state handling and admin role support.
  */
 
 import React from 'react';
 import { usePermissionCheck } from './usePermissionCheck';
-import { ResourceType, PermissionAction, PermissionScope } from '@/types/permissions';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 
 /**
- * Example 1: Basic Permission Checking
- * Check if user can perform specific actions
+ * Example component showing proper permission checking with loading states
  */
-export const BasicPermissionExample: React.FC = () => {
-  const { can, loading } = usePermissionCheck();
-  
-  if (loading) {
-    return <div>Loading permissions...</div>;
-  }
-  
-  return (
-    <div>
-      {/* Show create button only if user can create applications */}
-      {can(ResourceType.APPLICATION, PermissionAction.CREATE) && (
-        <button>Create Application</button>
-      )}
-      
-      {/* Show edit button only if user can update applications */}
-      {can(ResourceType.APPLICATION, PermissionAction.UPDATE) && (
-        <button>Edit Application</button>
-      )}
-      
-      {/* Show delete button only if user can delete applications */}
-      {can(ResourceType.APPLICATION, PermissionAction.DELETE) && (
-        <button>Delete Application</button>
-      )}
-    </div>
-  );
-};
+export const PermissionAwareComponent: React.FC = () => {
+  const { can, hasRole, hasPermission, isAdmin, loading, error } = usePermissionCheck();
 
-/**
- * Example 2: Scope-Based Permission Checking
- * Check permissions with specific scopes
- */
-export const ScopePermissionExample: React.FC = () => {
-  const { can, loading } = usePermissionCheck();
-  
-  if (loading) {
-    return <div>Loading permissions...</div>;
-  }
-  
-  return (
-    <div>
-      {/* User can only view their own applications */}
-      {can(ResourceType.APPLICATION, PermissionAction.READ, PermissionScope.OWN) && (
-        <div>View My Applications</div>
-      )}
-      
-      {/* User can view department applications */}
-      {can(ResourceType.APPLICATION, PermissionAction.READ, PermissionScope.DEPARTMENT) && (
-        <div>View Department Applications</div>
-      )}
-      
-      {/* User can view all applications globally */}
-      {can(ResourceType.APPLICATION, PermissionAction.READ, PermissionScope.GLOBAL) && (
-        <div>View All Applications</div>
-      )}
-    </div>
-  );
-};
-
-/**
- * Example 3: Role-Based Checking
- * Check if user has specific roles
- */
-export const RoleCheckExample: React.FC = () => {
-  const { hasRole, loading, roles } = usePermissionCheck();
-  
-  if (loading) {
-    return <div>Loading permissions...</div>;
-  }
-  
-  return (
-    <div>
-      <h3>Current Roles: {roles.join(', ')}</h3>
-      
-      {/* Admin-only features */}
-      {hasRole('admin') && (
-        <div>
-          <h4>Admin Panel</h4>
-          <button>Manage Users</button>
-          <button>System Settings</button>
-        </div>
-      )}
-      
-      {/* Manager features */}
-      {hasRole('manager') && (
-        <div>
-          <h4>Manager Dashboard</h4>
-          <button>Approve Applications</button>
-          <button>View Reports</button>
-        </div>
-      )}
-      
-      {/* Officer features */}
-      {hasRole('officer') && (
-        <div>
-          <h4>Officer Tools</h4>
-          <button>Process Applications</button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/**
- * Example 4: Named Permission Checking
- * Check for specific named permissions
- */
-export const NamedPermissionExample: React.FC = () => {
-  const { hasPermission, loading } = usePermissionCheck();
-  
-  if (loading) {
-    return <div>Loading permissions...</div>;
-  }
-  
-  return (
-    <div>
-      {/* Check for specific permission names */}
-      {hasPermission('application:approve') && (
-        <button>Approve Application</button>
-      )}
-      
-      {hasPermission('user:manage') && (
-        <button>Manage Users</button>
-      )}
-      
-      {hasPermission('analytics:export') && (
-        <button>Export Analytics</button>
-      )}
-    </div>
-  );
-};
-
-/**
- * Example 5: Complex Permission Logic
- * Combine multiple permission checks
- */
-export const ComplexPermissionExample: React.FC = () => {
-  const { can, hasRole, loading } = usePermissionCheck();
-  
-  if (loading) {
-    return <div>Loading permissions...</div>;
-  }
-  
-  // Complex logic: User can approve if they're a manager OR have explicit approve permission
-  const canApprove = hasRole('manager') || can(ResourceType.APPLICATION, PermissionAction.APPROVE);
-  
-  // User can export if they have export permission at any scope
-  const canExport = 
-    can(ResourceType.ANALYTICS, PermissionAction.EXPORT, PermissionScope.OWN) ||
-    can(ResourceType.ANALYTICS, PermissionAction.EXPORT, PermissionScope.DEPARTMENT) ||
-    can(ResourceType.ANALYTICS, PermissionAction.EXPORT, PermissionScope.GLOBAL);
-  
-  return (
-    <div>
-      {canApprove && <button>Approve Application</button>}
-      {canExport && <button>Export Data</button>}
-    </div>
-  );
-};
-
-/**
- * Example 6: Navigation Menu with Permissions
- * Show/hide menu items based on permissions
- */
-export const NavigationMenuExample: React.FC = () => {
-  const { can, hasRole, loading } = usePermissionCheck();
-  
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  
-  return (
-    <nav>
-      <ul>
-        {/* Always visible */}
-        <li><span>Dashboard</span></li>
-        
-        {/* Only if user can view applications */}
-        {can(ResourceType.APPLICATION, PermissionAction.READ) && (
-          <li><span>Applications</span></li>
-        )}
-        
-        {/* Only if user can manage users */}
-        {can(ResourceType.USER, PermissionAction.MANAGE) && (
-          <li><span>User Management</span></li>
-        )}
-        
-        {/* Only for admins */}
-        {hasRole('admin') && (
-          <li><span>Admin Panel</span></li>
-        )}
-        
-        {/* Only if user can view analytics */}
-        {can(ResourceType.ANALYTICS, PermissionAction.READ) && (
-          <li><span>Analytics</span></li>
-        )}
-      </ul>
-    </nav>
-  );
-};
-
-/**
- * Example 7: Cache Invalidation
- * Invalidate permission cache after changes
- */
-export const CacheInvalidationExample: React.FC = () => {
-  const { can, invalidateCache, loading } = usePermissionCheck();
-  
-  const handlePermissionChange = async () => {
-    // After making permission changes via API
-    // (e.g., assigning a role, granting a permission)
-    
-    // Invalidate the cache to force refetch
-    await invalidateCache();
-    
-    // Now the permissions will be refetched and UI will update
-    console.log('Permissions refreshed');
-  };
-  
-  return (
-    <div>
-      <button onClick={handlePermissionChange}>
-        Update My Permissions
-      </button>
-      
-      {loading && <div>Refreshing permissions...</div>}
-      
-      {can(ResourceType.APPLICATION, PermissionAction.CREATE) && (
-        <div>You can create applications</div>
-      )}
-    </div>
-  );
-};
-
-/**
- * Example 8: Replacing Hardcoded Role Checks
- * Before and After comparison
- */
-
-// BEFORE: Hardcoded role check
-export const BeforeExample: React.FC<{ user: any }> = ({ user }) => {
-  return (
-    <div>
-      {user?.role === 'admin' && <button>Admin Action</button>}
-      {user?.role === 'manager' && <button>Manager Action</button>}
-    </div>
-  );
-};
-
-// AFTER: Dynamic permission check
-export const AfterExample: React.FC = () => {
-  const { hasRole, can } = usePermissionCheck();
-  
-  return (
-    <div>
-      {hasRole('admin') && <button>Admin Action</button>}
-      {can(ResourceType.APPLICATION, PermissionAction.APPROVE) && (
-        <button>Approve Action</button>
-      )}
-    </div>
-  );
-};
-
-/**
- * Example 9: Loading State Handling
- * Prevent premature access decisions
- */
-export const LoadingStateExample: React.FC = () => {
-  const { can, loading } = usePermissionCheck();
-  
-  // Don't render sensitive content while loading
+  // Handle loading state
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-10 bg-gray-200 rounded mb-4"></div>
-        <div className="h-10 bg-gray-200 rounded"></div>
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Loading permissions...</span>
       </div>
     );
   }
-  
-  // Only render after permissions are loaded
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-700">
+          Failed to load permissions. Some features may not be available.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      {can(ResourceType.APPLICATION, PermissionAction.CREATE) ? (
-        <button>Create Application</button>
-      ) : (
-        <div>You don't have permission to create applications</div>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Permission Examples</h2>
+      
+      {/* Admin check */}
+      {isAdmin() && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-blue-700 font-medium">
+            🛡️ Admin Access: You have full system access
+          </p>
+        </div>
       )}
+      
+      {/* Resource-based permission checks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <PermissionCard
+          title="Create Applications"
+          hasPermission={can(ResourceType.APPLICATION, PermissionAction.CREATE)}
+          description="Ability to create new loan applications"
+        />
+        
+        <PermissionCard
+          title="Manage Users"
+          hasPermission={can(ResourceType.USER, PermissionAction.MANAGE)}
+          description="Ability to manage user accounts"
+        />
+        
+        <PermissionCard
+          title="View System Settings"
+          hasPermission={can(ResourceType.SYSTEM, PermissionAction.VIEW_ALL)}
+          description="Access to system configuration"
+        />
+      </div>
+      
+      {/* Role-based checks */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h3 className="font-medium mb-2">Role Checks</h3>
+        <div className="space-y-2">
+          <RoleIndicator role="admin" hasRole={hasRole('admin')} />
+          <RoleIndicator role="manager" hasRole={hasRole('manager')} />
+          <RoleIndicator role="officer" hasRole={hasRole('officer')} />
+        </div>
+      </div>
+      
+      {/* Named permission checks */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h3 className="font-medium mb-2">Named Permission Checks</h3>
+        <div className="space-y-2">
+          <PermissionIndicator 
+            permission="SYSTEM.VIEW_ALL" 
+            hasPermission={hasPermission('SYSTEM.VIEW_ALL')} 
+          />
+          <PermissionIndicator 
+            permission="APPLICATION.APPROVE" 
+            hasPermission={hasPermission('APPLICATION.APPROVE')} 
+          />
+        </div>
+      </div>
     </div>
   );
 };
 
 /**
- * Example 10: Custom Hook Wrapper
- * Create domain-specific permission hooks
+ * Component for displaying permission status
  */
-export const useApplicationPermissions = () => {
-  const { can, loading } = usePermissionCheck();
-  
-  return {
-    canCreateApplication: can(ResourceType.APPLICATION, PermissionAction.CREATE),
-    canViewApplication: can(ResourceType.APPLICATION, PermissionAction.READ),
-    canEditApplication: can(ResourceType.APPLICATION, PermissionAction.UPDATE),
-    canDeleteApplication: can(ResourceType.APPLICATION, PermissionAction.DELETE),
-    canApproveApplication: can(ResourceType.APPLICATION, PermissionAction.APPROVE),
-    canRejectApplication: can(ResourceType.APPLICATION, PermissionAction.REJECT),
-    loading,
-  };
-};
+interface PermissionCardProps {
+  title: string;
+  hasPermission: boolean | null;
+  description: string;
+}
 
-// Usage of custom hook
-export const CustomHookExample: React.FC = () => {
-  const {
-    canCreateApplication,
-    canApproveApplication,
-    loading,
-  } = useApplicationPermissions();
-  
-  if (loading) return <div>Loading...</div>;
-  
+const PermissionCard: React.FC<PermissionCardProps> = ({ 
+  title, 
+  hasPermission, 
+  description 
+}) => {
+  const getStatusColor = () => {
+    if (hasPermission === null) return 'border-gray-300 bg-gray-50';
+    return hasPermission ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50';
+  };
+
+  const getStatusIcon = () => {
+    if (hasPermission === null) return '⏳';
+    return hasPermission ? '✅' : '❌';
+  };
+
+  const getStatusText = () => {
+    if (hasPermission === null) return 'Checking...';
+    return hasPermission ? 'Granted' : 'Denied';
+  };
+
   return (
-    <div>
-      {canCreateApplication && <button>Create</button>}
-      {canApproveApplication && <button>Approve</button>}
+    <div className={`border rounded-lg p-4 ${getStatusColor()}`}>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-medium">{title}</h4>
+        <span className="text-lg">{getStatusIcon()}</span>
+      </div>
+      <p className="text-sm text-gray-600 mb-2">{description}</p>
+      <p className="text-sm font-medium">{getStatusText()}</p>
     </div>
   );
 };
+
+/**
+ * Component for displaying role status
+ */
+interface RoleIndicatorProps {
+  role: string;
+  hasRole: boolean | null;
+}
+
+const RoleIndicator: React.FC<RoleIndicatorProps> = ({ role, hasRole }) => {
+  const getIcon = () => {
+    if (hasRole === null) return '⏳';
+    return hasRole ? '✅' : '❌';
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <span className="capitalize">{role}</span>
+      <span>{getIcon()}</span>
+    </div>
+  );
+};
+
+/**
+ * Component for displaying named permission status
+ */
+interface PermissionIndicatorProps {
+  permission: string;
+  hasPermission: boolean | null;
+}
+
+const PermissionIndicator: React.FC<PermissionIndicatorProps> = ({ 
+  permission, 
+  hasPermission 
+}) => {
+  const getIcon = () => {
+    if (hasPermission === null) return '⏳';
+    return hasPermission ? '✅' : '❌';
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <code className="text-sm bg-white px-2 py-1 rounded">{permission}</code>
+      <span>{getIcon()}</span>
+    </div>
+  );
+};
+
+/**
+ * Example of conditional rendering based on permissions
+ */
+export const ConditionalFeature: React.FC = () => {
+  const { can, loading } = usePermissionCheck();
+
+  // Don't render anything while loading
+  if (loading) {
+    return null;
+  }
+
+  // Check permission - null means still loading, false means denied
+  const canManageUsers = can(ResourceType.USER, PermissionAction.MANAGE);
+  
+  // Don't render if permission is denied
+  if (canManageUsers === false) {
+    return null;
+  }
+
+  // Show loading state if permission check is still pending
+  if (canManageUsers === null) {
+    return <div className="animate-pulse bg-gray-200 h-8 rounded"></div>;
+  }
+
+  // Render feature if permission is granted
+  return (
+    <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+      Manage Users
+    </button>
+  );
+};
+
+/**
+ * Example of using permissions in a guard component
+ */
+interface PermissionGuardProps {
+  resource: ResourceType | string;
+  action: PermissionAction | string;
+  fallback?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+export const PermissionGuard: React.FC<PermissionGuardProps> = ({
+  resource,
+  action,
+  fallback = null,
+  children
+}) => {
+  const { can, loading } = usePermissionCheck();
+
+  // Show loading state while checking permissions
+  if (loading) {
+    return (
+      <div className="animate-pulse bg-gray-200 h-4 rounded w-full"></div>
+    );
+  }
+
+  const hasPermission = can(resource, action);
+
+  // Still checking permission
+  if (hasPermission === null) {
+    return (
+      <div className="animate-pulse bg-gray-200 h-4 rounded w-full"></div>
+    );
+  }
+
+  // Permission denied
+  if (!hasPermission) {
+    return <>{fallback}</>;
+  }
+
+  // Permission granted
+  return <>{children}</>;
+};
+
+export default PermissionAwareComponent;

@@ -399,6 +399,7 @@ export interface CustomerApplicationCreate {
   product_type?: string;
   desired_loan_term?: number;
   requested_disbursement_date?: string;
+  interest_rate?: number;
   guarantor_name?: string;
   guarantor_phone?: string;
   guarantor_id_number?: string;

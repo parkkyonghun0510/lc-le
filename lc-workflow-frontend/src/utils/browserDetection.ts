@@ -28,6 +28,16 @@ const MINIMUM_VERSIONS: MinimumVersions = {
  * Detect browser name and version from user agent
  */
 export function detectBrowser(): BrowserInfo {
+  // Return default values during SSR
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      name: 'unknown',
+      version: 0,
+      isSupported: true, // Assume supported during SSR to avoid hydration issues
+      userAgent: '',
+    };
+  }
+  
   const userAgent = navigator.userAgent;
   let name = 'unknown';
   let version = 0;

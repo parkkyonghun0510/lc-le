@@ -150,19 +150,19 @@ export default function BrowserCompatibilityDemoPage() {
           </p>
           <div className="space-y-2 font-mono text-xs">
             <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded">
-              <div className="text-gray-500 dark:text-gray-500 mb-1">// Old Chrome (unsupported)</div>
+              <div className="text-gray-500 dark:text-gray-500 mb-1">{'//'} Old Chrome (unsupported)</div>
               <code className="text-gray-900 dark:text-gray-100">
                 Object.defineProperty(navigator, 'userAgent', {'{'} value: 'Chrome/85.0', configurable: true {'}'});
               </code>
             </div>
             <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded">
-              <div className="text-gray-500 dark:text-gray-500 mb-1">// Old Firefox (unsupported)</div>
+              <div className="text-gray-500 dark:text-gray-500 mb-1">{'//'} Old Firefox (unsupported)</div>
               <code className="text-gray-900 dark:text-gray-100">
                 Object.defineProperty(navigator, 'userAgent', {'{'} value: 'Firefox/85.0', configurable: true {'}'});
               </code>
             </div>
             <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded">
-              <div className="text-gray-500 dark:text-gray-500 mb-1">// Old Safari (unsupported)</div>
+              <div className="text-gray-500 dark:text-gray-500 mb-1">{'//'} Old Safari (unsupported)</div>
               <code className="text-gray-900 dark:text-gray-100">
                 Object.defineProperty(navigator, 'userAgent', {'{'} value: 'Version/13.0 Safari', configurable: true {'}'});
               </code>

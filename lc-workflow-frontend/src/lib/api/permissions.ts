@@ -626,8 +626,8 @@ export const getAuditTrail = async (
       search: params.search,
     });
 
-    const response = await apiClient.get(`/permissions/audit${queryString}`);
-    return response.data;
+    const response = await apiClient.get<any>(`/permissions/audit${queryString}`);
+    return response;
   } catch (error) {
     return handlePermissionApiError(error, '/permissions/audit', 'GET');
   }
@@ -651,8 +651,7 @@ export const exportAuditTrailToCSV = async (
     });
 
     // Get all entries (no pagination for export)
-    const response = await apiClient.get(`/permissions/audit${queryString}&size=10000`);
-    const data = response.data;
+    const data = await apiClient.get<any>(`/permissions/audit${queryString}&size=10000`);
 
     // Convert to CSV
     const entries = data.items as import('@/types/permissions').PermissionAuditEntry[];

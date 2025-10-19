@@ -646,8 +646,9 @@ async def update_application(
             setattr(application, field, value)
         
         # Handle workflow transitions based on user role and current status
-        if current_user.role == "user" and application.workflow_status == WorkflowStatus.PO_CREATED:
-            # User completing the form details
+        # Officers and users can complete the form
+        if current_user.role in ["user", "officer"] and application.workflow_status == WorkflowStatus.PO_CREATED:
+            # User/Officer completing the form details
             application.workflow_status = WorkflowStatus.USER_COMPLETED
             application.user_completed_at = datetime.now(timezone.utc)
             application.user_completed_by = current_user.id
@@ -665,50 +666,35 @@ async def update_application(
                 
                 account_id = account_id.strip()
                 
-                # Use AccountIDService for validation
-                from app.services.account_id_service import AccountIDService
-                account_service = AccountIDService(db)
-                
-                try:
-                    # Validate and standardize the account ID
-                    validation_result = account_service.validate_and_standardize(account_id, "teller_input")
-                    
-                    if not validation_result['is_valid']:
-                        error_details = "; ".join(validation_result['validation_notes'])
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid account ID: {error_details}"
-                        )
-                    
-                    # Check uniqueness
-                    is_unique, existing_id = await account_service.check_account_id_uniqueness(
-                        validation_result['standardized'], 
-                        application.id
-                    )
-                    
-                    if not is_unique:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Account ID already exists in application {existing_id}"
-                        )
-                    
-                    # Update the account_id with standardized format
-                    update_data["account_id"] = validation_result['standardized']
-                    
-                    # Create validation notes
-                    validation_notes = f"Validated by teller {current_user.username} on {datetime.now(timezone.utc).isoformat()}"
-                    validation_notes += f" - Format: {validation_result['format']}"
-                    if validation_result.get('generated_uuid'):
-                        validation_notes += f" - Generated UUID: {validation_result['generated_uuid']}"
-                    validation_notes += f" - Notes: {'; '.join(validation_result['validation_notes'])}"
-                    
-                except Exception as e:
-                    if isinstance(e, HTTPException):
-                        raise e
+                # Basic account ID validation (simplified until AccountIDService is implemented)
+                if not account_id or len(account_id) < 1:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Account ID validation failed: {str(e)}"
+                        detail="Account ID cannot be empty"
                     )
+                
+                # Check for duplicate account_id
+                duplicate_check = await db.execute(
+                    select(CustomerApplication).where(
+                        and_(
+                            CustomerApplication.account_id == account_id,
+                            CustomerApplication.id != application.id
+                        )
+                    )
+                )
+                existing_app = duplicate_check.scalar_one_or_none()
+                
+                if existing_app:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Account ID already exists in application {existing_app.id}"
+                    )
+                
+                # Update the account_id
+                update_data["account_id"] = account_id
+                
+                # Create validation notes
+                validation_notes = f"Validated by teller {current_user.username} on {datetime.now(timezone.utc).isoformat()}"
                 
                 # Update workflow status and validation flags
                 application.workflow_status = WorkflowStatus.TELLER_PROCESSING
@@ -916,7 +902,8 @@ async def submit_application(
                 detail="Not authorized to submit this application"
             )
 
-        if application.workflow_status != WorkflowStatus.PO_CREATED:
+        # Allow submission from PO_CREATED or USER_COMPLETED status
+        if application.workflow_status not in [WorkflowStatus.PO_CREATED, WorkflowStatus.USER_COMPLETED]:
             logger.error(f"Application {application_id} in wrong status for submission: {application.workflow_status}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -924,8 +911,12 @@ async def submit_application(
             )
 
         logger.info(f"Updating application {application_id} status to submitted")
-        application.workflow_status = WorkflowStatus.USER_COMPLETED
-        application.user_completed_at = datetime.now(timezone.utc)
+        # Set workflow status to USER_COMPLETED if not already
+        if application.workflow_status == WorkflowStatus.PO_CREATED:
+            application.workflow_status = WorkflowStatus.USER_COMPLETED
+            application.user_completed_at = datetime.now(timezone.utc)
+            application.user_completed_by = current_user.id
+        
         application.status = "submitted"
         application.submitted_at = datetime.now(timezone.utc)
 

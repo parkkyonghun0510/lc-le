@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile, useApplications } from '@/hooks/useFiles';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import { File } from '@/types/models';
 import {
   DocumentIcon,
@@ -26,6 +28,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 function FilesPageContent() {
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState<string>('');
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -359,7 +362,7 @@ function FilesPageContent() {
                                 >
                                   <ArrowDownTrayIcon className="h-4 w-4" />
                                 </button>
-                                {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                                {(can(ResourceType.FILE, PermissionAction.DELETE) || file.uploaded_by === user?.id) && (
                                   <button
                                     onClick={() => handleDeleteFile(file)}
                                     className="text-red-600 hover:text-red-900 p-1"

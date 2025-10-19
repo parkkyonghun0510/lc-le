@@ -376,13 +376,13 @@ class UserRepository:
                     selectinload(User.branch),
                     selectinload(User.position),
                     selectinload(User.portfolio).options(
-                selectinload(Employee.department),
-                selectinload(Employee.branch),
-            ),
-            selectinload(User.line_manager).options(
-                selectinload(Employee.department),
-                selectinload(Employee.branch),
-            ),
+                        selectinload(Employee.department),
+                        selectinload(Employee.branch),
+                    ),
+                    selectinload(User.line_manager).options(
+                        selectinload(Employee.department),
+                        selectinload(Employee.branch),
+                    ),
                 )
                 .where(User.is_deleted == False if not include_deleted else True)
             )

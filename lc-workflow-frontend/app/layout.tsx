@@ -45,16 +45,18 @@ export default function RootLayout({
   return (
     <html lang="km">
       <head>
-
-        {/* Preconnect to improve performance */}
+        {/* Preconnect to Google Fonts for better performance */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* Preconnect to API */}
         <link rel="preconnect" href="/api" />
-
       </head>
       <body className={`${inter.variable} ${notoSansKhmer.variable} font-sans antialiased`}>
         <ClientBodyWrapper>
           <ErrorBoundaryProvider>
             <QueryProvider>
-              <ThemeProvider useBackendSettings={true}>
+              <ThemeProvider>
                 <AuthProvider>
                   <AppInitializer>
                     <ToasterClient />

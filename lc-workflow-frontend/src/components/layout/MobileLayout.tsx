@@ -36,7 +36,6 @@ interface NavItem {
     name: string;
     href: string;
     icon: React.ComponentType<{ className?: string }>;
-    requiredRoles?: string[];
     requiredPermission?: { resource: ResourceType | string; action: PermissionAction | string };
 }
 
@@ -278,17 +277,12 @@ export default function MobileLayout({
                             {/* Navigation menu items */}
                             <div className="space-y-2">
                                 {[...navigation, ...adminNavigation].map((item) => {
-                                    // Check if user has required role
-                                    const hasRequiredRole = !item.requiredRoles || 
-                                        (user?.role === 'admin') || 
-                                        (user?.role === 'manager' && item.requiredRoles.includes('manager'));
-                                    
                                     // Check if user has required permission
                                     const hasRequiredPermission = !item.requiredPermission || 
                                         permissionsLoading || 
                                         can(item.requiredPermission.resource, item.requiredPermission.action);
                                     
-                                    if (!hasRequiredRole || !hasRequiredPermission) return null;
+                                    if (!hasRequiredPermission) return null;
 
                                     return (
                                         <Link

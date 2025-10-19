@@ -4,6 +4,8 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile } from '@/hooks/useFiles';
 import { useFolders, useCreateFolder, useDeleteFolder } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import { File } from '@/types/models';
 import {
   DocumentIcon,
@@ -65,6 +67,7 @@ export default function FolderFileExplorer({
   showActions = true
 }: FolderFileExplorerProps) {
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -692,7 +695,7 @@ export default function FolderFileExplorer({
                 <ArrowDownTrayIcon className="h-4 w-4 mr-3 text-green-600 dark:text-green-400" />
                 Download
               </button>
-              {(user?.role === 'admin' || (contextMenu.item as FileItem).uploaded_by === user?.id) && (
+              {(can(ResourceType.FILE, PermissionAction.DELETE) || (contextMenu.item as FileItem).uploaded_by === user?.id) && (
                 <>
                   <hr className="my-2 border-gray-200 dark:border-gray-600" />
                   <button

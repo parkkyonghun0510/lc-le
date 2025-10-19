@@ -227,10 +227,13 @@ async def list_employees(
     """
     List employees with pagination, search, and filters.
     
-    Requires: view_employees permission (admin, manager, officer roles)
+    Requires: Authentication (all authenticated users can view employees)
     Non-admin users only see employees from their branch.
+    Regular users have read-only access for viewing portfolio officers, etc.
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "view_employees")
+    # Allow all authenticated users to view employees (read-only)
+    # This is needed for application forms to show portfolio officers
+    # check_permission(current_user, ["admin", "manager", "officer"], "view_employees")
     
     try:
         # Build base query

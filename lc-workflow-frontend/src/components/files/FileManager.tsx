@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile } from '@/hooks/useFiles';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import { File } from '@/types/models';
 import { 
   DocumentIcon, 
@@ -30,6 +32,7 @@ export default function FileManager({
   maxFiles 
 }: FileManagerProps) {
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<File | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
@@ -138,7 +141,7 @@ export default function FileManager({
                   >
                     <ArrowDownTrayIcon className="h-3 w-3" />
                   </button>
-                  {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                  {(can(ResourceType.FILE, PermissionAction.DELETE) || file.uploaded_by === user?.id) && (
                     <button
                       onClick={() => setFileToDelete(file)}
                       className="p-1.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 rounded-lg transition-colors duration-200"
@@ -248,7 +251,7 @@ export default function FileManager({
                   >
                     <ArrowDownTrayIcon className="h-4 w-4" />
                   </button>
-                  {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                  {(can(ResourceType.FILE, PermissionAction.DELETE) || file.uploaded_by === user?.id) && (
                     <button
                       onClick={() => setFileToDelete(file)}
                       className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 rounded-lg transition-colors duration-200"

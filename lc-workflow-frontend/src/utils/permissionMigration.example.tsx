@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import Link from 'next/link';
 import { usePermissionMigration, usePermissions, usePageAccess, useFeatureFlags } from '@/hooks/usePermissionMigration';
 import { useAuth } from '@/hooks/useAuth';
 import { permissionLogger, getMigrationStatus, exportMigrationReport } from '@/utils/permissionMigration';
@@ -114,11 +115,11 @@ export function Example4_FeatureFlags() {
   return (
     <nav>
       <ul>
-        <li><a href="/dashboard">Dashboard</a></li>
-        {features.showUserManagement && <li><a href="/users">Users</a></li>}
-        {features.showReports && <li><a href="/reports">Reports</a></li>}
-        {features.showAuditLog && <li><a href="/audit">Audit Log</a></li>}
-        {features.showAdminPanel && <li><a href="/admin">Admin</a></li>}
+        <li><Link href="/dashboard">Dashboard</Link></li>
+        {features.showUserManagement && <li><Link href="/users">Users</Link></li>}
+        {features.showReports && <li><Link href="/reports">Reports</Link></li>}
+        {features.showAuditLog && <li><Link href="/audit">Audit Log</Link></li>}
+        {features.showAdminPanel && <li><Link href="/admin">Admin</Link></li>}
       </ul>
     </nav>
   );

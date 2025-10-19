@@ -6,13 +6,17 @@ Includes CRUD operations, role assignments, and permission templates.
 """
 
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, UploadFile, File
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from datetime import datetime
 import logging
+import json
+import csv
+import io
 
 from app.database import get_db
 from app.models import User
@@ -25,6 +29,7 @@ from app.routers.auth import get_current_user
 from app.permission_schemas import (
     PermissionCreate, PermissionUpdate, PermissionResponse,
     RoleCreate, RoleUpdate, RoleResponse, RoleAssignmentCreate,
+    RoleFromTemplateCreate, MatrixToggleRequest, TemplateImportResponse,
     UserPermissionCreate, UserPermissionResponse,
     PermissionTemplateCreate, PermissionTemplateResponse,
     PermissionMatrixResponse, PermissionMatrixRole, PermissionMatrixPermission,
@@ -166,6 +171,66 @@ async def delete_role(
     await db.commit()
     
     return {"message": "Role deleted successfully"}
+
+
+@router.post("/roles/from-template", response_model=RoleResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.CREATE)
+async def create_role_from_template(
+    role_data: RoleFromTemplateCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create a new role from a permission template.
+    
+    This endpoint creates a role and automatically assigns all permissions
+    from the specified template to the new role.
+    """
+    permission_service = PermissionService(db)
+    
+    try:
+        role = await permission_service.create_role_from_template(
+            template_id=role_data.template_id,
+            name=role_data.name,
+            display_name=role_data.display_name,
+            description=role_data.description,
+            level=role_data.level,
+            created_by=current_user.id
+        )
+        
+        return RoleResponse.from_orm(role)
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating role from template: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create role from template")
+
+
+@router.get("/roles/standard", response_model=List[RoleResponse])
+@require_permission_or_role(
+    ResourceType.SYSTEM,
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
+async def get_standard_roles(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all standard (system) roles.
+    
+    Returns roles that are marked as system roles, which are predefined
+    roles with standard permission sets.
+    """
+    query = select(Role).where(Role.is_system_role == True).options(
+        selectinload(Role.role_permissions).selectinload(RolePermission.permission)
+    ).order_by(Role.level.desc(), Role.display_name)
+    
+    result = await db.execute(query)
+    roles = result.scalars().all()
+    
+    return [RoleResponse.from_orm(r) for r in roles]
 
 
 # ==================== ROLE-PERMISSION MANAGEMENT ====================
@@ -471,6 +536,85 @@ async def get_permission_matrix(
         )
 
 
+@router.put("/matrix/toggle")
+@require_permission(ResourceType.SYSTEM, PermissionAction.MANAGE)
+async def toggle_permission_in_matrix(
+    toggle_data: MatrixToggleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggle a permission assignment for a role in the permission matrix.
+    
+    This endpoint allows granting or revoking permissions from roles.
+    System roles cannot be modified.
+    """
+    permission_service = PermissionService(db)
+    
+    # Validate role exists
+    role = await db.get(Role, toggle_data.role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    if role.is_system_role:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot modify system role permissions"
+        )
+    
+    # Validate permission exists
+    permission = await db.get(Permission, toggle_data.permission_id)
+    if not permission:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    
+    try:
+        if toggle_data.is_granted:
+            # Grant permission to role
+            await permission_service.assign_permission_to_role(
+                role_id=toggle_data.role_id,
+                permission_id=toggle_data.permission_id,
+                granted_by=current_user.id
+            )
+            message = f"Permission {permission.name} granted to role {role.name}"
+        else:
+            # Revoke permission from role
+            stmt = select(RolePermission).where(
+                and_(
+                    RolePermission.role_id == toggle_data.role_id,
+                    RolePermission.permission_id == toggle_data.permission_id
+                )
+            )
+            result = await db.execute(stmt)
+            role_permission = result.scalar_one_or_none()
+            
+            if role_permission:
+                await db.delete(role_permission)
+                await db.commit()
+                message = f"Permission {permission.name} revoked from role {role.name}"
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Permission assignment not found"
+                )
+        
+        return {
+            "success": True,
+            "message": message,
+            "role_id": str(toggle_data.role_id),
+            "permission_id": str(toggle_data.permission_id),
+            "is_granted": toggle_data.is_granted
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error toggling permission in matrix: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to toggle permission assignment"
+        )
+
+
 # ==================== PERMISSION TEMPLATES ====================
 
 @router.get("/templates", response_model=List[PermissionTemplateResponse])
@@ -551,6 +695,92 @@ async def apply_permission_template(
         raise HTTPException(status_code=400, detail="Failed to apply template")
     
     return {"message": f"Template applied to {target_type} successfully"}
+
+
+@router.get("/templates/{template_id}/export")
+@require_permission_or_role(
+    ResourceType.SYSTEM,
+    PermissionAction.READ,
+    allowed_roles=['admin', 'super_admin']
+)
+async def export_permission_template(
+    template_id: UUID = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Export a permission template to a portable JSON format.
+    
+    The exported template can be imported into other systems or used as a backup.
+    """
+    permission_service = PermissionService(db)
+    
+    try:
+        export_data = await permission_service.export_template(template_id)
+        
+        # Return as downloadable JSON file
+        filename = f"template_{export_data['template_name'].replace(' ', '_')}.json"
+        
+        return JSONResponse(
+            content=export_data,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error exporting template: {e}")
+        raise HTTPException(status_code=500, detail="Failed to export template")
+
+
+@router.post("/templates/import", response_model=TemplateImportResponse)
+@require_permission(ResourceType.SYSTEM, PermissionAction.CREATE)
+async def import_permission_template(
+    file: UploadFile = File(...),
+    update_if_exists: bool = Query(False),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Import a permission template from a JSON file.
+    
+    The template file should be in the format exported by the export endpoint.
+    If update_if_exists is True, existing templates with the same name will be updated.
+    """
+    permission_service = PermissionService(db)
+    
+    try:
+        # Read and parse the uploaded file
+        content = await file.read()
+        template_data = json.loads(content.decode('utf-8'))
+        
+        # Import the template
+        result = await permission_service.import_template(
+            template_data=template_data,
+            imported_by=current_user.id,
+            update_if_exists=update_if_exists
+        )
+        
+        # Convert template to response format
+        template_response = PermissionTemplateResponse.from_orm(result['template'])
+        
+        return TemplateImportResponse(
+            template=template_response,
+            action=result['action'],
+            mapped_count=result['mapped_count'],
+            unmapped_count=result['unmapped_count'],
+            unmapped_permissions=result['unmapped_permissions']
+        )
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error importing template: {e}")
+        raise HTTPException(status_code=500, detail="Failed to import template")
 
 
 # ==================== TEMPLATE GENERATION ====================
@@ -1525,22 +1755,39 @@ async def get_audit_trail(
         
         # Get user name
         if entry.user_id:
-            user = await db.get(User, UUID(entry.user_id))
+            user = await db.get(User, entry.user_id)
             if user:
                 entry_dict["user_name"] = f"{user.first_name} {user.last_name}"
         
+        # Get target user name from direct field
+        if entry.target_user_id:
+            target_user = await db.get(User, entry.target_user_id)
+            if target_user:
+                entry_dict["target_user_name"] = f"{target_user.first_name} {target_user.last_name}"
+                entry_dict["target_user_id"] = str(entry.target_user_id)
+        
+        # Get role name from direct field
+        if entry.target_role_id:
+            role = await db.get(Role, entry.target_role_id)
+            if role:
+                entry_dict["role_name"] = role.name
+                entry_dict["target_role_id"] = str(entry.target_role_id)
+        
+        # Get permission name from direct field
+        if entry.permission_id:
+            permission = await db.get(Permission, entry.permission_id)
+            if permission:
+                entry_dict["permission_name"] = permission.name
+                entry_dict["permission_id"] = str(entry.permission_id)
+        
+        # Add reason from direct field
+        if entry.reason:
+            entry_dict["reason"] = entry.reason
+        
         # Extract additional info from details
         if entry.details:
-            entry_dict["permission_name"] = entry.details.get("permission_name")
-            entry_dict["role_name"] = entry.details.get("role_name")
-            entry_dict["reason"] = entry.details.get("reason")
-            entry_dict["target_user_id"] = entry.details.get("target_user_id")
-            
-            # Get target user name
-            if entry.details.get("target_user_id"):
-                target_user = await db.get(User, UUID(entry.details["target_user_id"]))
-                if target_user:
-                    entry_dict["target_user_name"] = f"{target_user.first_name} {target_user.last_name}"
+            entry_dict["permission_name"] = entry_dict.get("permission_name") or entry.details.get("permission_name")
+            entry_dict["role_name"] = entry_dict.get("role_name") or entry.details.get("role_name")
         
         enriched_entries.append(entry_dict)
     
@@ -1554,3 +1801,141 @@ async def get_audit_trail(
         "size": size,
         "pages": pages
     }
+
+
+@router.get("/audit/export")
+@require_permission_or_role(
+    ResourceType.AUDIT,
+    PermissionAction.EXPORT,
+    allowed_roles=['admin', 'super_admin']
+)
+async def export_audit_trail(
+    format: str = Query("csv", regex="^(csv|json)$"),
+    action_type: Optional[str] = Query(None),
+    entity_type: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    target_user_id: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    search: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Export audit trail to CSV or JSON format.
+    
+    Supports the same filtering options as the audit trail endpoint.
+    Returns a downloadable file in the requested format.
+    """
+    from app.services.permission_audit_service import PermissionAuditService
+    
+    audit_service = PermissionAuditService(db)
+    
+    # Get all matching entries (no pagination for export)
+    entries, total = await audit_service.get_audit_trail(
+        page=1,
+        size=10000,  # Large limit for export
+        action_type=action_type,
+        entity_type=entity_type,
+        user_id=user_id,
+        target_user_id=target_user_id,
+        start_date=start_date,
+        end_date=end_date,
+        search=search
+    )
+    
+    # Enrich entries with user and entity names
+    enriched_entries = []
+    for entry in entries:
+        entry_dict = {
+            "id": entry.id,
+            "action": entry.action,
+            "entity_type": entry.entity_type,
+            "entity_id": str(entry.entity_id) if entry.entity_id else "",
+            "user_id": str(entry.user_id) if entry.user_id else "",
+            "user_name": "",
+            "target_user_id": str(entry.target_user_id) if entry.target_user_id else "",
+            "target_user_name": "",
+            "target_role_id": str(entry.target_role_id) if entry.target_role_id else "",
+            "role_name": "",
+            "permission_id": str(entry.permission_id) if entry.permission_id else "",
+            "permission_name": "",
+            "reason": entry.reason or "",
+            "timestamp": entry.timestamp.isoformat(),
+            "ip_address": entry.ip_address or ""
+        }
+        
+        # Get user name
+        if entry.user_id:
+            user = await db.get(User, entry.user_id)
+            if user:
+                entry_dict["user_name"] = f"{user.first_name} {user.last_name}"
+        
+        # Get target user name
+        if entry.target_user_id:
+            target_user = await db.get(User, entry.target_user_id)
+            if target_user:
+                entry_dict["target_user_name"] = f"{target_user.first_name} {target_user.last_name}"
+        
+        # Get role name
+        if entry.target_role_id:
+            role = await db.get(Role, entry.target_role_id)
+            if role:
+                entry_dict["role_name"] = role.name
+        
+        # Get permission name
+        if entry.permission_id:
+            permission = await db.get(Permission, entry.permission_id)
+            if permission:
+                entry_dict["permission_name"] = permission.name
+        
+        enriched_entries.append(entry_dict)
+    
+    if format == "csv":
+        # Generate CSV
+        output = io.StringIO()
+        if enriched_entries:
+            fieldnames = [
+                "id", "timestamp", "action", "entity_type", "entity_id",
+                "user_id", "user_name", "target_user_id", "target_user_name",
+                "target_role_id", "role_name", "permission_id", "permission_name",
+                "reason", "ip_address"
+            ]
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(enriched_entries)
+        
+        # Create streaming response
+        output.seek(0)
+        filename = f"audit_trail_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    else:
+        # Return JSON
+        filename = f"audit_trail_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        return JSONResponse(
+            content={
+                "export_date": datetime.utcnow().isoformat(),
+                "total_entries": len(enriched_entries),
+                "filters": {
+                    "action_type": action_type,
+                    "entity_type": entity_type,
+                    "user_id": user_id,
+                    "target_user_id": target_user_id,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None,
+                    "search": search
+                },
+                "entries": enriched_entries
+            },
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )

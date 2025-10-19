@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthContext } from '@/providers/AuthProvider';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { useUpdateProfile, useChangePassword } from '@/hooks/useUsers';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
@@ -15,6 +16,7 @@ import { getInitials } from '@/components/users/OptimizedAvatar';
 
 export default function ProfilePage() {
   const { user } = useAuthContext();
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const updateProfile = useUpdateProfile(user?.id || '');
   const changePassword = useChangePassword();
 
@@ -187,7 +189,8 @@ export default function ProfilePage() {
     });
   };
 
-  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+  // Check if user can manage users (replaces admin/manager role check)
+  const canManageUsers = can('user', 'manage');
 
   if (!user) {
     return (
@@ -399,7 +402,7 @@ export default function ProfilePage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Role */}
-                      {isAdminOrManager && (
+                      {canManageUsers && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Role

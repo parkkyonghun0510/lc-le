@@ -262,12 +262,12 @@ function ApplicationRelationshipContent({
 
       {/* Workflow Actions */}
       {userRole && (
-        <div className="mb-8">
+        <div className="mb-8 bg-white rounded-lg shadow-sm border p-6">
           <WorkflowActions 
             applicationId={application.id}
-            currentStatus={application.workflow_status}
+            workflowStatus={application.workflow_status}
+            status={application.status}
             userRole={userRole}
-            className="bg-white rounded-lg shadow-sm border p-6"
           />
         </div>
       )}

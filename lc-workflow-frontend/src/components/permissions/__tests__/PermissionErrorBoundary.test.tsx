@@ -296,8 +296,8 @@ describe('PermissionErrorBoundary', () => {
   });
 
   describe('Error Logging', () => {
-    it('should log errors with proper context', () => {
-      const { logger } = require('@/lib/logger');
+    it('should log errors with proper context', async () => {
+      const { logger } = await import('@/lib/logger');
       const permissionError = new PermissionError('Access denied');
 
       render(

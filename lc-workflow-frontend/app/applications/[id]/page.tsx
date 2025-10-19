@@ -11,6 +11,7 @@ import type { File as ApiFile } from '@/types/models';
 import FilePreview from '@/components/files/FilePreview';
 import ImageThumbnail from '@/components/files/ImageThumbnail';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -111,6 +112,7 @@ function ApplicationDetailContent() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const formatCurrencyWithConversion = useFormatCurrency();
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');

@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile, useCustomers, useApplicationsByCustomer, useApplications, useCustomerApplications, useApplicationFiles, useFileThumbnail } from '@/hooks/useFiles';
 import { useFolders } from '@/hooks/useFolders';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import { File, User, CustomerApplication } from '@/types/models';
 import {
   FolderIcon,
@@ -75,6 +77,7 @@ export default function CustomerFileExplorer({
   showActions = true
 }: CustomerFileExplorerProps) {
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -724,7 +727,7 @@ export default function CustomerFileExplorer({
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
                       </button>
-                      {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                      {(can(ResourceType.FILE, PermissionAction.DELETE) || file.uploaded_by === user?.id) && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

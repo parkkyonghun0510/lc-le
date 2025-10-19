@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { FunctionalSettingsForm } from '@/components/settings/FunctionalSettingsForm';
 import { useInitializeSettings } from '@/hooks/useSettings';
 import {
@@ -75,16 +76,20 @@ const settingSections: SettingSection[] = [
 
 export default function ImprovedSettingsPage() {
     const { user } = useAuth();
+    const { can, loading: permissionsLoading } = usePermissionCheck();
     const [activeSection, setActiveSection] = useState('general');
     const initializeMutation = useInitializeSettings();
 
-    // Check if user is admin
-    const isAdmin = user?.role === 'admin';
+    // Check if user has system management permission (replaces admin role check)
+    const canManageSystem = can('system', 'manage');
 
-    // Filter sections based on user role
-    const availableSections = settingSections.filter(section =>
-        !section.adminOnly || isAdmin
-    );
+    // Filter sections based on user permissions
+    const availableSections = settingSections.filter(section => {
+        if (!section.adminOnly) return true;
+        // While permissions are loading, show sections to avoid flickering
+        if (permissionsLoading) return true;
+        return canManageSystem;
+    });
 
     const activeSettingSection = availableSections.find(s => s.id === activeSection);
 
@@ -141,7 +146,7 @@ export default function ImprovedSettingsPage() {
                                 </div>
                             </div>
                             
-                            {isAdmin && (
+                            {canManageSystem && (
                                 <button
                                     onClick={handleInitializeSettings}
                                     disabled={initializeMutation.isPending}

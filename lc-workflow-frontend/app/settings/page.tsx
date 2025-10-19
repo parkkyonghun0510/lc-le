@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { 
   useSettings, 
   useBulkUpdateSettings, 
@@ -14,7 +15,7 @@ import {
   useApplicationSettings,
   useNotificationSettings
 } from '@/hooks/useSettings';
-import { ThemeSettings } from '@/components/settings/ThemeSettings';
+// ThemeSettings component removed - theme API calls eliminated
 
 import {
     Cog6ToothIcon,
@@ -109,6 +110,7 @@ const settingSections: SettingSection[] = [
 
 export default function SettingsPage() {
     const { user } = useAuth();
+    const { can, loading: permissionsLoading } = usePermissionCheck();
     const [activeSection, setActiveSection] = useState('general');
     const [hasInitialized, setHasInitialized] = useState(false);
 
@@ -132,13 +134,16 @@ export default function SettingsPage() {
         }
     }, [settingsLoading, allSettings, hasInitialized, initializeMutation]);
 
-    // Check if user is admin
-    const isAdmin = user?.role === 'admin';
+    // Check if user has system management permission (replaces admin role check)
+    const canManageSystem = can('system', 'manage');
 
-    // Filter sections based on user role
-    const availableSections = settingSections.filter(section =>
-        !section.adminOnly || isAdmin
-    );
+    // Filter sections based on user permissions
+    const availableSections = settingSections.filter(section => {
+        if (!section.adminOnly) return true;
+        // While permissions are loading, show sections to avoid flickering
+        if (permissionsLoading) return true;
+        return canManageSystem;
+    });
 
     const renderSettingContent = () => {
         switch (activeSection) {
@@ -156,7 +161,7 @@ export default function SettingsPage() {
             case 'notifications':
                 return <NotificationSettings />;
             case 'theme':
-                return <ThemeSettings />;
+                return <ThemeSettingsPlaceholder />;
             case 'backup':
                 return <BackupSettings />;
             case 'analytics':
@@ -567,6 +572,34 @@ function ApplicationSettings() {
                     <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                         Save Changes
                     </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ThemeSettingsPlaceholder() {
+    return (
+        <div className="p-6">
+            <div className="mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Theme & Appearance</h3>
+                <p className="text-gray-600">Theme settings have been simplified to use local storage only.</p>
+            </div>
+
+            <div className="space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-2">
+                        <CircleStackIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div>
+                            <div className="text-sm font-medium text-blue-800 mb-1">
+                                Theme Management
+                            </div>
+                            <div className="text-sm text-blue-700">
+                                Theme preferences (light/dark/system) are now managed locally in your browser. 
+                                Use the theme toggle in the navigation bar to switch themes.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

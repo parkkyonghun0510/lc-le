@@ -18,6 +18,7 @@ import {
 import { useNotificationSummary, useTestNotificationSystem, useSendOnboardingReminders, useSendWelcomeNotification, useSendRealTimeNotification, useBroadcastNotification, useRealTimeNotifications } from '@/hooks/useNotifications';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import NotificationSender from './NotificationSender';
 import { Button } from '@/components/ui';
 import toast from 'react-hot-toast';
@@ -34,12 +35,16 @@ export default function NotificationManagement({ className = '' }: NotificationM
   const { data: summary, isLoading: summaryLoading } = useNotificationSummary();
   const { data: usersData } = useUsers({ size: 100 });
   const { user } = useAuth();
+  const { can, loading: permissionsLoading } = usePermissionCheck();
   const testNotification = useTestNotificationSystem();
   const sendOnboardingReminders = useSendOnboardingReminders();
   const sendWelcomeNotification = useSendWelcomeNotification();
   const sendRealTimeNotification = useSendRealTimeNotification();
   const broadcastNotification = useBroadcastNotification();
   const { isConnected: isWebSocketConnected } = useRealTimeNotifications();
+  
+  // Check if user can manage notifications (replaces admin/manager role check)
+  const canManageNotifications = can('notification', 'manage');
 
   const handleTestNotification = async () => {
     try {
@@ -116,7 +121,7 @@ export default function NotificationManagement({ className = '' }: NotificationM
             <p className="text-gray-600">Manage system notifications and user communications</p>
           </div>
         </div>
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        {canManageNotifications && (
           <Button 
             className="flex items-center space-x-2"
             onClick={() => setShowNotificationSender(true)}

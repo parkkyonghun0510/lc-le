@@ -239,6 +239,7 @@ const NewApplicationPage = () => {
             requested_disbursement_date: formValues.requested_disbursement_date,
             loan_purposes: formValues.loan_purposes,
             purpose_details: formValues.purpose_details,
+            interest_rate: formValues.interest_rate,
           },
         });
         toast.success('Loan information saved');
@@ -256,6 +257,13 @@ const NewApplicationPage = () => {
           data: {
             guarantor_name: formValues.guarantor_name,
             guarantor_phone: formValues.guarantor_phone,
+            guarantor_id_number: formValues.guarantor_id_number,
+            guarantor_address: formValues.guarantor_address,
+            guarantor_relationship: formValues.guarantor_relationship,
+            // Include required fields from previous steps
+            requested_amount: parseFloat(formValues.requested_amount),
+            product_type: formValues.product_type,
+            loan_purposes: formValues.loan_purposes,
           },
         });
         toast.success('Guarantor information saved');

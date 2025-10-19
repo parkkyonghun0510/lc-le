@@ -12,9 +12,8 @@ from datetime import datetime
 from uuid import UUID
 import logging
 
-from app.models.audit import AuditLog, AuditEventType
 from app.models import User
-from app.models.permissions import Permission, Role
+from app.models.permissions import Permission, Role, PermissionAuditTrail
 
 logger = logging.getLogger(__name__)
 
@@ -324,7 +323,7 @@ class PermissionAuditService:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         search: Optional[str] = None
-    ) -> tuple[List[AuditLog], int]:
+    ) -> tuple[List[PermissionAuditTrail], int]:
         """
         Retrieve audit trail entries with filtering and pagination.
         
@@ -332,37 +331,36 @@ class PermissionAuditService:
             Tuple of (audit_entries, total_count)
         """
         # Build base query
-        query = select(AuditLog)
-        count_query = select(func.count(AuditLog.id))
+        query = select(PermissionAuditTrail)
+        count_query = select(func.count(PermissionAuditTrail.id))
         
         # Apply filters
         filters = []
         
         if action_type:
-            filters.append(AuditLog.action == action_type)
+            filters.append(PermissionAuditTrail.action == action_type)
         
         if entity_type:
-            filters.append(AuditLog.entity_type == entity_type)
+            filters.append(PermissionAuditTrail.entity_type == entity_type)
         
         if user_id:
-            filters.append(AuditLog.user_id == str(user_id))
+            filters.append(PermissionAuditTrail.user_id == UUID(user_id))
         
         if target_user_id:
-            # Search in details JSON for target_user_id
-            filters.append(AuditLog.details['target_user_id'].astext == str(target_user_id))
+            filters.append(PermissionAuditTrail.target_user_id == UUID(target_user_id))
         
         if start_date:
-            filters.append(AuditLog.timestamp >= start_date)
+            filters.append(PermissionAuditTrail.timestamp >= start_date)
         
         if end_date:
-            filters.append(AuditLog.timestamp <= end_date)
+            filters.append(PermissionAuditTrail.timestamp <= end_date)
         
         if search:
             # Search in action, entity_type, and details
             search_filter = or_(
-                AuditLog.action.ilike(f"%{search}%"),
-                AuditLog.entity_type.ilike(f"%{search}%"),
-                AuditLog.details.astext.ilike(f"%{search}%")
+                PermissionAuditTrail.action.ilike(f"%{search}%"),
+                PermissionAuditTrail.entity_type.ilike(f"%{search}%"),
+                PermissionAuditTrail.details.astext.ilike(f"%{search}%")
             )
             filters.append(search_filter)
         
@@ -375,7 +373,7 @@ class PermissionAuditService:
         total = count_result.scalar() or 0
         
         # Apply pagination and ordering
-        query = query.order_by(desc(AuditLog.timestamp))
+        query = query.order_by(desc(PermissionAuditTrail.timestamp))
         query = query.offset((page - 1) * size).limit(size)
         
         # Execute query
@@ -395,13 +393,52 @@ class PermissionAuditService:
     ):
         """Create an audit log entry."""
         try:
-            audit_entry = AuditLog(
-                event_type=AuditEventType.ACCESS,  # Using ACCESS as general category
+            # Extract specific IDs from details if available
+            target_user_id = None
+            target_role_id = None
+            permission_id = None
+            reason = None
+            
+            if details:
+                if 'target_user_id' in details:
+                    try:
+                        target_user_id = UUID(details['target_user_id'])
+                    except (ValueError, TypeError):
+                        pass
+                
+                if 'role_id' in details:
+                    try:
+                        target_role_id = UUID(details['role_id'])
+                    except (ValueError, TypeError):
+                        pass
+                
+                if 'permission_id' in details:
+                    try:
+                        permission_id = UUID(details['permission_id'])
+                    except (ValueError, TypeError):
+                        pass
+                
+                reason = details.get('reason')
+            
+            # Convert entity_id to UUID if it's a valid UUID string
+            entity_uuid = None
+            if entity_id:
+                try:
+                    entity_uuid = UUID(entity_id)
+                except (ValueError, TypeError):
+                    # If it's not a valid UUID, leave it as None
+                    pass
+            
+            audit_entry = PermissionAuditTrail(
                 action=action,
                 entity_type=entity_type,
-                entity_id=entity_id,
-                user_id=user_id,
+                entity_id=entity_uuid,
+                user_id=UUID(user_id),
+                target_user_id=target_user_id,
+                target_role_id=target_role_id,
+                permission_id=permission_id,
                 details=details,
+                reason=reason,
                 ip_address=ip_address,
                 timestamp=datetime.utcnow()
             )

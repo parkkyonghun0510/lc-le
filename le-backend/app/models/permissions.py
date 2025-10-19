@@ -5,8 +5,8 @@ This module defines the models for implementing a flexible, role-based
 permission system with resource-level access control and permission inheritance.
 """
 
-from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Integer, JSON, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy import Column, String, DateTime, Text, Boolean, ForeignKey, Integer, JSON, UniqueConstraint, BigInteger
+from sqlalchemy.dialects.postgresql import UUID, ENUM, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -309,3 +309,40 @@ class PermissionTemplate(Base):
     
     def __repr__(self):
         return f"<PermissionTemplate(name='{self.name}', type='{self.template_type}')>"
+
+
+class PermissionAuditTrail(Base):
+    """
+    Audit trail for all permission-related changes.
+    
+    Tracks all permission, role, and template changes for compliance and security.
+    """
+    __tablename__ = "permission_audit_trail"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    action = Column(String(50), nullable=False, comment="Action performed (e.g., 'role_created', 'permission_granted')")
+    entity_type = Column(String(50), nullable=False, comment="Type of entity affected (e.g., 'role', 'permission', 'user')")
+    entity_id = Column(UUID(as_uuid=True), nullable=True, comment="ID of the affected entity")
+    
+    # User tracking
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True, comment="User who performed the action")
+    target_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True, comment="User affected by the action")
+    target_role_id = Column(UUID(as_uuid=True), ForeignKey('roles.id', ondelete='SET NULL'), nullable=True, comment="Role affected by the action")
+    permission_id = Column(UUID(as_uuid=True), ForeignKey('permissions.id', ondelete='SET NULL'), nullable=True, comment="Permission affected by the action")
+    
+    # Change details
+    details = Column(JSONB, nullable=True, comment="Additional details about the change (before/after values)")
+    reason = Column(Text, nullable=True, comment="Reason for the change")
+    ip_address = Column(String(45), nullable=True, comment="IP address of the requester")
+    
+    # Timestamp
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    target_user = relationship("User", foreign_keys=[target_user_id])
+    target_role = relationship("Role", foreign_keys=[target_role_id])
+    permission = relationship("Permission", foreign_keys=[permission_id])
+    
+    def __repr__(self):
+        return f"<PermissionAuditTrail(action='{self.action}', entity_type='{self.entity_type}', timestamp='{self.timestamp}')>"

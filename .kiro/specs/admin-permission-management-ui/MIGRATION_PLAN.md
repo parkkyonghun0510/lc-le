@@ -1,5 +1,7 @@
 # Migration Plan: Role-Based to Permission-Based Access Control
 
+> **📖 Developer Migration Guide:** For detailed step-by-step migration instructions, examples, and API reference, see [`lc-workflow-frontend/PERMISSION_MIGRATION_GUIDE.md`](../../lc-workflow-frontend/PERMISSION_MIGRATION_GUIDE.md)
+
 ## Current State Analysis
 
 ### Authentication Structure
@@ -158,11 +160,20 @@ if (hasRole('admin')) {
   - Update any remaining components using role checks
   - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
 
-- [ ] 11.6 Remove deprecated role-based checks
-  - Remove `useRole()` hook or mark as deprecated
-  - Update AuthProvider to remove role-specific flags
-  - Clean up any remaining role-based checks
-  - Update documentation to reflect permission-based approach
+- [x] 11.5 Remove deprecated role-based infrastructure (COMPLETED)
+  - ✅ Deprecated `useRole()` hook with console warnings
+  - ✅ Added deprecation warnings to AuthProvider role flags
+  - ✅ Updated TypeScript interfaces with @deprecated JSDoc tags
+  - ✅ Created comprehensive PERMISSION_MIGRATION_GUIDE.md
+  - ✅ Updated documentation to reflect permission-based approach
+  - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
+
+- [ ] 11.6 Final cleanup and verification
+  - Search codebase for any remaining `user?.role` or `user.role` checks
+  - Search for any remaining useRole() usage
+  - Verify all pages and components use usePermissionCheck
+  - Run full application test to ensure no broken functionality
+  - Update all relevant documentation
   - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
 
 ## Permission Mapping Guide

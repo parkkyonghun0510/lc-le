@@ -5,7 +5,7 @@ A modern, responsive web application for managing loan applications and customer
 ## Features
 
 - **User Authentication**: Secure login with JWT tokens and automatic token refresh
-- **Role-Based Access Control**: Different permissions for admin, manager, and officer roles
+- **Permission-Based Access Control**: Fine-grained RBAC system with roles, permissions, and scopes (see [PERMISSION_MIGRATION_GUIDE.md](./PERMISSION_MIGRATION_GUIDE.md))
 - **Application Management**: Create, view, edit, and track loan applications
 - **User Management**: Admin interface for managing system users
 - **Department & Branch Management**: Organize users by department and branch
@@ -156,7 +156,56 @@ NEXT_PUBLIC_APP_NAME=LC Workflow
 2. Add API methods in `src/lib/api.ts`
 3. Create React Query hooks in `src/hooks/`
 4. Build UI components in `src/components/`
-5. Add routes in `src/app/
+5. Add routes in `src/app/`
+
+### Permission System
+
+The application uses a comprehensive fine-grained permission-based access control (RBAC) system with roles, permissions, and scopes.
+
+**Migration Status**: 🟢 **85% Complete** - Core infrastructure and most pages migrated
+
+⚠️ **Deprecated APIs (DO NOT USE):**
+- `useRole()` hook is deprecated - use `usePermissionCheck()` instead
+- `isAdmin`, `isManager`, `isOfficer` from AuthContext are deprecated
+- Direct `user?.role` or `user.role` checks for authorization are deprecated
+
+✅ **Use the new permission system:**
+
+```typescript
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+
+function MyComponent() {
+  const { can, hasRole, isAdmin } = usePermissionCheck();
+  
+  // Check specific permission with scope
+  if (can('application', 'approve', 'department')) {
+    // User can approve applications at department level
+  }
+  
+  // Check if user has admin role
+  if (isAdmin()) {
+    // User is an admin
+  }
+  
+  // Check any role
+  if (hasRole('manager')) {
+    // User has manager role
+  }
+}
+```
+
+**📖 Documentation:**
+- [PERMISSION_MIGRATION_GUIDE.md](./PERMISSION_MIGRATION_GUIDE.md) - Complete migration guide with examples
+- [FINAL_MIGRATION_STATUS.md](../FINAL_MIGRATION_STATUS.md) - Current migration status and remaining work
+- [TASK_11.6_FINAL_CLEANUP_VERIFICATION.md](../TASK_11.6_FINAL_CLEANUP_VERIFICATION.md) - Detailed verification report
+
+**✅ Migrated Pages:**
+- Dashboard, Applications, Users, Branches, Departments, Files
+
+**⚠️ Pages Still Using Old System:**
+- Settings, Profile, Employee Workload, Admin Migration, Notifications, Mobile Layout
+
+**Note:** Display-only usage of `user.role` (e.g., showing role badges) is acceptable and does not affect security.
 
 ### Theme Integration
 

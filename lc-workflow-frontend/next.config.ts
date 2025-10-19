@@ -155,15 +155,15 @@ const nextConfig: NextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
-          // Content Security Policy - configured for Next.js
+          // Content Security Policy - configured for Next.js with Google Fonts
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
               "connect-src 'self' http://localhost:8090 https://localhost:8090 ws://localhost:8090 wss://localhost:8090 https://*.railway.app wss://*.railway.app https://*.railway.internal wss://*.railway.internal",
               "frame-ancestors 'none'",
               "base-uri 'self'",

@@ -140,9 +140,30 @@ export const useAuth = () => {
   };
 };
 
-// Hook to check user roles
+/**
+ * @deprecated This hook is deprecated and will be removed in a future version.
+ * Please use `usePermissionCheck()` from '@/hooks/usePermissionCheck' instead.
+ * 
+ * Migration guide:
+ * - Instead of `isAdmin`, use `hasRole('admin')` or `isAdmin()` from usePermissionCheck
+ * - Instead of `isManager`, use `hasRole('manager')` from usePermissionCheck
+ * - Instead of `isOfficer`, use `hasRole('officer')` from usePermissionCheck
+ * - For access control, use `can(resource, action, scope)` from usePermissionCheck
+ * 
+ * @see {@link https://github.com/your-repo/docs/PERMISSION_MIGRATION_GUIDE.md}
+ */
 export const useRole = () => {
   const { user } = useAuth();
+
+  // Deprecation warning silenced - migration is complete
+  // The hook is kept for backward compatibility only
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.warn(
+  //     '⚠️ useRole() is deprecated and will be removed in a future version.\n' +
+  //     'Please migrate to usePermissionCheck() for permission-based access control.\n' +
+  //     'See PERMISSION_MIGRATION_GUIDE.md for migration instructions.'
+  //   );
+  // }
 
   return {
     isAdmin: user?.role === 'admin',

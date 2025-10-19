@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import PermissionErrorBoundary, { PermissionErrorDisplay } from './PermissionErrorBoundary';
+import { PermissionErrorBoundary } from './PermissionErrorBoundary';
 import { PermissionError, ApiError, NetworkError } from '@/lib/api/permissionErrors';
 import { Button } from '@/components/ui';
 
@@ -145,7 +145,7 @@ export const CustomFallbackExample: React.FC = () => {
 
       <PermissionErrorBoundary 
         context="CustomFallbackExample"
-        fallback={CustomErrorFallback}
+        fallback={<CustomErrorFallback error={new Error('Custom error')} resetError={() => setHasError(false)} />}
       >
         <ErrorThrower errorType={hasError ? 'permission' : ''} />
       </PermissionErrorBoundary>
@@ -183,10 +183,17 @@ export const InlineErrorExample: React.FC = () => {
       </div>
 
       {showError && (
-        <PermissionErrorDisplay 
-          error={permissionError}
-          onRetry={() => setShowError(false)}
-        />
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 font-semibold">{permissionError.message}</p>
+          <Button 
+            onClick={() => setShowError(false)}
+            variant="secondary"
+            size="sm"
+            className="mt-2"
+          >
+            Dismiss
+          </Button>
+        </div>
       )}
     </div>
   );

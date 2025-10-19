@@ -3,6 +3,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile } from '@/hooks/useFiles';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import { File } from '@/types/models';
 import {
   DocumentIcon,
@@ -48,6 +50,7 @@ export default function AdvancedFileExplorer({
   showActions = true
 }: AdvancedFileExplorerProps) {
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [viewMode, setViewMode] = useState<ViewMode>('details');
@@ -515,7 +518,7 @@ export default function AdvancedFileExplorer({
             <ArrowDownTrayIcon className="h-4 w-4 mr-3" />
             Download
           </button>
-          {(user?.role === 'admin' || contextMenu.file.uploaded_by === user?.id) && (
+          {(can(ResourceType.FILE, PermissionAction.DELETE) || contextMenu.file.uploaded_by === user?.id) && (
             <>
               <hr className="my-2 border-gray-200 dark:border-gray-600" />
               <button

@@ -617,6 +617,7 @@ function UserPermissionManagement() {
                           onClick={() => handleSelectUser(user)}
                           className="w-full text-left p-4 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-indigo-50 focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                           role="option"
+                          aria-selected={false}
                           aria-label={`Select ${user.first_name} ${user.last_name}, ${user.role}, ${user.email}`}
                         >
                           <div className="flex items-center justify-between">

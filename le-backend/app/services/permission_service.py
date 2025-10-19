@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 from uuid import UUID
+from datetime import datetime
 import logging
 from functools import wraps
 from fastapi import HTTPException
@@ -318,6 +319,70 @@ class PermissionService:
         logger.info(f"Created role: {name} (level {level})")
         return role
     
+    async def create_role_from_template(
+        self,
+        template_id: UUID,
+        name: str,
+        display_name: str,
+        description: str,
+        level: int = 0,
+        created_by: Optional[UUID] = None
+    ) -> Role:
+        """
+        Create a new role from a permission template.
+        
+        Args:
+            template_id: ID of the template to use
+            name: Name for the new role
+            display_name: Display name for the new role
+            description: Description for the new role
+            level: Hierarchy level for the new role
+            created_by: User ID who is creating the role
+            
+        Returns:
+            The created role with all permissions from the template assigned
+            
+        Raises:
+            ValueError: If template doesn't exist or is not active
+        """
+        # Load and validate template
+        template = await self.db.get(PermissionTemplate, template_id)
+        if not template:
+            raise ValueError(f"Template with ID {template_id} not found")
+        
+        if not template.is_active:
+            raise ValueError(f"Template {template.name} is not active")
+        
+        # Create the role using existing method
+        role = await self.create_role(
+            name=name,
+            display_name=display_name,
+            description=description,
+            level=level,
+            created_by=created_by
+        )
+        
+        # Assign all permissions from template to the new role
+        for permission_id_str in template.permissions:
+            try:
+                permission_id = UUID(permission_id_str)
+                await self.assign_permission_to_role(
+                    role_id=role.id,
+                    permission_id=permission_id,
+                    granted_by=created_by or role.id
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to assign permission {permission_id_str} to role {role.id}: {e}"
+                )
+        
+        logger.info(
+            f"Created role {name} from template {template.name} "
+            f"with {len(template.permissions)} permissions"
+        )
+        
+        return role
+    
     async def create_permission(
         self,
         name: str,
@@ -384,6 +449,162 @@ class PermissionService:
             return await self._apply_template_to_user(template, target_id, applied_by)
         
         return False
+    
+    async def export_template(self, template_id: UUID) -> Dict[str, Any]:
+        """
+        Export a permission template to a portable JSON format.
+        
+        Args:
+            template_id: ID of the template to export
+            
+        Returns:
+            Dictionary containing template metadata and permissions in portable format
+            
+        Raises:
+            ValueError: If template doesn't exist
+        """
+        # Load template
+        template = await self.db.get(PermissionTemplate, template_id)
+        if not template:
+            raise ValueError(f"Template with ID {template_id} not found")
+        
+        # Load all permissions for this template
+        permission_ids = [UUID(pid) for pid in template.permissions]
+        stmt = select(Permission).where(Permission.id.in_(permission_ids))
+        result = await self.db.execute(stmt)
+        permissions = result.scalars().all()
+        
+        # Convert permissions to portable format (resource_type.action.scope)
+        portable_permissions = []
+        for perm in permissions:
+            portable_format = {
+                "resource_type": perm.resource_type.value,
+                "action": perm.action.value,
+                "scope": perm.scope.value if perm.scope else None,
+                "name": perm.name,
+                "description": perm.description
+            }
+            portable_permissions.append(portable_format)
+        
+        # Generate export structure
+        export_data = {
+            "template_name": template.name,
+            "template_description": template.description,
+            "template_type": template.template_type,
+            "version": "1.0",
+            "exported_at": datetime.utcnow().isoformat(),
+            "permissions": portable_permissions,
+            "default_conditions": template.default_conditions
+        }
+        
+        logger.info(f"Exported template {template.name} with {len(portable_permissions)} permissions")
+        return export_data
+    
+    async def import_template(
+        self,
+        template_data: Dict[str, Any],
+        imported_by: UUID,
+        update_if_exists: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Import a permission template from portable JSON format.
+        
+        Args:
+            template_data: Dictionary containing template data
+            imported_by: User ID who is importing the template
+            update_if_exists: If True, update existing template with same name
+            
+        Returns:
+            Dictionary with import results including created template and any unmapped permissions
+            
+        Raises:
+            ValueError: If template data is invalid
+        """
+        # Validate required fields
+        required_fields = ["template_name", "template_description", "permissions"]
+        for field in required_fields:
+            if field not in template_data:
+                raise ValueError(f"Missing required field: {field}")
+        
+        # Map permissions from portable format to IDs
+        mapped_permission_ids = []
+        unmapped_permissions = []
+        
+        for perm_data in template_data["permissions"]:
+            try:
+                # Query permission by resource_type, action, and scope
+                stmt = select(Permission).where(
+                    and_(
+                        Permission.resource_type == ResourceType(perm_data["resource_type"]),
+                        Permission.action == PermissionAction(perm_data["action"])
+                    )
+                )
+                
+                # Add scope filter if present
+                if perm_data.get("scope"):
+                    stmt = stmt.where(Permission.scope == PermissionScope(perm_data["scope"]))
+                
+                result = await self.db.execute(stmt)
+                permission = result.scalar_one_or_none()
+                
+                if permission:
+                    mapped_permission_ids.append(str(permission.id))
+                else:
+                    unmapped_permissions.append(perm_data)
+                    
+            except Exception as e:
+                logger.warning(f"Failed to map permission {perm_data}: {e}")
+                unmapped_permissions.append(perm_data)
+        
+        # Check if template with same name exists
+        template_name = template_data["template_name"]
+        stmt = select(PermissionTemplate).where(PermissionTemplate.name == template_name)
+        result = await self.db.execute(stmt)
+        existing_template = result.scalar_one_or_none()
+        
+        if existing_template and update_if_exists:
+            # Update existing template
+            existing_template.description = template_data["template_description"]
+            existing_template.permissions = mapped_permission_ids
+            existing_template.default_conditions = template_data.get("default_conditions")
+            await self.db.commit()
+            await self.db.refresh(existing_template)
+            
+            logger.info(f"Updated template {template_name} with {len(mapped_permission_ids)} permissions")
+            
+            return {
+                "template": existing_template,
+                "action": "updated",
+                "mapped_count": len(mapped_permission_ids),
+                "unmapped_count": len(unmapped_permissions),
+                "unmapped_permissions": unmapped_permissions
+            }
+        elif existing_template and not update_if_exists:
+            raise ValueError(f"Template with name '{template_name}' already exists")
+        else:
+            # Create new template
+            new_template = PermissionTemplate(
+                name=template_name,
+                description=template_data["template_description"],
+                template_type=template_data.get("template_type", "imported"),
+                permissions=mapped_permission_ids,
+                default_conditions=template_data.get("default_conditions"),
+                created_by=imported_by
+            )
+            
+            self.db.add(new_template)
+            await self.db.commit()
+            await self.db.refresh(new_template)
+            
+            logger.info(f"Created template {template_name} with {len(mapped_permission_ids)} permissions")
+            
+            return {
+                "template": new_template,
+                "action": "created",
+                "mapped_count": len(mapped_permission_ids),
+                "unmapped_count": len(unmapped_permissions),
+                "unmapped_permissions": unmapped_permissions
+            }
     
     # ==================== PRIVATE HELPER METHODS ====================
     

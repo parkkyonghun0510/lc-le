@@ -39,7 +39,7 @@ export default function BulkRoleOperationsModal({
       const roleIds = selectedRoles.map(r => r.id);
       
       let endpoint = '';
-      let body: any = { role_ids: roleIds };
+      const body: any = { role_ids: roleIds };
 
       switch (operation) {
         case 'activate':

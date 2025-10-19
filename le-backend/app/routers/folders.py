@@ -396,18 +396,11 @@ async def create_folder(
         )
         
         db.add(new_folder)
-
-        
-        await db.flush()
-
-
-        await db.refresh(new_folder)
-        await db.refresh(new_folder)
-
         await db.commit()
-
+        await db.refresh(new_folder)
+        
         logger.info(f"Created new folder: {new_folder.name} for application {folder_data.application_id}")
-
+        
         return FolderResponse.from_orm(new_folder)
         
     except Exception as e:

@@ -59,7 +59,17 @@ class RoleBase(BaseSchema):
 
 class RoleCreate(RoleBase):
     """Schema for creating a role."""
-    pass
+    display_name: str = Field(..., min_length=1, max_length=100)
+    level: int = Field(0, ge=0, le=100)
+
+
+class RoleFromTemplateCreate(BaseSchema):
+    """Schema for creating a role from a template."""
+    template_id: UUID
+    name: str = Field(..., min_length=1, max_length=100)
+    display_name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(..., min_length=1, max_length=500)
+    level: int = Field(0, ge=0, le=100)
 
 
 class RoleUpdate(BaseSchema):
@@ -191,6 +201,22 @@ class TemplatePreviewResponse(BaseSchema):
     role_analysis: Dict[str, Any]
     suggested_permissions: List[PermissionResponse]
     estimated_template_size: int
+
+
+class MatrixToggleRequest(BaseSchema):
+    """Schema for toggling permission assignments in matrix."""
+    role_id: UUID
+    permission_id: UUID
+    is_granted: bool
+
+
+class TemplateImportResponse(BaseSchema):
+    """Schema for template import responses."""
+    template: PermissionTemplateResponse
+    action: str  # 'created' or 'updated'
+    mapped_count: int
+    unmapped_count: int
+    unmapped_permissions: List[Dict[str, Any]]
 
 
 # ==================== AUDIT TRAIL SCHEMAS ====================

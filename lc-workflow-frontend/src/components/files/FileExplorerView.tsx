@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useFiles, useDeleteFile, useDownloadFile } from '@/hooks/useFiles';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionCheck } from '@/hooks/usePermissionCheck';
+import { ResourceType, PermissionAction } from '@/types/permissions';
 import { File } from '@/types/models';
 import {
   DocumentIcon,
@@ -44,6 +46,7 @@ export default function FileExplorerView({
   showActions = true
 }: FileExplorerViewProps) {
   const { user } = useAuth();
+  const { can } = usePermissionCheck();
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -338,7 +341,7 @@ export default function FileExplorerView({
                     >
                       <ArrowDownTrayIcon className="h-4 w-4" />
                     </button>
-                    {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                    {(can(ResourceType.FILE, PermissionAction.DELETE) || file.uploaded_by === user?.id) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -402,7 +405,7 @@ export default function FileExplorerView({
                     >
                       <ArrowDownTrayIcon className="h-3 w-3" />
                     </button>
-                    {(user?.role === 'admin' || file.uploaded_by === user?.id) && (
+                    {(can(ResourceType.FILE, PermissionAction.DELETE) || file.uploaded_by === user?.id) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

@@ -8,7 +8,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { Permission } from '@/hooks/usePermissions';
 import { useDraftSaving } from '@/hooks/useDraftSaving';
-import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog';
 
 interface PermissionFormProps {
   permission?: Permission;
@@ -90,9 +89,7 @@ export default function PermissionForm({
           resource_type: permission.resource_type,
           action: permission.action,
           scope: permission.scope,
-          conditions: permission.conditions
-            ? JSON.stringify(permission.conditions, null, 2)
-            : '',
+          conditions: '',
           is_active: permission.is_active,
         }
       : {
@@ -109,21 +106,28 @@ export default function PermissionForm({
   // Draft saving with auto-save every 30 seconds
   const {
     saveDraft,
-    loadDraft,
+    restoreDraft,
     clearDraft,
     hasDraft,
-    showUnsavedDialog,
-    setShowUnsavedDialog,
-    handleCancelWithUnsaved,
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
   } = useDraftSaving<PermissionFormData>({
-    key: draftKey,
+    draftKey: draftKey,
+    formType: 'permission',
     autoSaveInterval: 30000, // 30 seconds
-    onRestore: (draft) => {
-      Object.entries(draft).forEach(([key, value]) => {
-        setValue(key as keyof PermissionFormData, value);
-      });
-    },
   });
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (hasDraft) {
+      const draft = restoreDraft();
+      if (draft) {
+        Object.entries(draft).forEach(([key, value]) => {
+          setValue(key as keyof PermissionFormData, value);
+        });
+      }
+    }
+  }, []);
 
   // Watch form values for auto-save
   const formValues = watch();
@@ -135,12 +139,7 @@ export default function PermissionForm({
     }
   }, [formValues, isDirty, isEditMode, saveDraft]);
 
-  // Load draft on mount
-  useEffect(() => {
-    if (!isEditMode && hasDraft()) {
-      loadDraft();
-    }
-  }, [isEditMode, hasDraft, loadDraft]);
+  // Load draft on mount (already handled above in the first useEffect)
 
   const handleFormSubmit = async (data: PermissionFormData) => {
     try {
@@ -154,8 +153,12 @@ export default function PermissionForm({
   };
 
   const handleCancel = () => {
-    if (isDirty && !isEditMode) {
-      handleCancelWithUnsaved(onCancel);
+    if (isDirty && !isEditMode && hasUnsavedChanges) {
+      // Show confirmation dialog for unsaved changes
+      if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+        clearDraft();
+        onCancel();
+      }
     } else {
       onCancel();
     }
@@ -346,7 +349,15 @@ export default function PermissionForm({
               id="conditions"
               rows={5}
               {...register('conditions', {
-                validate: validateConditions,
+                validate: (value) => {
+                  if (!value || value.trim() === '') return true;
+                  try {
+                    JSON.parse(value);
+                    return true;
+                  } catch {
+                    return 'Invalid JSON format';
+                  }
+                },
               })}
               disabled={loading}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
@@ -408,20 +419,7 @@ export default function PermissionForm({
         </div>
       </form>
 
-      {/* Unsaved Changes Dialog */}
-      <UnsavedChangesDialog
-        isOpen={showUnsavedDialog}
-        onClose={() => setShowUnsavedDialog(false)}
-        onDiscard={() => {
-          clearDraft();
-          setShowUnsavedDialog(false);
-          onCancel();
-        }}
-        onSave={() => {
-          setShowUnsavedDialog(false);
-          handleSubmit(handleFormSubmit)();
-        }}
-      />
+
     </>
   );
 }

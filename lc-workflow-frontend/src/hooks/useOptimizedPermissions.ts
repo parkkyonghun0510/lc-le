@@ -75,8 +75,6 @@ export function useOptimizedPermissions(
   filters?: Record<string, any>,
   options?: Partial<UseQueryOptions<Permission[]>>
 ) {
-  const { retryWithBackoff } = usePermissionRetry();
-
   return useQuery<Permission[]>({
     queryKey: permissionQueryKeys.list(filters),
     queryFn: async () => {
@@ -99,7 +97,8 @@ export function useOptimizedPermissions(
     gcTime: CACHE_CONFIG.permissions.cacheTime,
     refetchOnWindowFocus: true,
     refetchOnMount: false,
-    retry: retryWithBackoff,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 }
@@ -111,8 +110,6 @@ export function useOptimizedRoles(
   filters?: Record<string, any>,
   options?: Partial<UseQueryOptions<Role[]>>
 ) {
-  const { retryWithBackoff } = usePermissionRetry();
-
   return useQuery<Role[]>({
     queryKey: permissionQueryKeys.roles.list(filters),
     queryFn: async () => {
@@ -135,7 +132,8 @@ export function useOptimizedRoles(
     gcTime: CACHE_CONFIG.roles.cacheTime,
     refetchOnWindowFocus: true,
     refetchOnMount: false,
-    retry: retryWithBackoff,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 }
@@ -144,8 +142,6 @@ export function useOptimizedRoles(
  * Optimized hook for fetching permission matrix
  */
 export function useOptimizedMatrix(options?: Partial<UseQueryOptions<any>>) {
-  const { retryWithBackoff } = usePermissionRetry();
-
   return useQuery({
     queryKey: permissionQueryKeys.matrix(),
     queryFn: async () => {
@@ -159,7 +155,8 @@ export function useOptimizedMatrix(options?: Partial<UseQueryOptions<any>>) {
     gcTime: CACHE_CONFIG.matrix.cacheTime,
     refetchOnWindowFocus: true,
     refetchOnMount: false,
-    retry: retryWithBackoff,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 }
@@ -171,8 +168,6 @@ export function useOptimizedTemplates(
   filters?: Record<string, any>,
   options?: Partial<UseQueryOptions<PermissionTemplate[]>>
 ) {
-  const { retryWithBackoff } = usePermissionRetry();
-
   return useQuery<PermissionTemplate[]>({
     queryKey: permissionQueryKeys.templates.list(filters),
     queryFn: async () => {
@@ -195,7 +190,8 @@ export function useOptimizedTemplates(
     gcTime: CACHE_CONFIG.templates.cacheTime,
     refetchOnWindowFocus: false, // Templates rarely change
     refetchOnMount: false,
-    retry: retryWithBackoff,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 }

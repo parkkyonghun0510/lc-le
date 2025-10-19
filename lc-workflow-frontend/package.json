@@ -17,7 +17,6 @@
     "test:coverage": "jest --coverage",
     "analyze": "npm run build && node scripts/analyze-bundle.js",
     "analyze:watch": "npm run build -- --watch && node scripts/analyze-bundle.js",
-    "postinstall": "npm run build:production",
     "predeploy": "npm run lint && npm run test && npm run build:railway",
     "deploy:railway": "npm run predeploy && echo 'Ready for Railway deployment'"
   },

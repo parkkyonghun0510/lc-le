@@ -72,11 +72,11 @@ class FolderOrganizationConfig:
         DocumentType.GUARANTOR_BANK_STATEMENT: "Guarantor Documents",
         
         # Collateral documents
-        DocumentType.LAND_TITLE: "Collateral Documents",
-        DocumentType.PROPERTY_VALUATION: "Collateral Documents",
-        DocumentType.PROPERTY_PHOTOS: "Collateral Documents",
-        DocumentType.VEHICLE_REGISTRATION: "Collateral Documents",
-        DocumentType.VEHICLE_PHOTOS: "Collateral Documents",
+        DocumentType.LAND_TITLE: "Land Documents",
+        DocumentType.PROPERTY_VALUATION: "Property Valuations",
+        DocumentType.PROPERTY_PHOTOS: "Property Photos",
+        DocumentType.VEHICLE_REGISTRATION: "Vehicle Documents",
+        DocumentType.VEHICLE_PHOTOS: "Vehicle Photos",
         
         # Business documents
         DocumentType.BUSINESS_LICENSE: "Business Documents",
@@ -101,8 +101,12 @@ class FolderOrganizationConfig:
     # Standard folder structure for applications
     STANDARD_FOLDERS = [
         "Borrower Documents",
-        "Guarantor Documents", 
-        "Collateral Documents",
+        "Guarantor Documents",
+        "Land Documents",
+        "Property Valuations",
+        "Property Photos",
+        "Vehicle Documents",
+        "Vehicle Photos",
         "Business Documents",
         "Supporting Documents"
     ]

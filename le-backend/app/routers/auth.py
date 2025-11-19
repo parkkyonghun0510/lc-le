@@ -689,68 +689,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     # Use the safe helper function to create UserResponse with proper circular reference handling
     return create_safe_user_response(current_user, max_depth=2)
 
-@router.get("/me/permissions")
-async def get_current_user_permissions(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get current user's effective permissions including roles and direct permissions."""
-    from app.services.permission_service import PermissionService
-    from app.models.permissions import Role, UserRole, UserPermission
-    from sqlalchemy.orm import selectinload
-    
-    permission_service = PermissionService(db)
-    
-    # Get user's roles
-    roles = await permission_service.get_user_roles(current_user.id)
-    
-    # Get user's direct permissions
-    direct_permissions_stmt = select(UserPermission).where(
-        and_(
-            UserPermission.user_id == current_user.id,
-            UserPermission.is_active == True
-        )
-    ).options(selectinload(UserPermission.permission))
-    direct_permissions_result = await db.execute(direct_permissions_stmt)
-    direct_permissions = direct_permissions_result.scalars().all()
-    
-    # Get effective permissions (combined from roles and direct)
-    effective_permissions = await permission_service.get_user_permissions(current_user.id)
-    
-    return {
-        "user_id": str(current_user.id),
-        "roles": [
-            {
-                "id": str(role.id),
-                "name": role.name,
-                "display_name": role.display_name,
-                "description": role.description,
-                "level": role.level,
-                "is_system_role": role.is_system_role,
-                "is_active": role.is_active,
-                "created_at": role.created_at.isoformat() if role.created_at else None,
-                "updated_at": role.updated_at.isoformat() if role.updated_at else None,
-            }
-            for role in roles
-        ],
-        "direct_permissions": [
-            {
-                "id": str(dp.id),
-                "user_id": str(dp.user_id),
-                "permission_id": str(dp.permission_id),
-                "resource_id": str(dp.resource_id) if dp.resource_id else None,
-                "department_id": str(dp.department_id) if dp.department_id else None,
-                "branch_id": str(dp.branch_id) if dp.branch_id else None,
-                "conditions": dp.conditions,
-                "is_active": dp.is_active,
-                "granted_at": dp.granted_at.isoformat() if dp.granted_at else None,
-                "granted_by": str(dp.granted_by) if dp.granted_by else None,
-                "reason": dp.reason,
-            }
-            for dp in direct_permissions
-        ],
-        "effective_permissions": effective_permissions
-    }
+
 
 @router.get("/setup-required")
 async def check_setup_required(db: AsyncSession = Depends(get_db)) -> dict:

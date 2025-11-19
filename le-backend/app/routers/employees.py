@@ -35,13 +35,7 @@ router = APIRouter(prefix="/employees", tags=["employees"])
 
 # ==================== HELPER FUNCTIONS ====================
 
-def check_permission(current_user: User, required_roles: List[str], permission_name: str):
-    """Check if user has required role for permission"""
-    if current_user.role not in required_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Insufficient permissions: {permission_name} required"
-        )
+
 
 
 async def filter_by_branch(query, current_user: User, model_class):
@@ -117,7 +111,6 @@ async def generate_employee_codes(
     
     Requires: manage_employees permission (admin, manager roles)
     """
-    check_permission(current_user, ["admin", "manager"], "manage_employees")
     
     try:
         codes = await EmployeeService.generate_code_batch(
@@ -158,7 +151,6 @@ async def create_employee(
     
     Returns enhanced error response with suggested code if duplicate code is detected.
     """
-    check_permission(current_user, ["admin", "manager"], "manage_employees")
     
     try:
         employee = await EmployeeService.create_employee(
@@ -233,7 +225,6 @@ async def list_employees(
     """
     # Allow all authenticated users to view employees (read-only)
     # This is needed for application forms to show portfolio officers
-    # check_permission(current_user, ["admin", "manager", "officer"], "view_employees")
     
     try:
         # Build base query
@@ -360,7 +351,6 @@ async def get_employee(
     
     Requires: view_employees permission (admin, manager, officer roles)
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "view_employees")
     
     try:
         employee = await EmployeeService.get_employee_by_id(db, employee_id)
@@ -435,7 +425,6 @@ async def update_employee(
     
     Requires: manage_employees permission (admin, manager roles)
     """
-    check_permission(current_user, ["admin", "manager"], "manage_employees")
     
     try:
         employee = await EmployeeService.update_employee(
@@ -513,7 +502,6 @@ async def delete_employee(
     
     Requires: manage_employees permission (admin, manager roles)
     """
-    check_permission(current_user, ["admin", "manager"], "manage_employees")
     
     try:
         success = await EmployeeService.deactivate_employee(db, employee_id)
@@ -557,7 +545,6 @@ async def assign_employee_to_application(
     - Employee and application must be in the same branch
     - No duplicate assignments (same employee, application, role)
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "assign_employees")
     
     try:
         # Validate employee exists and is active
@@ -646,7 +633,6 @@ async def get_application_assignments(
     
     Requires: view_employees permission (admin, manager, officer roles)
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "view_employees")
     
     try:
         assignments = await EmployeeAssignmentService.get_application_assignments(
@@ -677,7 +663,6 @@ async def get_employee_assignments(
     
     Requires: view_employees permission (admin, manager, officer roles)
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "view_employees")
     
     try:
         # Check if employee exists and user has access
@@ -726,7 +711,6 @@ async def update_assignment(
     
     Requires: assign_employees permission (admin, manager, officer roles)
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "assign_employees")
     
     try:
         assignment = await EmployeeAssignmentService.update_assignment(
@@ -765,7 +749,6 @@ async def remove_assignment(
     
     Requires: assign_employees permission (admin, manager, officer roles)
     """
-    check_permission(current_user, ["admin", "manager", "officer"], "assign_employees")
     
     try:
         success = await EmployeeAssignmentService.remove_assignment(db, assignment_id)
@@ -808,7 +791,6 @@ async def get_employee_workload(
     
     Returns assignment counts grouped by application status.
     """
-    check_permission(current_user, ["admin", "manager"], "view_employee_reports")
     
     try:
         # Check if employee exists
@@ -864,7 +846,6 @@ async def get_workload_summary(
     
     Returns assignment counts grouped by employee and status.
     """
-    check_permission(current_user, ["admin", "manager"], "view_employee_reports")
     
     try:
         # Build query for employees

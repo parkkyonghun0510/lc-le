@@ -19,12 +19,6 @@ async def create_department(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> DepartmentResponse:
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create departments"
-        )
-    
     # Check if department name already exists
     result = await db.execute(
         select(Department).where(Department.name == department.name)
@@ -214,12 +208,6 @@ async def update_department(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> DepartmentResponse:
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update departments"
-        )
-    
     result = await db.execute(
         select(Department).where(Department.id == department_id)
     )
@@ -268,12 +256,6 @@ async def delete_department(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, str]:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete departments"
-        )
-    
     result = await db.execute(
         select(Department).where(Department.id == department_id)
     )
@@ -297,11 +279,12 @@ async def toggle_department_status(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """Toggle department active/inactive status"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to change department status"
-        )
+    """Toggle department active/inactive status"""
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to change department status"
+    #     )
     
     result = await db.execute(
         select(Department).where(Department.id == department_id)

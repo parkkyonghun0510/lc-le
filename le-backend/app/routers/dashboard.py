@@ -31,14 +31,14 @@ async def get_dashboard_stats(
         )
         
         # Filter by user role
-        if str(current_user.role) == 'officer':
-            app_stats_query = app_stats_query.where(CustomerApplication.user_id == current_user.id)
-        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
-            # Manager can see applications from their department
-            dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
-            dept_users_result = await db.execute(dept_users_query)
-            dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
-            app_stats_query = app_stats_query.where(CustomerApplication.user_id.in_(dept_user_ids))
+        # if str(current_user.role) == 'officer':
+        #     app_stats_query = app_stats_query.where(CustomerApplication.user_id == current_user.id)
+        # elif str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     # Manager can see applications from their department
+        #     dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
+        #     dept_users_result = await db.execute(dept_users_query)
+        #     dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
+        #     app_stats_query = app_stats_query.where(CustomerApplication.user_id.in_(dept_user_ids))
         
         app_stats_result = await db.execute(app_stats_query)
         app_stats = app_stats_result.first()
@@ -55,11 +55,11 @@ async def get_dashboard_stats(
         )
         
         # Filter by user role
-        if str(current_user.role) == 'manager' and current_user.department_id is not None:
-            user_stats_query = user_stats_query.where(User.department_id == current_user.department_id)
-        elif str(current_user.role) == 'officer':
-            # Officers can only see their own stats
-            user_stats_query = user_stats_query.where(User.id == current_user.id)
+        # if str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     user_stats_query = user_stats_query.where(User.department_id == current_user.department_id)
+        # elif str(current_user.role) == 'officer':
+        #     # Officers can only see their own stats
+        #     user_stats_query = user_stats_query.where(User.id == current_user.id)
         
         user_stats_result = await db.execute(user_stats_query)
         user_stats = user_stats_result.first()
@@ -87,14 +87,14 @@ async def get_dashboard_stats(
         )
         
         # Filter files by user role
-        if str(current_user.role) == 'officer':
-            file_stats_query = file_stats_query.where(File.uploaded_by == current_user.id)
-        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
-            # Manager can see files from their department users
-            dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
-            dept_users_result = await db.execute(dept_users_query)
-            dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
-            file_stats_query = file_stats_query.where(File.uploaded_by.in_(dept_user_ids))
+        # if str(current_user.role) == 'officer':
+        #     file_stats_query = file_stats_query.where(File.uploaded_by == current_user.id)
+        # elif str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     # Manager can see files from their department users
+        #     dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
+        #     dept_users_result = await db.execute(dept_users_query)
+        #     dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
+        #     file_stats_query = file_stats_query.where(File.uploaded_by.in_(dept_user_ids))
         
         file_stats_result = await db.execute(file_stats_query)
         file_stats = file_stats_result.first()
@@ -189,14 +189,14 @@ async def get_recent_applications(
             )
         
         # Filter by user role
-        if str(current_user.role) == 'officer':
-            query = query.where(CustomerApplication.user_id == current_user.id)
-        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
-            # Manager can see applications from their department
-            dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
-            dept_users_result = await db.execute(dept_users_query)
-            dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
-            query = query.where(CustomerApplication.user_id.in_(dept_user_ids))
+        # if str(current_user.role) == 'officer':
+        #     query = query.where(CustomerApplication.user_id == current_user.id)
+        # elif str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     # Manager can see applications from their department
+        #     dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
+        #     dept_users_result = await db.execute(dept_users_query)
+        #     dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
+        #     query = query.where(CustomerApplication.user_id.in_(dept_user_ids))
         
         result = await db.execute(query)
         applications = result.scalars().all()
@@ -247,32 +247,32 @@ async def get_activity_timeline(
         ).order_by(desc(CustomerApplication.created_at))
         
         # Filter by user role
-        if str(current_user.role) == 'officer':
-            app_query = app_query.where(CustomerApplication.user_id == current_user.id)
-        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
-            dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
-            dept_users_result = await db.execute(dept_users_query)
-            dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
-            app_query = app_query.where(CustomerApplication.user_id.in_(dept_user_ids))
+        # if str(current_user.role) == 'officer':
+        #     app_query = app_query.where(CustomerApplication.user_id == current_user.id)
+        # elif str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
+        #     dept_users_result = await db.execute(dept_users_query)
+        #     dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
+        #     app_query = app_query.where(CustomerApplication.user_id.in_(dept_user_ids))
         
         app_result = await db.execute(app_query)
         applications = app_result.scalars().all()
         
         # Get users created in the date range (admin/manager only)
         users = []
-        if str(current_user.role) in ['admin', 'manager']:
-            user_query = select(User).where(
-                and_(
-                    User.created_at >= start_date,
-                    User.created_at <= end_date
-                )
-            ).order_by(desc(User.created_at))
-            
-            if str(current_user.role) == 'manager' and current_user.department_id is not None:
-                user_query = user_query.where(User.department_id == current_user.department_id)
-            
-            user_result = await db.execute(user_query)
-            users = user_result.scalars().all()
+        # if str(current_user.role) in ['admin', 'manager']:
+        user_query = select(User).where(
+            and_(
+                User.created_at >= start_date,
+                User.created_at <= end_date
+            )
+        ).order_by(desc(User.created_at))
+        
+        # if str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     user_query = user_query.where(User.department_id == current_user.department_id)
+        
+        user_result = await db.execute(user_query)
+        users = user_result.scalars().all()
         
         # Combine activities
         activities = []
@@ -339,13 +339,13 @@ async def get_performance_metrics(
         )
         
         # Filter by user role
-        if str(current_user.role) == 'officer':
-            processed_query = processed_query.where(CustomerApplication.user_id == current_user.id)
-        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
-            dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
-            dept_users_result = await db.execute(dept_users_query)
-            dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
-            processed_query = processed_query.where(CustomerApplication.user_id.in_(dept_user_ids))
+        # if str(current_user.role) == 'officer':
+        #     processed_query = processed_query.where(CustomerApplication.user_id == current_user.id)
+        # elif str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     dept_users_query = select(User.id).where(User.department_id == current_user.department_id)
+        #     dept_users_result = await db.execute(dept_users_query)
+        #     dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
+        #     processed_query = processed_query.where(CustomerApplication.user_id.in_(dept_user_ids))
         
         processed_result = await db.execute(processed_query)
         processed_count = processed_result.scalar() or 0
@@ -368,10 +368,10 @@ async def get_performance_metrics(
             dept_users_result = await db.execute(dept_users_query)
             dept_user_ids = [row[0] for row in dept_users_result.fetchall()]
         
-        if str(current_user.role) == 'officer':
-            approved_query = approved_query.where(CustomerApplication.user_id == current_user.id)
-        elif str(current_user.role) == 'manager' and current_user.department_id is not None:
-            approved_query = approved_query.where(CustomerApplication.user_id.in_(dept_user_ids))
+        # if str(current_user.role) == 'officer':
+        #     approved_query = approved_query.where(CustomerApplication.user_id == current_user.id)
+        # elif str(current_user.role) == 'manager' and current_user.department_id is not None:
+        #     approved_query = approved_query.where(CustomerApplication.user_id.in_(dept_user_ids))
         
         approved_result = await db.execute(approved_query)
         approved_count = approved_result.scalar() or 0

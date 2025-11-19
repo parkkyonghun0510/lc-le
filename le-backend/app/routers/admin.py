@@ -53,21 +53,13 @@ class ManualMatchRequest(BaseModel):
     employee_id: UUID
 
 
-def check_admin_permission(current_user: User = Depends(get_current_user)) -> User:
-    """Verify user has admin role"""
-    if current_user.role != 'admin':
-        logger.warning(f"Non-admin user {current_user.id} attempted to access admin endpoint")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    return current_user
+
 
 
 @router.get("/migration-status", response_model=MigrationStatusResponse)
 async def get_migration_status(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(check_admin_permission)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get current migration status statistics
@@ -140,7 +132,7 @@ async def get_migration_status(
 async def start_migration(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(check_admin_permission)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Start the employee migration process
@@ -234,7 +226,7 @@ async def start_migration(
 @router.get("/unmatched-names", response_model=List[UnmatchedNameResponse])
 async def get_unmatched_names(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(check_admin_permission)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get list of applications with portfolio officer names that haven't been matched
@@ -289,7 +281,7 @@ async def get_unmatched_names(
 async def create_manual_match(
     request: ManualMatchRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(check_admin_permission)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Manually create an employee assignment for an application
@@ -344,7 +336,7 @@ async def create_manual_match(
 @router.post("/revert-migration")
 async def revert_migration(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(check_admin_permission)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Revert the migration by:

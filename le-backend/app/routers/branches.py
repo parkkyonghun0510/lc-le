@@ -19,12 +19,6 @@ async def create_branch(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> BranchResponse:
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create branches"
-        )
-    
     # Check if branch name already exists
     result = await db.execute(
         select(Branch).where(Branch.name == branch.name)
@@ -201,12 +195,6 @@ async def update_branch(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> BranchResponse:
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update branches"
-        )
-    
     result = await db.execute(
         select(Branch).where(Branch.id == branch_id)
     )
@@ -255,12 +243,6 @@ async def delete_branch(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, str]:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete branches"
-        )
-    
     result = await db.execute(
         select(Branch).where(Branch.id == branch_id)
     )
@@ -284,11 +266,12 @@ async def toggle_branch_status(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """Toggle branch active/inactive status"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to change branch status"
-        )
+    """Toggle branch active/inactive status"""
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to change branch status"
+    #     )
     
     result = await db.execute(
         select(Branch).where(Branch.id == branch_id)

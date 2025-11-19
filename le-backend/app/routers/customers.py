@@ -26,14 +26,14 @@ async def get_customers(
     base_app_q = select(CustomerApplication.user_id).distinct()
 
     # Role-based filtering on the applications and/or users
-    if current_user.role == "officer":
-        # Officers only see applications they created
-        base_app_q = base_app_q.where(CustomerApplication.user_id == current_user.id)
-    elif current_user.role == "manager":
-        # Managers see applicants within their department/branch
-        # Need to constrain by the User owning the application
-        # We'll use a correlated EXISTS by filtering Users later; here we keep app user_ids distinct
-        pass
+    # if current_user.role == "officer":
+    #     # Officers only see applications they created
+    #     base_app_q = base_app_q.where(CustomerApplication.user_id == current_user.id)
+    # elif current_user.role == "manager":
+    #     # Managers see applicants within their department/branch
+    #     # Need to constrain by the User owning the application
+    #     # We'll use a correlated EXISTS by filtering Users later; here we keep app user_ids distinct
+    #     pass
     # Admins: no restriction
 
     # Build the users query from the filtered distinct applicant IDs with eager loading
@@ -43,11 +43,11 @@ async def get_customers(
         selectinload(User.position)
     ).where(User.id.in_(base_app_q.subquery()))
 
-    if current_user.role == "manager":
-        if current_user.department_id:
-            users_q = users_q.where(User.department_id == current_user.department_id)
-        elif current_user.branch_id:
-            users_q = users_q.where(User.branch_id == current_user.branch_id)
+    # if current_user.role == "manager":
+    #     if current_user.department_id:
+    #         users_q = users_q.where(User.department_id == current_user.department_id)
+    #     elif current_user.branch_id:
+    #         users_q = users_q.where(User.branch_id == current_user.branch_id)
 
     # Order and paginate
     users_q = users_q.order_by(desc(User.created_at)).offset((page - 1) * size).limit(size)
@@ -56,21 +56,21 @@ async def get_customers(
     count_q = select(func.count()).select_from(
         select(User.id).where(User.id.in_(base_app_q.subquery())).subquery()
     )
-    if current_user.role == "manager":
-        if current_user.department_id:
-            count_q = select(func.count()).select_from(
-                select(User.id)
-                .where(User.id.in_(base_app_q.subquery()))
-                .where(User.department_id == current_user.department_id)
-                .subquery()
-            )
-        elif current_user.branch_id:
-            count_q = select(func.count()).select_from(
-                select(User.id)
-                .where(User.id.in_(base_app_q.subquery()))
-                .where(User.branch_id == current_user.branch_id)
-                .subquery()
-            )
+    # if current_user.role == "manager":
+    #     if current_user.department_id:
+    #         count_q = select(func.count()).select_from(
+    #             select(User.id)
+    #             .where(User.id.in_(base_app_q.subquery()))
+    #             .where(User.department_id == current_user.department_id)
+    #             .subquery()
+    #         )
+    #     elif current_user.branch_id:
+    #         count_q = select(func.count()).select_from(
+    #             select(User.id)
+    #             .where(User.id.in_(base_app_q.subquery()))
+    #             .where(User.branch_id == current_user.branch_id)
+    #             .subquery()
+    #         )
 
     # Execute queries
     result = await db.execute(users_q)
@@ -130,14 +130,14 @@ async def get_customer_applications(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
     
     # Check permissions based on role
-    if current_user.role == "officer" and current_user.id != customer_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this customer's applications")
+    # if current_user.role == "officer" and current_user.id != customer_id:
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this customer's applications")
     
-    if current_user.role == "manager":
-        if current_user.department_id and customer.department_id != current_user.department_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this customer's applications")
-        if current_user.branch_id and customer.branch_id != current_user.branch_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this customer's applications")
+    # if current_user.role == "manager":
+    #     if current_user.department_id and customer.department_id != current_user.department_id:
+    #         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this customer's applications")
+    #     if current_user.branch_id and customer.branch_id != current_user.branch_id:
+    #         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this customer's applications")
     
     # Get applications for this customer
     applications_query = (

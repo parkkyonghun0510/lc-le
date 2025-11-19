@@ -360,18 +360,19 @@ async def list_applications(
     )
     
     # Apply filters based on user role - optimized to avoid subqueries
-    if current_user.role == "officer":
-        query = query.where(CustomerApplication.user_id == current_user.id)
-    elif current_user.role == "manager":
-        # Managers can see applications from their department/branch - use joins instead of subqueries
-        if current_user.department_id:
-            query = query.join(User, CustomerApplication.user_id == User.id).where(
-                User.department_id == current_user.department_id
-            )
-        elif current_user.branch_id:
-            query = query.join(User, CustomerApplication.user_id == User.id).where(
-                User.branch_id == current_user.branch_id
-            )
+    # Apply filters based on user role - optimized to avoid subqueries
+    # if current_user.role == "officer":
+    #     query = query.where(CustomerApplication.user_id == current_user.id)
+    # elif current_user.role == "manager":
+    #     # Managers can see applications from their department/branch - use joins instead of subqueries
+    #     if current_user.department_id:
+    #         query = query.join(User, CustomerApplication.user_id == User.id).where(
+    #             User.department_id == current_user.department_id
+    #         )
+    #     elif current_user.branch_id:
+    #         query = query.join(User, CustomerApplication.user_id == User.id).where(
+    #             User.branch_id == current_user.branch_id
+    #         )
     # Admins can see all applications
     
     # Apply filters
@@ -462,17 +463,18 @@ async def get_customer_cards(
     )
     
     # Apply role-based filtering - optimized to avoid subqueries
-    if current_user.role == "officer":
-        query = query.where(CustomerApplication.user_id == current_user.id)
-    elif current_user.role == "manager":
-        if current_user.department_id:
-            query = query.join(User, CustomerApplication.user_id == User.id).where(
-                User.department_id == current_user.department_id
-            )
-        elif current_user.branch_id:
-            query = query.join(User, CustomerApplication.user_id == User.id).where(
-                User.branch_id == current_user.branch_id
-            )
+    # Apply role-based filtering - optimized to avoid subqueries
+    # if current_user.role == "officer":
+    #     query = query.where(CustomerApplication.user_id == current_user.id)
+    # elif current_user.role == "manager":
+    #     if current_user.department_id:
+    #         query = query.join(User, CustomerApplication.user_id == User.id).where(
+    #             User.department_id == current_user.department_id
+    #         )
+    #     elif current_user.branch_id:
+    #         query = query.join(User, CustomerApplication.user_id == User.id).where(
+    #             User.branch_id == current_user.branch_id
+    #         )
     
     # Apply filters
     if status:
@@ -588,19 +590,20 @@ async def get_application(
         )
     
     # Check permissions
-    if current_user.role == "officer" and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this application"
-        )
-    elif current_user.role == "manager":
-        # Check if application belongs to manager's department/branch
-        if current_user.department_id and application.user.department_id != current_user.department_id:
-            if current_user.branch_id and application.user.branch_id != current_user.branch_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Not authorized to access this application"
-                )
+    # Check permissions
+    # if current_user.role == "officer" and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this application"
+    #     )
+    # elif current_user.role == "manager":
+    #     # Check if application belongs to manager's department/branch
+    #     if current_user.department_id and application.user.department_id != current_user.department_id:
+    #         if current_user.branch_id and application.user.branch_id != current_user.branch_id:
+    #             raise HTTPException(
+    #                 status_code=status.HTTP_403_FORBIDDEN,
+    #                 detail="Not authorized to access this application"
+    #             )
     
     resp = CustomerApplicationResponse.from_orm(application)
     enrich_application_response(resp)
@@ -630,11 +633,11 @@ async def update_application(
         )
     
     # Check permissions
-    if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this application"
-        )
+    # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to update this application"
+    #     )
     
     try:
         # Extract employee_assignments before updating application
@@ -809,11 +812,11 @@ async def delete_application(
         )
     
     # Check permissions
-    if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this application"
-        )
+    # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to delete this application"
+    #     )
     
     # Only allow deletion of draft applications to maintain data integrity
     if application.status != 'draft':
@@ -895,12 +898,12 @@ async def submit_application(
         logger.info(f"Found application {application_id}, current status: {application.workflow_status}")
 
         # Check permissions
-        if application.user_id != current_user.id:
-            logger.error(f"User {current_user.id} not authorized to submit application {application_id}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to submit this application"
-            )
+        # if application.user_id != current_user.id:
+        #     logger.error(f"User {current_user.id} not authorized to submit application {application_id}")
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to submit this application"
+        #     )
 
         # Allow submission from PO_CREATED or USER_COMPLETED status
         if application.workflow_status not in [WorkflowStatus.PO_CREATED, WorkflowStatus.USER_COMPLETED]:
@@ -947,11 +950,11 @@ async def approve_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to approve applications"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to approve applications"
+    #     )
     
     result = await db.execute(
         select(CustomerApplication).where(CustomerApplication.id == application_id)
@@ -1006,11 +1009,11 @@ async def reject_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to reject applications"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to reject applications"
+    #     )
     
     result = await db.execute(
         select(CustomerApplication).where(CustomerApplication.id == application_id)
@@ -1072,11 +1075,11 @@ async def get_application_relationships(
         )
     
     # Check permissions (same as get_application)
-    if current_user.role == "officer" and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this application"
-        )
+    # if current_user.role == "officer" and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this application"
+    #     )
     
     officer = application.user
     department = officer.department if officer else None
@@ -1152,11 +1155,11 @@ async def assign_reviewer(
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
     """Assign a reviewer to an application"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to assign reviewers"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to assign reviewers"
+    #     )
     
     # Check if reviewer exists and has appropriate role
     reviewer_result = await db.execute(
@@ -1170,11 +1173,11 @@ async def assign_reviewer(
             detail="Reviewer not found"
         )
     
-    if reviewer.role not in ["manager", "admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User cannot be assigned as reviewer"
-        )
+    # if reviewer.role not in ["manager", "admin"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="User cannot be assigned as reviewer"
+    #     )
     
     # Get application
     result = await db.execute(
@@ -1204,11 +1207,11 @@ async def update_priority(
     db: AsyncSession = Depends(get_db)
 ):
     """Update application priority level"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update priority"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to update priority"
+    #     )
     
     if priority_level not in ["low", "normal", "high", "urgent"]:
         raise HTTPException(
@@ -1243,15 +1246,15 @@ async def get_application_stats(
     base_query = select(CustomerApplication)
     
     # Apply role-based filtering
-    if current_user.role == "officer":
-        base_query = base_query.where(CustomerApplication.user_id == current_user.id)
-    elif current_user.role == "manager":
-        if current_user.department_id:
-            dept_users = select(User.id).where(User.department_id == current_user.department_id)
-            base_query = base_query.where(CustomerApplication.user_id.in_(dept_users))
-        elif current_user.branch_id:
-            branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
-            base_query = base_query.where(CustomerApplication.user_id.in_(branch_users))
+    # if current_user.role == "officer":
+    #     base_query = base_query.where(CustomerApplication.user_id == current_user.id)
+    # elif current_user.role == "manager":
+    #     if current_user.department_id:
+    #         dept_users = select(User.id).where(User.department_id == current_user.department_id)
+    #         base_query = base_query.where(CustomerApplication.user_id.in_(dept_users))
+    #     elif current_user.branch_id:
+    #         branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
+    #         base_query = base_query.where(CustomerApplication.user_id.in_(branch_users))
     
     # Status counts
     status_counts = await db.execute(
@@ -1319,11 +1322,11 @@ async def export_applications_csv(
     import csv
     import io
     
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to export data"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to export data"
+    #     )
     
     query = select(CustomerApplication).options(
         selectinload(CustomerApplication.user)
@@ -1338,13 +1341,13 @@ async def export_applications_csv(
         query = query.where(CustomerApplication.created_at <= date_to)
     
     # Role-based filtering
-    if current_user.role == "manager":
-        if current_user.department_id:
-            dept_users = select(User.id).where(User.department_id == current_user.department_id)
-            query = query.where(CustomerApplication.user_id.in_(dept_users))
-        elif current_user.branch_id:
-            branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
-            query = query.where(CustomerApplication.user_id.in_(branch_users))
+    # if current_user.role == "manager":
+    #     if current_user.department_id:
+    #         dept_users = select(User.id).where(User.department_id == current_user.department_id)
+    #         query = query.where(CustomerApplication.user_id.in_(dept_users))
+    #     elif current_user.branch_id:
+    #         branch_users = select(User.id).where(User.branch_id == current_user.branch_id)
+    #         query = query.where(CustomerApplication.user_id.in_(branch_users))
     
     result = await db.execute(query)
     applications = result.scalars().all()
@@ -1416,11 +1419,11 @@ async def update_workflow_stage(
     db: AsyncSession = Depends(get_db)
 ) -> CustomerApplicationResponse:
     """Update application workflow stage"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update workflow stage"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to update workflow stage"
+    #     )
     
     valid_stages = [
         "initial_review", "document_verification", "credit_check", 
@@ -1461,11 +1464,11 @@ async def update_loan_status(
     db: AsyncSession = Depends(get_db)
 ):
     """Update loan status (for disbursed loans)"""
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update loan status"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to update loan status"
+    #     )
     
     valid_statuses = ["draft", "active", "disbursed", "completed", "defaulted"]
     if loan_status not in valid_statuses:

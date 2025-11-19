@@ -56,10 +56,6 @@ class User(Base):
     status_changed_by_user = relationship("User", remote_side="User.id", foreign_keys=[status_changed_by])
     applications = relationship("CustomerApplication", back_populates="user", foreign_keys="CustomerApplication.user_id")
     uploaded_files = relationship("File", back_populates="uploaded_by_user")
-    
-    # Permission system relationships
-    user_roles = relationship("UserRole", foreign_keys="UserRole.user_id", cascade="all, delete-orphan")
-    user_permissions = relationship("UserPermission", foreign_keys="UserPermission.user_id", cascade="all, delete-orphan")
 
 class Department(Base):
     __tablename__ = "departments"

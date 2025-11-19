@@ -70,11 +70,11 @@ async def upload_selfie(
         )
     
     # Role-based access control
-    if current_user.role not in ["admin", "manager"] and str(application.user_id) != str(current_user.id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to upload selfies for this application"
-        )
+    # if current_user.role not in ["admin", "manager"] and str(application.user_id) != str(current_user.id):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to upload selfies for this application"
+    #     )
     
     # Read file content
     content = await file.read()
@@ -173,9 +173,9 @@ async def get_selfies(
     query = select(Selfie)
     
     # Apply role-based filtering
-    if current_user.role == "officer":
-        # Officers can only see selfies they captured
-        query = query.where(Selfie.captured_by_user_id == current_user.id)
+    # if current_user.role == "officer":
+    #     # Officers can only see selfies they captured
+    #     query = query.where(Selfie.captured_by_user_id == current_user.id)
     
     # Apply filters
     if application_id:
@@ -243,11 +243,11 @@ async def get_selfie(
             )
         
         # Check access permissions for officers
-        if current_user.role == "officer" and str(result.captured_by_user_id) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to access this selfie"
-            )
+        # if current_user.role == "officer" and str(result.captured_by_user_id) != str(current_user.id):
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to access this selfie"
+        #     )
         
         # Get associated file
         file_result = await db.get(FileModel, result.file_id)
@@ -290,11 +290,11 @@ async def validate_selfie(
     Validate a selfie. Only managers and admins can validate selfies.
     """
     # Only managers and admins can validate
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only managers and admins can validate selfies"
-        )
+    # if current_user.role not in ["admin", "manager"]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Only managers and admins can validate selfies"
+    #     )
     
     try:
         selfie_uuid = UUID(selfie_id)
@@ -362,11 +362,11 @@ async def delete_selfie(
             )
         
         # Check permissions
-        if current_user.role != "admin" and str(selfie.captured_by_user_id) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this selfie"
-            )
+        # if current_user.role != "admin" and str(selfie.captured_by_user_id) != str(current_user.id):
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to delete this selfie"
+        #     )
         
         # Get associated file
         file_obj = await db.get(FileModel, selfie.file_id)

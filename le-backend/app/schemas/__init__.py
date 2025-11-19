@@ -1,7 +1,5 @@
 # Schema package initialization
 
-# Import permission schemas first
-from ..permission_schemas import *
 
 # Import schemas directly from the main schemas.py file
 # We need to import the module directly to avoid package vs file confusion

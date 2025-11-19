@@ -224,8 +224,8 @@ async def upload_file(
         app_obj = app_q.scalar_one_or_none()
         if not app_obj:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-        if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
+        # if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
+        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
 
     if folder_uuid is not None:
         folder_q = await db.execute(select(Folder).where(Folder.id == folder_uuid))
@@ -238,8 +238,8 @@ async def upload_file(
             app_obj = app_q.scalar_one_or_none()
             if not app_obj:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-            if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
+            # if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
+            #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
 
     # Read file content with size validation
     try:
@@ -432,8 +432,8 @@ async def create_upload_url(
         app_obj = app_q.scalar_one_or_none()
         if not app_obj:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-        if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
+        # if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
+        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
     if folder_id is not None:
         folder_q = await db.execute(select(Folder).where(Folder.id == folder_id))
         folder_obj = folder_q.scalar_one_or_none()
@@ -444,8 +444,8 @@ async def create_upload_url(
             app_obj = app_q.scalar_one_or_none()
             if not app_obj:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-            if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
+            # if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
+            #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
 
     try:
         presign = minio_service.get_upload_url(original_filename)
@@ -466,8 +466,8 @@ async def finalize_uploaded_file(
         app_obj = app_q.scalar_one_or_none()
         if not app_obj:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-        if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
+        # if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
+        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this application")
     if payload.folder_id is not None:
         folder_q = await db.execute(select(Folder).where(Folder.id == payload.folder_id))
         folder_obj = folder_q.scalar_one_or_none()
@@ -478,8 +478,8 @@ async def finalize_uploaded_file(
             app_obj = app_q.scalar_one_or_none()
             if not app_obj:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-            if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
+            # if current_user.role not in ["admin", "manager"] and app_obj.user_id != current_user.id:
+            #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to attach to this folder/application")
 
     # Optionally verify the object exists on MinIO
     try:
@@ -527,8 +527,8 @@ async def get_files(
         query = query.where(FileModel.folder_id == folder_id)
 
     # Non-admin users can only see their own files
-    if current_user.role != "admin":
-        query = query.where(FileModel.uploaded_by == current_user.id)
+    # if current_user.role != "admin":
+    #     query = query.where(FileModel.uploaded_by == current_user.id)
 
     query = query.order_by(desc(FileModel.created_at))
 
@@ -538,8 +538,8 @@ async def get_files(
         count_query = count_query.where(FileModel.application_id == application_id)
     if folder_id:
         count_query = count_query.where(FileModel.folder_id == folder_id)
-    if current_user.role != "admin":
-        count_query = count_query.where(FileModel.uploaded_by == current_user.id)
+    # if current_user.role != "admin":
+    #     count_query = count_query.where(FileModel.uploaded_by == current_user.id)
     
     total_result = await db.execute(count_query)
     total = total_result.scalar_one() or 0
@@ -576,11 +576,11 @@ async def get_file(
         )
 
     # Check permissions
-    if current_user.role != "admin" and file.uploaded_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this file"
-        )
+    # if current_user.role != "admin" and file.uploaded_by != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this file"
+    #     )
     
     return _populate_file_urls(file)
 
@@ -602,11 +602,11 @@ async def delete_file(
         )
 
     # Check permissions
-    if current_user.role not in ["admin", "manager"] and file.uploaded_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this file"
-        )
+    # if current_user.role not in ["admin", "manager"] and file.uploaded_by != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to delete this file"
+    #     )
     
     # Delete from MinIO
     try:
@@ -639,11 +639,11 @@ async def download_file(
         )
 
     # Check permissions
-    if current_user.role != "admin" and file.uploaded_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this file"
-        )
+    # if current_user.role != "admin" and file.uploaded_by != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this file"
+    #     )
     
     try:
         # Generate presigned URL for MinIO

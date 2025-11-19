@@ -15,7 +15,7 @@ from app.routers import auth, applications, files, departments, branches, dashbo
 from app.routers.users import router as users_router
 from app.routers import folders, customers, enums, selfies, validation, account_validation
 from app.routers import settings as settings_router
-from app.routers import permissions, performance, security, employees, admin
+from app.routers import performance, security, employees, admin
 from app.core.config import settings
 from app.core.error_handlers import register_error_handlers
 from app.middleware.database_middleware import DatabaseConnectionMiddleware
@@ -71,21 +71,8 @@ async def lifespan(app: FastAPI):
         print(f"Warning: Could not create database tables: {e}")
         print("Application will start without database connectivity")
 
-    # Run permission seeding automatically
-    try:
-        import sys
-        import os
-        # Add the parent directory to the path to import scripts
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from scripts.seed_permissions import seed_default_permissions
-        from app.database import AsyncSessionLocal
-        
-        async with AsyncSessionLocal() as db:
-            results = await seed_default_permissions(db)
-            print(f"Permission seeding completed: {results['permissions_created']} permissions created, {results['roles_created']} roles created")
-    except Exception as e:
-        print(f"Warning: Could not run permission seeding: {e}")
-        print("Permission system may not be fully initialized")
+    # Permission seeding removed
+
 
     # Initialize notification pub/sub service
     try:
@@ -165,7 +152,7 @@ app.include_router(branches.router, prefix="/api/v1/branches", tags=["branches"]
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(positions.router, prefix="/api/v1/positions", tags=["positions"])
-app.include_router(permissions.router, prefix="/api/v1/permissions", tags=["permissions"])
+# app.include_router(permissions.router, prefix="/api/v1/permissions", tags=["permissions"])
 app.include_router(performance.router, prefix="/api/v1", tags=["performance"])
 app.include_router(security.router, prefix="/api/v1", tags=["security"])
 app.include_router(enums.router, prefix="/api/v1/enums", tags=["enums"])

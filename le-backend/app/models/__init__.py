@@ -1,9 +1,6 @@
 # Models package
 from .audit import AuditLog, AuditEventType
-from .permissions import (
-    Permission, Role, RolePermission, UserRole, UserPermission, PermissionTemplate,
-    ResourceType, PermissionAction, PermissionScope
-)
+
 
 # Import models from parent models.py using relative import
 import importlib
@@ -41,6 +38,4 @@ __all__ = [
     "AuditLog", "AuditEventType", "User", "Department", "Branch",
     "CustomerApplication", "File", "Setting", "Position", "Folder", "Selfie", "BulkOperation", "Notification",
     "Employee", "ApplicationEmployeeAssignment",
-    "Permission", "Role", "RolePermission", "UserRole", "UserPermission", "PermissionTemplate",
-    "ResourceType", "PermissionAction", "PermissionScope"
 ]

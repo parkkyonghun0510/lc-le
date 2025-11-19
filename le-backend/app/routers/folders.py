@@ -57,11 +57,11 @@ async def get_folders(
                 detail="Application not found"
             )
         
-        if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to access this application"
-            )
+        # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to access this application"
+        #     )
     
     query = query.order_by(Folder.parent_id.asc(), Folder.name.asc())
     
@@ -178,11 +178,11 @@ async def get_application_folders(
         )
     
     # Check permissions
-    if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this application"
-        )
+    # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this application"
+    #     )
     
     try:
         hierarchy = await get_application_folder_hierarchy(db, application_id)
@@ -218,11 +218,11 @@ async def create_folder_for_document_type(
         )
     
     # Check permissions
-    if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this application"
-        )
+    # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this application"
+    #     )
     
     # Validate document type
     if not FolderOrganizationConfig.is_valid_document_type(document_type):
@@ -285,11 +285,11 @@ async def get_application_folders_list(
         )
     
     # Check permissions
-    if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this application"
-        )
+    # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this application"
+    #     )
     
     # Get all folders for the application
     folders_query = await db.execute(
@@ -332,11 +332,11 @@ async def get_folder(
         )
         application = app_query.scalar_one_or_none()
         
-        if application and current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to access this folder"
-            )
+        # if application and current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to access this folder"
+        #     )
     
     return FolderResponse.from_orm(folder)
 
@@ -363,11 +363,11 @@ async def create_folder(
                 detail="Application not found"
             )
         
-        if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to create folders for this application"
-            )
+        # if current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to create folders for this application"
+        #     )
     
     # Check if parent folder exists and belongs to same application
     if folder_data.parent_id:
@@ -439,11 +439,11 @@ async def update_folder(
         )
         application = app_query.scalar_one_or_none()
         
-        if application and current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this folder"
-            )
+        # if application and current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to update this folder"
+        #     )
     
     try:
         # Update folder fields
@@ -494,11 +494,11 @@ async def delete_folder(
         )
         application = app_query.scalar_one_or_none()
         
-        if application and current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this folder"
-            )
+        # if application and current_user.role not in ["admin", "manager"] and application.user_id != current_user.id:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="Not authorized to delete this folder"
+        #     )
     
     # Check if folder is empty
     if folder.files or folder.children:

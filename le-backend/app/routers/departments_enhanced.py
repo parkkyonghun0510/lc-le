@@ -20,13 +20,6 @@ async def create_department(
     db: AsyncSession = Depends(get_db)
 ) -> DepartmentResponse:
     if current_user.role not in ["admin", "manager"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to create departments"
-    #     )
-    
-    # Check if department name already exists
-    result = await db.execute(
         select(Department).where(Department.name == department.name)
     )
     if result.scalar_one_or_none():
@@ -232,12 +225,6 @@ async def update_department(
     db: AsyncSession = Depends(get_db)
 ) -> DepartmentResponse:
     if current_user.role not in ["admin", "manager"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to update departments"
-    #     )
-    
-    result = await db.execute(
         select(Department).where(Department.id == department_id)
     )
     department = result.scalar_one_or_none()
@@ -286,12 +273,6 @@ async def delete_department(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, str]:
     if current_user.role != "admin":
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to delete departments"
-    #     )
-    
-    result = await db.execute(
         select(Department).where(Department.id == department_id)
     )
     department = result.scalar_one_or_none()

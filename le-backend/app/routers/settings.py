@@ -301,12 +301,6 @@ async def create_setting(
     """
     Create a new setting (admin only)
     """
-    if current_user.role != 'admin':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Only administrators can create settings"
-    #     )
-    
     try:
         # Check if setting already exists
         existing_query = select(Setting).where(Setting.key == setting_data.key)
@@ -349,7 +343,7 @@ async def create_setting(
             "created_at": new_setting.created_at.isoformat(),
             "updated_at": new_setting.updated_at.isoformat()
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -626,12 +620,6 @@ async def update_setting(
     """
     Update an existing setting (admin only)
     """
-    if current_user.role != 'admin':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Only administrators can update settings"
-    #     )
-    
     try:
         # Find existing setting
         query = select(Setting).where(Setting.key == key)
@@ -684,12 +672,6 @@ async def bulk_update_settings(
     """
     Bulk update multiple settings (admin only)
     """
-    if current_user.role != 'admin':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Only administrators can update settings"
-    #     )
-    
     try:
         updated_settings = {}
         
@@ -753,12 +735,6 @@ async def delete_setting(
     """
     Delete a setting (admin only)
     """
-    if current_user.role != 'admin':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Only administrators can delete settings"
-    #     )
-    
     try:
         # Find existing setting
         query = select(Setting).where(Setting.key == key)
@@ -793,12 +769,6 @@ async def initialize_default_settings(
     """
     Initialize default settings (admin only)
     """
-    if current_user.role != 'admin':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Only administrators can initialize settings"
-    #     )
-    
     try:
         created_count = 0
         skipped_count = 0
@@ -857,9 +827,9 @@ async def get_all_settings(
         query = select(Setting)
         
         # Non-admin users can only see public settings
-        if current_user.role != 'admin':
-            query = query.where(Setting.is_public == True)
+        # query = query.where(Setting.is_public == True)
         
+
         # Filter by category if provided
         if category:
             query = query.where(Setting.category == category)
@@ -902,8 +872,7 @@ async def get_setting_categories(
         query = select(Setting.category).distinct()
         
         # Non-admin users can only see categories with public settings
-        if current_user.role != 'admin':
-            query = query.where(Setting.is_public == True)
+        # query = query.where(Setting.is_public == True)
         
         result = await db.execute(query)
         categories = [row[0] for row in result.fetchall()]
@@ -929,8 +898,7 @@ async def get_setting(
         query = select(Setting).where(Setting.key == key)
         
         # Non-admin users can only see public settings
-        if current_user.role != 'admin':
-            query = query.where(Setting.is_public == True)
+        # query = query.where(Setting.is_public == True)
         
         result = await db.execute(query)
         setting = result.scalar_one_or_none()

@@ -24,12 +24,6 @@ async def get_performance_status(
 ):
     """Get overall system performance status"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view performance status"
-    #     )
-    
-    try:
         # Get connection pool stats
         pool_stats = await connection_monitor.get_current_stats()
         
@@ -60,12 +54,6 @@ async def get_connection_pool_stats(
 ):
     """Get current connection pool statistics"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view connection pool stats"
-    #     )
-    
-    try:
         stats = await connection_monitor.get_current_stats()
         return stats
     except Exception as e:
@@ -81,12 +69,6 @@ async def get_connection_pool_history(
 ):
     """Get historical connection pool statistics"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view connection pool history"
-    #     )
-    
-    try:
         history = await connection_monitor.get_historical_stats(hours)
         return history
     except Exception as e:
@@ -101,12 +83,6 @@ async def get_connection_pool_recommendations(
 ):
     """Get connection pool optimization recommendations"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view connection pool recommendations"
-    #     )
-    
-    try:
         recommendations = await connection_monitor.get_optimization_recommendations()
         return {"recommendations": recommendations}
     except Exception as e:
@@ -122,12 +98,6 @@ async def start_connection_pool_monitoring(
 ):
     """Start connection pool monitoring"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to start connection pool monitoring"
-    #     )
-    
-    try:
         await connection_monitor.start_monitoring(interval)
         return {"message": f"Connection pool monitoring started with {interval}s interval"}
     except Exception as e:
@@ -142,12 +112,6 @@ async def stop_connection_pool_monitoring(
 ):
     """Stop connection pool monitoring"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to stop connection pool monitoring"
-    #     )
-    
-    try:
         await connection_monitor.stop_monitoring()
         return {"message": "Connection pool monitoring stopped"}
     except Exception as e:
@@ -165,12 +129,6 @@ async def run_performance_benchmarks(
 ):
     """Run performance benchmarks"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to run performance benchmarks"
-    #     )
-    
-    try:
         if suite == "comprehensive":
             # Run all benchmark suites
             background_tasks.add_task(
@@ -204,12 +162,6 @@ async def get_benchmark_results(
 ):
     """Get benchmark results"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view benchmark results"
-    #     )
-    
-    try:
         history = await benchmark_service.get_benchmark_history(hours)
         summary = await benchmark_service.get_performance_summary()
         
@@ -229,12 +181,6 @@ async def get_background_jobs_status(
 ):
     """Get background job service status"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view background job status"
-    #     )
-    
-    try:
         stats = await job_service.get_job_statistics()
         return stats
     except Exception as e:
@@ -250,12 +196,6 @@ async def start_background_jobs(
 ):
     """Start background job workers"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to start background jobs"
-    #     )
-    
-    try:
         await job_service.start_workers(num_workers)
         return {"message": f"Background job workers started with {num_workers} workers"}
     except Exception as e:
@@ -270,12 +210,6 @@ async def stop_background_jobs(
 ):
     """Stop background job workers"""
     if current_user.role not in ["admin"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to stop background jobs"
-    #     )
-    
-    try:
         await job_service.stop_workers()
         return {"message": "Background job workers stopped"}
     except Exception as e:
@@ -295,12 +229,6 @@ async def submit_background_job(
 ):
     """Submit a background job"""
     if current_user.role not in ["admin", "manager"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to submit background jobs"
-    #     )
-    
-    try:
         from app.services.background_job_service import JobPriority
         
         priority_enum = JobPriority(priority.lower())
@@ -335,12 +263,6 @@ async def get_background_job_status(
 ):
     """Get status of a specific background job"""
     if current_user.role not in ["admin", "manager"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to view job status"
-    #     )
-    
-    try:
         status = await job_service.get_job_status(job_id)
         if not status:
             raise HTTPException(
@@ -363,12 +285,6 @@ async def cancel_background_job(
 ):
     """Cancel a background job"""
     if current_user.role not in ["admin", "manager"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not authorized to cancel jobs"
-    #     )
-    
-    try:
         success = await job_service.cancel_job(job_id)
         if not success:
             raise HTTPException(

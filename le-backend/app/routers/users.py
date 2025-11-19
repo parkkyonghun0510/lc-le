@@ -612,7 +612,7 @@ async def test_notification_system(
 ):
     """Test notification system (admin only)"""
     """Test notification system (admin only)"""
-    # if current_user.role != "admin":
+    # # if current_user.role != "admin":
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to test notification system"
@@ -631,7 +631,7 @@ async def send_onboarding_reminders(
 ):
     """Send onboarding reminders to overdue users (admin/manager only)"""
     """Send onboarding reminders to overdue users (admin/manager only)"""
-    # if current_user.role not in ["admin", "manager"]:
+    # # if current_user.role not in ["admin", "manager"]:
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to send onboarding reminders"
@@ -732,7 +732,7 @@ async def send_notification_to_users(
 ):
     """Send notification to multiple users (admin/manager only)"""
     """Send notification to multiple users (admin/manager only)"""
-    # if current_user.role not in ["admin", "manager"]:
+    # # if current_user.role not in ["admin", "manager"]:
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to send notifications to other users"
@@ -779,7 +779,7 @@ async def send_notification_to_department(
 ):
     """Send notification to all users in a department (admin/manager only)"""
     """Send notification to all users in a department (admin/manager only)"""
-    # if current_user.role not in ["admin", "manager"]:
+    # # if current_user.role not in ["admin", "manager"]:
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to send notifications to departments"
@@ -845,7 +845,7 @@ async def send_notification_to_branch(
     db: AsyncSession = Depends(get_db)
 ):
     """Send notification to all users in a branch (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to send notifications to branches"
@@ -911,7 +911,7 @@ async def send_notification_to_all_users(
     db: AsyncSession = Depends(get_db)
 ):
     """Send notification to all active users (admin only)"""
-    if current_user.role != "admin":
+    # if current_user.role != "admin":
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to send notifications to all users"
@@ -1510,7 +1510,7 @@ async def soft_delete_user(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    if current_user.role != "admin":
+    # if current_user.role != "admin":
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to delete users"
@@ -1554,7 +1554,7 @@ async def restore_soft_deleted_user(
     db: AsyncSession = Depends(get_db)
 ) -> dict:
     """Restore a soft-deleted user (admin only)"""
-    if current_user.role != "admin":
+    # if current_user.role != "admin":
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to restore users"
@@ -1597,7 +1597,7 @@ async def permanent_delete_user(
     db: AsyncSession = Depends(get_db)
 ) -> dict:
     """Permanently delete a user from the database (admin only)"""
-    if current_user.role != "admin":
+    # if current_user.role != "admin":
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Not authorized to permanently delete users"
@@ -1694,7 +1694,7 @@ async def export_users_csv(
     import csv
     import io
     
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to export user data"
@@ -1871,7 +1871,7 @@ async def complete_user_onboarding(
     db: AsyncSession = Depends(get_db)
 ):
     """Mark user onboarding as complete"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to complete user onboarding"
@@ -1888,7 +1888,7 @@ async def restart_user_onboarding(
     db: AsyncSession = Depends(get_db)
 ):
     """Restart user onboarding process"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to restart user onboarding"
@@ -1996,7 +1996,7 @@ async def get_onboarding_summary(
     db: AsyncSession = Depends(get_db)
 ):
     """Get onboarding summary statistics"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view onboarding summary"
@@ -2023,7 +2023,7 @@ async def initiate_user_offboarding(
     db: AsyncSession = Depends(get_db)
 ):
     """Initiate offboarding process for a user"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to initiate user offboarding"
@@ -2040,7 +2040,7 @@ async def complete_user_offboarding(
     db: AsyncSession = Depends(get_db)
 ):
     """Complete offboarding process and archive user"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to complete user offboarding"
@@ -2298,7 +2298,7 @@ async def import_users_csv(
     db: AsyncSession = Depends(get_db)
 ):
     """Import users from CSV file"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to import user data"
@@ -2455,7 +2455,7 @@ async def download_csv_template(
     current_user: User = Depends(get_current_user)
 ):
     """Download CSV template for user import"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to download CSV template"
@@ -2522,7 +2522,7 @@ async def get_user_activity_metrics(
     db: AsyncSession = Depends(get_db)
 ):
     """Get comprehensive user activity metrics (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view user analytics"
@@ -2562,7 +2562,7 @@ async def get_organizational_metrics(
     db: AsyncSession = Depends(get_db)
 ):
     """Get organizational metrics and distribution (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view organizational analytics"
@@ -2602,7 +2602,7 @@ async def send_welcome_notification(
     db: AsyncSession = Depends(get_db)
 ):
     """Send welcome notification to user (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to send welcome notifications"
@@ -2644,7 +2644,7 @@ async def get_activity_trends(
     db: AsyncSession = Depends(get_db)
 ):
     """Get activity trends over time (admin/manager only)"""
-    if current_user.role not in ["admin", "manager"]:
+    # if current_user.role not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view activity trends"
